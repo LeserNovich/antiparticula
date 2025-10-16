@@ -1,0 +1,490 @@
+/* - - - - -PAGINA PUNTO VENTA - - - - - */
+
+
+
+.glass-body {
+            font-family: 'Montserrat', sans-serif;
+            color: #fff;
+            /* Fondo dinámico y oscuro */
+            background: linear-gradient(115deg, #1d2b4a, #2c6e95, #121a2a);
+            background-size: 400% 400%;
+            animation: gradient-animation 15s ease infinite;
+        }
+
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Header flotante */
+        .glass-header {
+            position: absolute;
+            width: 100%;
+            z-index: 10;
+        }
+        .glass-header nav a, .glass-header .fa-solid { color: #ffffff !important; }
+        .glass-header .nav-links ul li a { color: #ffffff; }
+        .glass-header .nav-links ul li::after { background: #ffffff; }
+        .glass-header .fa-bars { color: #ffffff; }
+
+        /* Estructura general */
+        .glass-section {
+            padding: 100px 6%;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        /* Hero Section */
+        .glass-hero {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 60px;
+        }
+
+        .hero-text-container {
+            max-width: 550px;
+            text-align: left;
+            z-index: 2;
+        }
+        
+       .hero-text-container .subtitle {
+    font-weight: 700;
+    font-size: 20px;
+    color: #a7d7ff;
+    margin-bottom: 15px;
+    letter-spacing: 1px;
+}
+
+
+        .hero-text-container h1 {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .hero-text-container p {
+            font-size: 18px;
+            font-weight: 300;
+            color: #ffffff;
+            margin-bottom: 35px;
+            padding: 0;
+        }
+
+        .hero-image-container {
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .hero-image-container img {
+            max-width: 450px;
+            filter: drop-shadow(0 30px 20px rgba(0,0,0,0.3));
+            animation: float-animation 6s ease-in-out infinite;
+        }
+        
+        @keyframes float-animation {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-25px); }
+        }
+
+        /* Panel de Cristal Genérico */
+        .glass-panel {
+            /* Efecto Glassmorphism */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            padding: 35px;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-panel:hover {
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Títulos */
+        .glass-title {
+            font-size: 36px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        .glass-subtitle {
+            font-size: 18px;
+            color: #ffffff;
+            max-width: 700px;
+            margin: 0 auto 60px auto;
+            line-height: 1.6;
+        }
+        
+        /* Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            text-align: left;
+        }
+        
+        .features-grid .glass-panel i {
+            font-size: 32px;
+            color: #a7d7ff;
+            margin-bottom: 20px;
+        }
+
+        .features-grid .glass-panel h3 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .features-grid .glass-panel p {
+            font-size: 16px;
+            line-height: 1.7;
+            color: #ffffff;
+            padding: 0;
+        }
+
+        /* Video */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+
+        /* Botones */
+        .glass-btn {
+            padding: 15px 35px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background-color: #ffffff;
+            color: #1d2b4a;
+        }
+        .btn-primary:hover {
+            background-color: #e0e0e0;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+        }
+       .btn-secondary:hover {
+            background-color: #ffffff;
+            color: #202936;
+            transform: translateY(-3px);
+        }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            html, body {overflow-x: hidden;}
+            html, .elite-body {
+                overflow-x: hidden;
+            }
+            html, .glass-body {
+                overflow-x: hidden;
+            }
+            html, .ethereal-body {
+                overflow-x: hidden;
+            }
+            .glass-hero {
+                flex-direction: column;
+                text-align: center;
+            }
+            .hero-text-container {
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hero-image-container img {
+                max-width: 350px;
+            }
+        }
+
+
+/* === ESTILOS PARA LA NUEVA SECCIÓN DE OFERTA === */
+.discount-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 30px;
+    background: rgba(167, 215, 255, 0.1); /* Un fondo sutilmente diferente */
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(167, 215, 255, 0.3);
+    padding: 30px 40px;
+    text-align: left;
+}
+
+.discount-panel .discount-icon {
+    font-size: 40px;
+    color: #a7d7ff;
+}
+
+.discount-panel .discount-text {
+    flex-grow: 1;
+}
+
+.discount-panel h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 5px 0;
+}
+
+.discount-panel p {
+    font-size: 16px;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+.coupon-code {
+    background-color: transparent;
+    border: 2px dashed #a7d7ff;
+    color: #fff;
+    padding: 12px 25px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+/* === ESTILOS PARA CORREGIR Y MEJORAR LA SECCIÓN DE PRECIOS === */
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    align-items: stretch; /* Asegura que las tarjetas tengan la misma altura */
+}
+
+.pricing-card {
+    display: flex;
+    flex-direction: column; /* Organiza el contenido de la tarjeta verticalmente */
+    text-align: left;
+    padding: 40px 30px;
+    position: relative; /* Necesario para la insignia "Más Popular" */
+    overflow: hidden; /* Necesario para la insignia */
+}
+
+.pricing-card h3 {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 25px;
+}
+
+.price-tag {
+    font-size: 52px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.price-period {
+    font-size: 18px;
+    font-weight: 500;
+    color: #e0e0e0;
+}
+
+.billing-cycle {
+    color: #a7d7ff;
+    min-height: 25px;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 30px 0;
+    flex-grow: 1; /* Empuja el botón hacia abajo */
+}
+
+.features-list li {
+    margin-bottom: 12px;
+    font-size: 15px;
+}
+
+.features-list i {
+    color: #a7d7ff;
+    margin-right: 10px;
+}
+
+/* Insignia para el plan recomendado */
+.popular-badge {
+    position: absolute;
+    top: 18px;
+    right: -45px;
+    background-color: #a7d7ff;
+    color: #1d2b4a;
+    padding: 6px 40px;
+    transform: rotate(45deg);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.pricing-card.recommended {
+    border-color: #a7d7ff; /* Resalta el plan más popular */
+}
+
+/* === ESTILOS PARA LA NUEVA SECCIÓN DE OFERTA === */
+.discount-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 30px;
+    background: rgba(167, 215, 255, 0.1); /* Un fondo sutilmente diferente */
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(167, 215, 255, 0.3);
+    padding: 30px 40px;
+    text-align: left;
+}
+
+/* NUEVO ESTILO PARA LA OFERTA INTEGRADA */
+.integrated-offer {
+    margin-bottom: 50px; /* Aumenta el espacio entre la oferta y los planes */
+}
+
+
+.discount-panel .discount-icon {
+    font-size: 40px;
+    color: #a7d7ff;
+}
+
+.discount-panel .discount-text {
+    flex-grow: 1;
+}
+
+.discount-panel h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 5px 0;
+}
+
+.discount-panel p {
+    font-size: 16px;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+.coupon-code {
+    background-color: transparent;
+    border: 2px dashed #a7d7ff;
+    color: #fff;
+    padding: 12px 25px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+/* === ESTILOS PARA CORREGIR Y MEJORAR LA SECCIÓN DE PRECIOS === */
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    align-items: stretch; /* Asegura que las tarjetas tengan la misma altura */
+}
+
+.pricing-card {
+    display: flex;
+    flex-direction: column; /* Organiza el contenido de la tarjeta verticalmente */
+    text-align: left;
+    padding: 40px 30px;
+    position: relative; /* Necesario para la insignia "Más Popular" */
+    overflow: hidden; /* Necesario para la insignia */
+}
+
+/* === ESTILOS PARA LA NUEVA SECCIÓN DE CONTACTO POR WHATSAPP === */
+
+.contact-form-container {
+    max-width: 700px; /* Ancho ajustado para la nueva versión */
+    margin: 0 auto;
+    text-align: left;
+}
+
+.whatsapp-sender .input-group {
+    width: 100%;
+    margin-bottom: 25px; /* Espacio entre el campo de texto y el botón */
+}
+
+.whatsapp-sender .input-group label {
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.contact-input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #ffffff;
+    font-size: 16px;
+    font-family: 'Montserrat', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.contact-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.contact-input:focus {
+    outline: none;
+    border-color: #a7d7ff;
+    box-shadow: 0 0 15px rgba(167, 215, 255, 0.2);
+}
+
+textarea.contact-input {
+    resize: vertical; /* Permite al usuario ajustar la altura */
+}
+
+/* Estilo para el ícono de WhatsApp dentro del botón */
+.glass-btn .fa-whatsapp {
+    margin-right: 10px;
+    font-size: 1.2em;
+    vertical-align: middle;
+}
+
+strong {
+    font-weight: 600;
+}
+

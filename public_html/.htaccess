@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Excepción para puntodeventa
+RewriteRule ^puntodeventa/?$ /paginas/puntodeventa.html [L,NC]
+
+# Regla genérica para todos los productos
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/?$ /paginas/detail.html?slug=$1 [NC,L]
+
+# Página de error personalizada
+ErrorDocument 404 /paginas/404.html

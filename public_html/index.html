@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Escala tu negocio con los mejores ingenieros de software. Antipartícula es una organización de servicios de tecnología, consultoría y soluciones comerciales."/>
+    <meta name="keywords" content="software, desarrollo, web, aplicaciones"/>
+
+    <meta property="og:image" content="https://antiparticula.com/img/programando.jpg"/>
+    <meta property="og:url" content="https://antiparticula.com/"/>
+    <meta property="og:title" content="Antipartícula | Desarrollo de software"/>
+    <meta property="og:description" content="Escala tu negocio con los mejores ingenieros de software. Antipartícula es una organización de servicios de tecnología, consultoría y soluciones comerciales."/>
+    <meta property="og:type" content="website">
+    
+    <link rel="shortcut icon" href="img/A.png" type="image/x-icon">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/mensaje-exito.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
+    <title>Antipartícula | Desarrollo de software</title>
+    
+</head>
+
+<body>
+    <section class="header">
+        <nav>
+            <a href="index.html"><img src="img/A.png" alt="logo" class="logo"></a>
+            <div class="nav-links" id="navLinks">
+                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
+                <ul>
+                    <li><a href="./paginas/queHacemos.html">¿Qué hacemos?</a></li>
+                    <li><a href="./paginas/quienes-somos.html">¿Quiénes somos?</a></li>
+                    <li><a href="./paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li><a href="./paginas/contacto.html">Contáctanos</a></li>
+                </ul>
+            </div>
+            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
+        </nav>
+
+        <!--AQUI INICIA EL CARD-->
+        <div class="blog-slider">
+            <div class="blog-slider__wrp swiper-wrapper">
+
+                <div class="blog-slider__item swiper-slide">
+                    <div class="blog-slider__img">
+                        <img src="img/Captura.PNG" alt="Imagen que representa crecer un negocio">
+                    </div>
+                    <div class="blog-slider__content">
+                        <div class="blog-slider__title">
+                            <h1>Antipartícula</h1>
+                        </div>
+                        <div class="blog-slider__text">Escala tu negocio con los mejores ingenieros de software.</div>
+                        <a href="paginas/queHacemos.html" class="blog-slider__button">¿Qué hacemos?</a>
+                    </div>
+                </div>
+
+                <div class="blog-slider__item swiper-slide">
+                    <div class="blog-slider__img">
+                        <img src="img/foco.jpg" alt="Imagen que representa una idea">
+                    </div>
+                    <div class="blog-slider__content">
+                        <div class="blog-slider__title">Te tenemos cubierto</div>
+                        <div class="blog-slider__text">Nuestras habilidades cubren todas las necesidades del mercado.
+                        </div>
+                        <a href="paginas/queHacemos.html#servicios" class="blog-slider__button">Servicios</a>
+                    </div>
+                </div>
+
+                <div class="blog-slider__item swiper-slide">
+                    <div class="blog-slider__img">
+                        <img src="img/suenia.PNG" alt="Imagen que representa un sueño">
+                    </div>
+                    <div class="blog-slider__content">
+                        <div class="blog-slider__title">Te ayudamos a soñar</div>
+                        <div class="blog-slider__text">Cumple tus metas y objetivos. Déjanos saber que necesitas y
+                            encontraremos la mejor solución para ti.</div>
+                        <a href="./paginas/contacto.html" class="blog-slider__button">Contáctanos</a>
+                    </div>
+                </div>
+            </div>
+            <div class="blog-slider__pagination"></div>
+        </div>
+    </section>
+
+    <div class="course">
+        <div class="blog-slider__title">Descubre qué nos hace diferentes.</div>
+    </div>
+    <div class="body">
+        <div class="container">
+            <div class="card">
+                <div class="circle">
+                    <h2>Servicios IT</h2>
+                </div>
+                <div class="content">
+                    <p>Servicios de tecnología y consultoría.</p>
+                    <p>Transformamos y potenciamos empresas.</p>
+                    <a href="paginas/queHacemos.html#servicios">Servicios</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="circle">
+                    <h2>Software a medida</h2>
+                </div>
+                <div class="content">
+                    <p>Empresas de todos los tamaños. </p>
+                    <p>Desde pymes y startups hasta grandes corporaciones.</p>
+                    <a href="./paginas/contacto.html">Contáctanos</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="circle">
+                    <h2>Listo para usar</h2>
+                </div>top
+                <div class="content">
+                    <p>Descarga nuestro software que ya hemos hecho para ti.</p>
+                    <p>Instala y usa.</p>
+                    <a href="./paginas/software.html">Software</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="services" class="service">
+        <div class="row">
+            <div class="image">
+                <img src="./img/personita.svg" alt="">
+            </div>
+            <div class="content">
+                <h3>¿Quiénes somos?</h3>
+                <p> Antipartícula es una organización de servicios tecnológicos y consultoría dedicada a la
+                    transformación
+                    y fortalecimiento de empresas mediante diversas tecnologías.</p>
+                <a href="./paginas/quienes-somos.html"><button class="btn">Conócenos</button></a>
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="contentDown">
+                <h3>¿Qué hacemos?</h3>
+                <p>Brindamos desarrollo de software de alta calidad utilizando las mejores técnicas de ingeniería y
+                    prácticas humanas, con talentosos profesionales egresados de las mejores universidades y un equipo
+                    de ingenieros expertos.</p>
+                <a href="paginas/queHacemos.html"><button class="btn">Conócenos</button></a>
+            </div>
+            <div class="image">
+                <img src="./img/quehacemos.svg" alt="imagen De que hacemos">
+            </div>
+        </div>
+    </section>
+
+
+    <footer>
+        <div class="rowFooter">
+            <div class="colFooter">
+                <img src="../img/A.png" alt="logo de antiparticula" class="logoFooter">
+                <p>Transformamos la economía de nuestros países impulsando empresas a la transformacion digital. <br>
+                    <br> Con   <i class="fa-regular fa-heart" style="color: #ffffff;"></i>   para LATAM
+                </p>
+            </div>
+            <div class="colFooter">
+                <h3>Nuestra oficina <div class="underline"><span></span></div></h3>
+                <p>Tecámac, Estado de México</p>
+                <p class="email-id"> contacto&commat;antiparticula.com</p>
+                <h4>+52 (55) 8432 3945</h4>
+            </div>
+            <div class="colFooter">
+                <h3>Menú<div class="underline"><span></span></div>
+                </h3>
+                <ul>
+                    <li><a href="paginas/queHacemos.html">¿Qué hacemos?</a></li>
+                    <li><a href="./paginas/quienes-somos.html">¿Quiénes somos?</a></li>
+                    <li><a href="./paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li><a href="./paginas/contacto.html">Contáctanos</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Solícita información<div class="underline"><span></span></div>
+                </h3>
+                <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST">
+                    <i class="fa-regular fa-envelope"></i>
+                    <input type="email" placeholder="Ingresa tu imail" required name="Correo">
+                    <button type="submit"><i class="fa-solid fa-arrow-right"></i></button>
+                    <input type="hidden" name="_next" value="https://antiparticula.com/index.html?enviado=true">
+                    <input type="hidden" name="_captcha" value="false">
+                </form>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/antiparticular" target="_blank" class="fa-brands fa-facebook-f"></a>
+                    <a href="https://www.instagram.com/antiparticular/" target="_blank" class="fa-brands fa-instagram"></a>
+                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" class="fa-brands fa-tiktok"></a>
+                    <a href="https://wa.me/5584323945" target="_blank" class="fa-brands fa-whatsapp"></a>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
+    </footer>
+
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/js/swiper.min.js"></script>
+    <script src="./js/script.js"></script>
+    <script src="./js/mensaje-exito.js"></script>
+    <script src="https://kit.fontawesome.com/1d197b94ec.js" crossorigin="anonymous"></script>
+</body>
+
+</html>

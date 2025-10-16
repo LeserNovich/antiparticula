@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contácta ingenieros de software. Todos nuestros ingenieros estan altamente capacitados en las mejores tecnologías."/>
+    <meta name="keywords" content="software, desarrollo, web, aplicaciones"/>
+    
+    <meta property="og:image" content="https://antiparticula.com/img/programando.jpg"/>
+    <meta property="og:url" content="https://antiparticula.com/paginas/contacto.html"/>
+    <meta property="og:title" content="Antipartícula | Desarrollo de software"/>
+    <meta property="og:description" content="Contácta ingenieros de software. Todos nuestros ingenieros estan altamente capacitados en las mejores tecnologías."/>
+    <meta property="og:type" content="website">
+    
+    <link rel="shortcut icon" href="../img/A.png" type="image/x-icon">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/mensaje-exito.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
+    <title>Antipartícula | Desarrollo de software</title>
+    
+</head>
+
+<body>
+    <section class="header">
+        <nav>
+            <a href="../index.html"><img src="../img/A.png" alt="logo" class="logo"></a>
+            <div class="nav-links" id="navLinks">
+                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
+                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
+                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li><a href="#">Contáctanos</a></li>
+                </ul>
+            </div>
+            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
+        </nav>
+
+        <div class="container-contact">
+            <div class="contact-box-toggle">
+                <div class="contact-toggle">
+                    <button class="toggle-btn" data-target="email">
+                        <i class="fa-solid fa-envelope"></i> Correo Electrónico
+                    </button>
+                    <button class="toggle-btn active" data-target="whatsapp">
+                        <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                    </button>
+                </div>
+                
+                <div class="panels-wrapper">
+                    <div class="contact-panel" id="email">
+                        <div class="right">
+                            <h2 class="titulo-contacto">Escríbenos un Correo</h2>
+                            <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST" id="contactForm">
+                                <input type="text" class="field" name="Nombre" placeholder="Mi nombre" required>
+                                <input type="email" class="field" name="Correo" placeholder="mi@email.com" required>
+                                <input type="number" class="field" name="Numero" placeholder="Mi número" required>
+                                <textarea class="field area" name="Mensaje" placeholder="Mi mensaje"></textarea>
+                                <button class="btn-contacto" type="submit">Enviar</button>
+                                <input type="hidden" name="_next" value="https://antiparticula.com/paginas/contacto.html?enviado=true">
+                                <input type="hidden" name="_captcha" value="false">
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="contact-panel active" id="whatsapp">
+                         <div class="left-whatsapp">
+                            <h2 class="titulo-contacto">Envíanos un WhatsApp</h2>
+                            <p class="whatsapp-text">Inicia una conversación directa con nosotros. ¡Estamos listos para ayudarte!</p>
+                            <a href="https://wa.me/5215584323945?text=Hola,%20me%20gustaría%20saber%20más%20sobre%20sus%20servicios." target="_blank" class="btn-whatsapp">
+                                <i class="fa-brands fa-whatsapp"></i> Chatear Ahora
+                            </a>
+                            <p class="whatsapp-note">Serás redirigido a WhatsApp para continuar.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </section>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/js/swiper.min.js"></script>
+    <script src="../js/script.js"></script>
+    <script src="../js/mensaje-exito.js"></script>
+    <script src="https://kit.fontawesome.com/1d197b94ec.js" crossorigin="anonymous"></script>
+</body>
+
+</html>
