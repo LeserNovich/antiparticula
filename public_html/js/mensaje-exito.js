@@ -29,6 +29,18 @@ function descargarPrueba() {
     // Mostrar mensaje de descarga iniciada
     mostrarMensajeDescarga();
 }
+function descargarFuncional() {
+    
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.href = '../downloads/Antiparticua_PuntoDeVenta.exe';
+    link.download = 'Antiparticua_PuntoDeVenta.exe';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    // Mostrar mensaje de descarga iniciada
+    mostrarMensajeDescarga();
+}
 
 function mostrarMensajeDescarga() {
     // Crear overlay de fondo
