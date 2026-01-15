@@ -27,24 +27,24 @@
           "offers": [
             {
               "@type": "Offer",
-              "name": "Prueba Completa",
+              "name": "Versión Gratuita",
               "price": "0",
               "priceCurrency": "MXN",
-              "description": "Prueba gratuita por 3 meses con todas las funciones incluidas."
+              "description": "Versión gratuita para siempre con todas las funciones principales incluidas."
             },
             {
               "@type": "Offer",
-              "name": "Plan Semestral",
+              "name": "Plan Premium Semestral",
               "price": "954",
               "priceCurrency": "MXN",
-              "description": "Facturado cada 6 meses. Incluye todas las funciones y soporte prioritario."
+              "description": "Facturado cada 6 meses. Incluye importación y exportación ilimitada de productos vía Excel."
             },
             {
               "@type": "Offer",
-              "name": "Plan Anual",
+              "name": "Plan Premium Anual",
               "price": "1669",
               "priceCurrency": "MXN",
-              "description": "Facturado anualmente con un 12% de ahorro. Incluye todas las funciones y soporte prioritario."
+              "description": "Facturado anualmente con un 12% de ahorro. Incluye importación y exportación ilimitada de productos vía Excel."
             }
           ]
         },
@@ -103,14 +103,16 @@
     <main>
         <section class="glass-hero glass-section">
             <div class="hero-text-container">
-                <p class="subtitle">SOFTWARE PUNTO DE VENTA ANTIPARTICULA</p>
-                <h1>Punto de Venta para Abarrotes, Ferreterías, Farmacias y más</h1>
-                <p><strong>Ultra simplicidad para que cualquier persona lo use.</strong> Olvida los sistemas anticuados.</p>
-                <p>Toma el control total de tu inventario, ventas y clientes con una interfaz moderna diseñada específicamente para tu negocio.</p>
-                <p>Ideal para tiendas de abarrotes, ferreterías, farmacias, minisupers, tlapalerías y más. ¡Moderniza tu negocio hoy!</p>
-                <div style="display: flex; gap: 15px; justify-content: flex-start;">
-                    <a href="#pricing" class="glass-btn btn-primary">Ver Planes y Precios</a>
-                    <button class="glass-btn btn-secondary" onclick="descargarPrueba()">Descargar Prueba Gratuita</button>
+                <p class="subtitle">GRATIS PARA SIEMPRE</p>
+                <h1>Punto de Venta Moderno y Minimalista</h1>
+                <p><strong>Sin pagos mensuales. Sin sorpresas. 100% funcional.</strong></p>
+                <p>Control total de tu inventario, ventas y clientes con la interfaz más simple y elegante del mercado.</p>
+                <p>Perfecto para abarrotes, ferreterías, farmacias, minisupers y más.</p>
+                <div style="display: flex; gap: 15px; justify-content: flex-start; margin-top: 40px;">
+                    <button class="glass-btn btn-primary" onclick="descargarPrueba()">
+                        <i class="fa-solid fa-download"></i> Descargar Gratis
+                    </button>
+                    <a href="#pricing" class="glass-btn btn-secondary">Ver Premium</a>
                 </div>
             </div>
             <div class="hero-image-container">
@@ -151,62 +153,53 @@
         </section>
 
         <section id="pricing" class="glass-section">
-            <h2 class="glass-title">Planes y Precios Accesibles para tu Negocio</h2>
-            <p class="glass-subtitle">Comienza con una prueba gratuita o elige un plan de pago con todas las funcionalidades. Aprovecha nuestra oferta especial de lanzamiento.</p>
-            
-            <div class="discount-panel integrated-offer">
-                <div class="discount-icon">
-                    <i class="fa-solid fa-rocket"></i>
-                </div>
-                <div class="discount-text">
-                    <h2>Oferta de Lanzamiento: 35% de Descuento</h2>
-                    <p>Válido en tu primer plan semestral o anual. ¡No dejes pasar la oportunidad!</p>
-                </div>
-                <div class="coupon-code">
-                    Usa el código: <strong>PRIMERAVEZ</strong>
-                </div>
-            </div>
+            <h2 class="glass-title">Simple y Transparente</h2>
+            <p class="glass-subtitle">Usa gratis para siempre o mejora a Premium para importar/exportar productos en Excel sin límites.</p>
 
             <div class="pricing-grid">
                 <div class="glass-panel pricing-card">
-                    <h3>Prueba Gratuita Completa</h3>
-                    <div class="price-tag">$0 <span class="price-period">/ MXN mes</span></div>
-                    <p class="billing-cycle">Gratis por 3 meses</p>
+                    <h3>Versión Gratuita</h3>
+                    <div class="price-tag">$0 <span class="price-period">para siempre</span></div>
+                    <p class="billing-cycle">Sin pagos. Sin vencimientos.</p>
                     <ul class="features-list">
-                        <li><i class="fa-solid fa-check"></i> Todas las funciones del sistema</li>
-                        <li><i class="fa-solid fa-check"></i> Soporte técnico por correo</li>
-                        <li><i class="fa-solid fa-check"></i> Sin necesidad de tarjeta de crédito</li>
+                        <li><i class="fa-solid fa-check"></i> Gestión completa de inventario</li>
+                        <li><i class="fa-solid fa-check"></i> Ventas y reportes</li>
+                        <li><i class="fa-solid fa-check"></i> Control de clientes</li>
+                        <li><i class="fa-solid fa-check"></i> Actualizaciones gratuitas</li>
+                        <li><i class="fa-solid fa-check"></i> Soporte por correo</li>
                     </ul>
-                    <button class="glass-btn btn-secondary" onclick="descargarPrueba()" style="width: 100%;">
-                        <i class="fa-solid fa-download"></i>
-                        Iniciar Prueba Gratuita
+                    <button class="glass-btn btn-download" onclick="descargarPrueba()" style="width: 100%;">
+                        <i class="fa-solid fa-download"></i> Descargar Ahora
                     </button>
                 </div>
 
-                <div class="glass-panel pricing-card">
-                    <h3>Plan Semestral</h3>
-                    <div class="price-tag">$159 <span class="price-period">/ MXN mes</span></div>
-                    <p class="billing-cycle">Facturado cada 6 meses a $954 MXN</p>
-                     <ul class="features-list">
-                        <li><i class="fa-solid fa-check"></i> Todas las funciones incluidas</li>
-                        <li><i class="fa-solid fa-check"></i> Actualizaciones permanentes</li>
-                        <li><i class="fa-solid fa-check"></i> Soporte técnico prioritario</li>
-                    </ul>
-                    <a href="https://buy.stripe.com/fZuaEY6Oh8Ttbq44sDeUU04" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Contratar Plan Semestral</a>
-                </div>
-
                 <div class="glass-panel pricing-card recommended">
-                    <div class="popular-badge">Más Popular</div>
-                    <h3>Plan Anual</h3>
-                    <div class="price-tag">$139 <span class="price-period">/ MXN mes</span></div>
+                    <div class="popular-badge">Recomendado</div>
+                    <h3>Premium Anual</h3>
+                    <div class="price-tag">$139 <span class="price-period">/ mes</span></div>
                     <p class="billing-cycle">Facturado anualmente a $1,669 MXN</p>
                      <ul class="features-list">
-                        <li><i class="fa-solid fa-check"></i> <strong>Ahorra un 12% anualmente</strong></li>
-                        <li><i class="fa-solid fa-check"></i> Todas las funciones incluidas</li>
-                        <li><i class="fa-solid fa-check"></i> Actualizaciones permanentes</li>
-                        <li><i class="fa-solid fa-check"></i> Soporte técnico prioritario</li>
+                        <li><i class="fa-solid fa-check"></i> <strong>Todo de la versión gratuita</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Sin límites de productos</strong></li>
+                        <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
                     </ul>
-                    <a href="https://buy.stripe.com/28E8wQ3C57Pp3XC9MXeUU03" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Contratar Plan Anual</a>
+                    <a href="https://buy.stripe.com/28E8wQ3C57Pp3XC9MXeUU03" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Obtener Premium Anual</a>
+                </div>
+
+                <div class="glass-panel pricing-card">
+                    <h3>Premium Semestral</h3>
+                    <div class="price-tag">$159 <span class="price-period">/ mes</span></div>
+                    <p class="billing-cycle">Facturado cada 6 meses a $954 MXN</p>
+                     <ul class="features-list">
+                        <li><i class="fa-solid fa-check"></i> <strong>Todo de la versión gratuita</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel</strong></li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Sin límites de productos</strong></li>
+                        <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
+                    </ul>
+                    <a href="https://buy.stripe.com/fZuaEY6Oh8Ttbq44sDeUU04" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Obtener Premium Semestral</a>
                 </div>
             </div>
         </section>

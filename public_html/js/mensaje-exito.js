@@ -61,8 +61,8 @@ function mostrarMensajeDescarga() {
                     </div>
                     <div class="mensaje-texto">
                         <h3>¡Descarga iniciada!</h3>
-                        <p>Tu versión de prueba se está descargando. Esta versión tiene funcionalidad limitada.<br><br>
-                        Para obtener todas las características, adquiere la versión completa.</p>
+                        <p>Tu punto de venta gratis se está descargando. Usa todas las funciones sin límite de tiempo.<br><br>
+                        ¿Necesitas importar/exportar Excel? Mejora a Premium en cualquier momento.</p>
                     </div>
                     <div class="mensaje-botones">
                         <button class="btn-mensaje btn-primario" onclick="cerrarMensajeDescarga()">Entendido</button>
