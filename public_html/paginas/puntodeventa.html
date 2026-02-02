@@ -116,14 +116,22 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <main>
         <section class="glass-hero glass-section">
             <div class="hero-text-container">
+                <div class="windows-badge">
+                    <i class="fa-brands fa-windows"></i> Solo para Windows
+                </div>
                 <p class="subtitle">GRATIS PARA SIEMPRE</p>
                 <h1>Punto de Venta Moderno y Minimalista</h1>
                 <p><strong>Sin pagos mensuales. Sin sorpresas. 100% funcional.</strong></p>
                 <p>Control total de tu inventario, ventas y clientes con la interfaz más simple y elegante del mercado.</p>
                 <p>Perfecto para abarrotes, ferreterías, farmacias, minisupers y más.</p>
-                <div style="display: flex; gap: 15px; justify-content: flex-start; margin-top: 40px;">
+
+                <button class="glass-btn btn-cta-giant" onclick="solicitarLinkDescarga()">
+                    <i class="fa-brands fa-whatsapp"></i> Enviarme Link de Descarga por WhatsApp
+                </button>
+
+                <div style="display: flex; gap: 15px; justify-content: flex-start; margin-top: 20px;">
                     <button class="glass-btn btn-primary" onclick="descargarPrueba()">
-                        <i class="fa-solid fa-download"></i> Descargar Gratis
+                        <i class="fa-solid fa-download"></i> Descargar Ahora
                     </button>
                     <a href="#pricing" class="glass-btn btn-secondary">Ver Premium</a>
                 </div>
@@ -218,6 +226,13 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                     </ul>
                     <a href="https://buy.stripe.com/fZuaEY6Oh8Ttbq44sDeUU04" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Obtener Premium Semestral</a>
                 </div>
+            </div>
+
+            <div class="cta-secondary-container">
+                <p class="cta-text">¿Prefieres que te enviemos el link de descarga?</p>
+                <button class="glass-btn btn-cta-secondary" onclick="solicitarLinkDescarga()">
+                    <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+                </button>
             </div>
         </section>
 

@@ -21,7 +21,7 @@ function hideMenu(){
 }
 
 function sendWhatsAppMessage() {
-            const phoneNumber = '525584323945'; 
+            const phoneNumber = '525584323945';
             let message = document.getElementById('whatsapp-message').value;
 
             if (message.trim() === '') {
@@ -30,6 +30,14 @@ function sendWhatsAppMessage() {
             }
 
             let encodedMessage = encodeURIComponent(message);
+            const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+            window.open(whatsappURL, '_blank');
+        }
+
+function solicitarLinkDescarga() {
+            const phoneNumber = '525584323945';
+            const message = 'Hola! 👋 Vi su anuncio del Punto de Venta en TikTok. Me gustaría recibir el link de descarga del programa. Gracias!';
+            const encodedMessage = encodeURIComponent(message);
             const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
             window.open(whatsappURL, '_blank');
         }
