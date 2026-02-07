@@ -473,6 +473,192 @@ strong {
     font-weight: 700;
 }
 
+/* Modal de enviar link */
+.modal-link-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-link-overlay.show {
+    display: flex;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-link-content {
+    background: linear-gradient(135deg, #1a2332 0%, #0f1419 100%);
+    border-radius: 24px;
+    padding: 40px 30px;
+    max-width: 480px;
+    width: 90%;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #ffffff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 18px;
+}
+
+.modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+.modal-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.modal-subtitle {
+    font-size: 15px;
+    color: #9ca3af;
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.modal-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal-option-btn {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+}
+
+.modal-option-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+}
+
+.option-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.whatsapp-option .option-icon {
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: #ffffff;
+}
+
+.email-option .option-icon {
+    background: linear-gradient(135deg, #EA4335 0%, #C5221F 100%);
+    color: #ffffff;
+}
+
+.copy-option .option-icon {
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    color: #ffffff;
+}
+
+.option-text {
+    flex-grow: 1;
+    text-align: left;
+}
+
+.option-text h4 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 4px 0;
+}
+
+.option-text p {
+    font-size: 13px;
+    color: #9ca3af;
+    margin: 0;
+    padding: 0;
+}
+
+.modal-option-btn > .fa-chevron-right {
+    color: #6b7280;
+    font-size: 16px;
+}
+
+.modal-option-btn:hover > .fa-chevron-right {
+    color: #ffffff;
+}
+
+/* Responsive modal */
+@media (max-width: 600px) {
+    .modal-link-content {
+        padding: 35px 25px;
+    }
+
+    .modal-title {
+        font-size: 22px;
+    }
+
+    .option-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+    }
+
+    .option-text h4 {
+        font-size: 16px;
+    }
+}
+
 /* CTA Secundario en sección de pricing */
 .cta-secondary-container {
     margin-top: 60px;

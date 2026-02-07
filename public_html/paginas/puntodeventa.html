@@ -229,9 +229,9 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             </div>
 
             <div class="cta-secondary-container">
-                <p class="cta-text">¿Prefieres que te enviemos el link de descarga?</p>
+                <p class="cta-text">¿Prefieres guardarte el link para descargarlo después?</p>
                 <button class="glass-btn btn-cta-secondary" onclick="solicitarLinkDescarga()">
-                    <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+                    <i class="fa-solid fa-share-nodes"></i> Enviarme el Link
                 </button>
             </div>
         </section>
@@ -298,6 +298,53 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
         <hr>
         <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
     </footer>
+
+    <!-- Modal de opciones para enviar link -->
+    <div id="modalEnviarLink" class="modal-link-overlay">
+        <div class="modal-link-content">
+            <button class="modal-close-btn" onclick="cerrarModalLink()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h3 class="modal-title">¿Cómo prefieres recibir el link?</h3>
+            <p class="modal-subtitle">Guarda el link para descargar desde tu computadora Windows</p>
+
+            <div class="modal-options">
+                <button class="modal-option-btn whatsapp-option" onclick="enviarPorWhatsApp()">
+                    <div class="option-icon">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <div class="option-text">
+                        <h4>WhatsApp</h4>
+                        <p>Enviártelo a ti mismo</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+
+                <button class="modal-option-btn email-option" onclick="enviarPorEmail()">
+                    <div class="option-icon">
+                        <i class="fa-solid fa-envelope"></i>
+                    </div>
+                    <div class="option-text">
+                        <h4>Email</h4>
+                        <p>Recíbelo por correo</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+
+                <button class="modal-option-btn copy-option" onclick="copiarLink()">
+                    <div class="option-icon">
+                        <i class="fa-solid fa-copy"></i>
+                    </div>
+                    <div class="option-text">
+                        <h4>Copiar Link</h4>
+                        <p id="copy-status">Copiar al portapapeles</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script async src="https://js.stripe.com/v3/buy-button.js"></script>
     <script src="../js/script.js"></script>
