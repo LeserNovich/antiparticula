@@ -156,10 +156,10 @@ function renderChart(historico) {
             datasets: [{
                 label: 'Ventas',
                 data: valores,
-                backgroundColor: 'rgba(74, 222, 128, 0.4)',
-                borderColor: 'rgba(74, 222, 128, 0.9)',
+                backgroundColor: 'rgba(94, 92, 230, 0.18)',
+                borderColor: 'rgba(94, 92, 230, 0.85)',
                 borderWidth: 1.5,
-                borderRadius: 4
+                borderRadius: 6
             }]
         },
         options: {
@@ -175,16 +175,16 @@ function renderChart(historico) {
             },
             scales: {
                 x: {
-                    ticks: { color: '#94a3b8', font: { size: 10 } },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
+                    ticks: { color: '#AEAEB2', font: { size: 10 } },
+                    grid: { color: 'rgba(60,60,67,0.08)' }
                 },
                 y: {
                     ticks: {
-                        color: '#94a3b8',
+                        color: '#AEAEB2',
                         font: { size: 10 },
                         callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
                     },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
+                    grid: { color: 'rgba(60,60,67,0.08)' }
                 }
             }
         }
