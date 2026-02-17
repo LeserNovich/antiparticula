@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4ade80">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dashboard">
+    <meta name="description" content="Panel de ventas en tiempo real — Antiparticula POS">
+
+    <title>Dashboard — Antiparticula POS</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="../../img/logo.png">
+    <link rel="apple-touch-icon" href="../../img/logo.png">
+    <link rel="stylesheet" href="dashboard.css">
+
+    <!-- Chart.js CDN — async para no bloquear el render -->
+    <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Contenido renderizado por dashboard.js -->
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span>Cargando...</span>
+        </div>
+    </div>
+
+    <script>
+        window.onerror = function(msg, src, line) {
+            document.getElementById('app').innerHTML =
+                '<div style="padding:20px;color:#f87171;font-family:monospace;font-size:13px;background:#1a1a1a;min-height:100vh">' +
+                '<b>ERROR JS:</b><br>' + msg + '<br><br>' +
+                '<b>Archivo:</b> ' + src + '<br>' +
+                '<b>Línea:</b> ' + line + '</div>';
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+            document.getElementById('app').innerHTML =
+                '<div style="padding:20px;color:#fbbf24;font-family:monospace;font-size:13px;background:#1a1a1a;min-height:100vh">' +
+                '<b>PROMISE ERROR:</b><br>' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)) + '</div>';
+        });
+    </script>
+    <script src="dashboard.js" defer></script>
+</body>
+</html>

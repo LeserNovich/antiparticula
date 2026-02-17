@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cómo Descargar e Instalar - Antiparticula Punto de Venta</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .instrucciones-container {
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .alerta-seguridad {
+            background: #e8f5e9;
+            border-left: 5px solid #4caf50;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 5px;
+        }
+
+        .alerta-seguridad h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+
+        .paso {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .paso h3 {
+            color: #1976d2;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .paso-numero {
+            background: #1976d2;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .screenshot {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin: 15px 0;
+            max-width: 100%;
+        }
+
+        .advertencia {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .codigo {
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .btn-descarga-segura {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+
+        .btn-descarga-segura:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="instrucciones-container">
+        <h1><i class="fas fa-shield-alt"></i> Instrucciones de Descarga Segura</h1>
+        <p style="font-size: 18px; color: #666;">Guía paso a paso para descargar e instalar Antiparticula Punto de Venta</p>
+
+        <div class="alerta-seguridad">
+            <h3><i class="fas fa-check-circle"></i> ¿Es Seguro Este Software?</h3>
+            <p><strong>¡SÍ, es 100% seguro!</strong> Windows SmartScreen y algunos antivirus marcan nuestro instalador como "potencialmente no deseado" porque:</p>
+            <ul>
+                <li><strong>No está firmado digitalmente</strong> - Los certificados de firma cuestan más de $300 USD al año</li>
+                <li><strong>Es nuevo</strong> - Windows no reconoce aplicaciones de desarrolladores pequeños</li>
+                <li><strong>Es un instalador</strong> - Los archivos .exe descargados siempre generan advertencias</li>
+            </ul>
+            <p><strong>Garantizamos:</strong> Nuestro software NO contiene virus, malware, ni spyware. Solo enviamos datos anónimos de uso (login/logout) para mejorar el servicio.</p>
+        </div>
+
+        <!-- PASO 1: DESCARGA CON CHROME -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero">1</span>
+                Descargar el Instalador
+            </h3>
+            <p>Click en el botón de descarga:</p>
+            <a href="../downloads/Instalador_Antiparticula_Punto_Venta.exe" class="btn-descarga-segura" download>
+                <i class="fas fa-download"></i> Descargar Punto de Venta
+            </a>
+
+            <div class="advertencia">
+                <strong><i class="fas fa-exclamation-triangle"></i> Chrome/Edge dirá:</strong> "Este archivo puede dañar tu equipo"
+                <br><br>
+                <strong>Qué hacer:</strong>
+                <ol>
+                    <li>Click en la flecha (^) junto al archivo descargado</li>
+                    <li>Seleccionar "Conservar archivo" o "Keep anyway"</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- PASO 2: SMARTSCREEN DE WINDOWS -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero">2</span>
+                Permitir en SmartScreen de Windows
+            </h3>
+            <p>Al hacer doble click en el instalador, Windows SmartScreen mostrará esta advertencia:</p>
+
+            <div class="advertencia">
+                <strong><i class="fas fa-exclamation-triangle"></i> Windows SmartScreen:</strong> "Windows protegió tu PC"
+                <br><br>
+                <strong>Qué hacer:</strong>
+                <ol>
+                    <li>Click en <strong>"Más información"</strong></li>
+                    <li>Aparecerá el botón <strong>"Ejecutar de todas formas"</strong></li>
+                    <li>Click en ese botón</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- PASO 3: ANTIVIRUS -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero">3</span>
+                Permitir en tu Antivirus
+            </h3>
+            <p>Si tu antivirus (Windows Defender, Avast, AVG, etc.) bloquea el archivo:</p>
+
+            <h4><i class="fas fa-shield-alt"></i> Windows Defender:</h4>
+            <ol>
+                <li>Abrir <strong>Seguridad de Windows</strong></li>
+                <li>Ir a <strong>Protección contra virus y amenazas</strong></li>
+                <li>Click en <strong>Historial de protección</strong></li>
+                <li>Buscar el archivo bloqueado</li>
+                <li>Click en <strong>Permitir</strong> o <strong>Restaurar</strong></li>
+            </ol>
+
+            <h4><i class="fas fa-shield-alt"></i> Otros Antivirus:</h4>
+            <ol>
+                <li>Buscar el archivo en <strong>Cuarentena</strong></li>
+                <li>Seleccionar <strong>Restaurar</strong> o <strong>Agregar a excepciones</strong></li>
+                <li>Agregar la carpeta de instalación a la <strong>lista blanca</strong></li>
+            </ol>
+        </div>
+
+        <!-- PASO 4: INSTALACIÓN -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero">4</span>
+                Instalar el Software
+            </h3>
+            <p>Una vez permitido el archivo:</p>
+            <ol>
+                <li>Hacer doble click en <code>Instalador_Antiparticula_Punto_Venta.exe</code></li>
+                <li>Seguir el asistente de instalación</li>
+                <li>Elegir la carpeta de destino (recomendado: dejar por defecto)</li>
+                <li>Click en <strong>Instalar</strong></li>
+                <li>Esperar a que termine (1-2 minutos)</li>
+                <li>Click en <strong>Finalizar</strong></li>
+            </ol>
+        </div>
+
+        <!-- PASO 5: PRIMER USO -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero">5</span>
+                Primer Uso
+            </h3>
+            <p>Al abrir la aplicación por primera vez:</p>
+            <ol>
+                <li>Usuario por defecto: <code>Administrador</code></li>
+                <li>Contraseña por defecto: <code>Temporal1</code></li>
+                <li><strong>Importante:</strong> El sistema te pedirá cambiar la contraseña en el primer login</li>
+                <li>Configurar tu negocio en <strong>Ajustes → Configuración</strong></li>
+            </ol>
+        </div>
+
+        <!-- VERIFICACIÓN DE SEGURIDAD -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero"><i class="fas fa-check"></i></span>
+                Verificar que el Archivo es Legítimo
+            </h3>
+            <p>Si aún tienes dudas sobre la seguridad del archivo, puedes verificarlo en VirusTotal:</p>
+            <ol>
+                <li>Ir a <a href="https://www.virustotal.com" target="_blank">www.virustotal.com</a></li>
+                <li>Subir el archivo <code>Instalador_Antiparticula_Punto_Venta.exe</code></li>
+                <li>Esperar el análisis (2-3 minutos)</li>
+                <li>Verificar resultados: <strong>0/70 detecciones</strong> o muy pocas detecciones de "falsos positivos"</li>
+            </ol>
+
+            <p><strong>Nota:</strong> Algunos antivirus pueden marcar "Generic.Trojan" o "PUA" (Potentially Unwanted Application) porque el instalador modifica el registro de Windows para crear accesos directos. Esto es normal para cualquier instalador.</p>
+        </div>
+
+        <!-- INFORMACIÓN ADICIONAL -->
+        <div class="alerta-seguridad">
+            <h3><i class="fas fa-info-circle"></i> ¿Por Qué Pasa Esto?</h3>
+            <p>Los certificados de firma digital (Code Signing Certificates) cuestan entre $300 y $500 USD por año. Como somos un proyecto independiente, optamos por ofrecer el software gratuitamente sin estos costos adicionales.</p>
+            <p><strong>Estamos trabajando en:</strong></p>
+            <ul>
+                <li>Obtener un certificado de firma digital próximamente</li>
+                <li>Generar reputación con Microsoft SmartScreen mediante descargas legítimas</li>
+                <li>Subir el software a tiendas oficiales cuando sea posible</li>
+            </ul>
+        </div>
+
+        <!-- SOPORTE -->
+        <div class="paso">
+            <h3>
+                <span class="paso-numero"><i class="fas fa-headset"></i></span>
+                ¿Necesitas Ayuda?
+            </h3>
+            <p>Si tienes problemas con la descarga o instalación:</p>
+            <ul>
+                <li><strong>Email:</strong> soporte@antiparticula.com</li>
+                <li><strong>Teléfono:</strong> +52 1 55 8432 3945</li>
+                <li><strong>WhatsApp:</strong> 55 8432 3945</li>
+            </ul>
+            <p>Respondemos en menos de 12 horas.</p>
+        </div>
+
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="../paginas/puntodeventa.html" class="btn-descarga-segura">
+                <i class="fas fa-arrow-left"></i> Volver a Punto de venta
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Registrar descarga cuando se hace click
+        document.querySelector('.btn-descarga-segura').addEventListener('click', function() {
+            // Registrar descarga en el servidor
+            fetch('/registrar_descarga.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: ''
+            }).then(response => {
+                console.log('Descarga registrada');
+            }).catch(error => {
+                console.error('Error al registrar descarga:', error);
+            });
+        });
+    </script>
+</body>
+</html>

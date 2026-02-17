@@ -64,6 +64,22 @@ function mostrarMensajeDescarga() {
                         <p>Tu punto de venta gratis se está descargando. Usa todas las funciones sin límite de tiempo.<br><br>
                         ¿Necesitas importar/exportar Excel? Mejora a Premium en cualquier momento.</p>
                     </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 5px; text-align: left;">
+                        <h4 style="margin: 0 0 8px 0;">⚠️ ¿Windows te mostró una advertencia?</h4>
+                        <p style="margin: 0 0 10px 0;"><strong>Este software es 100% seguro.</strong> Windows marca como "sospechoso"
+                        cualquier programa sin firma digital (que cuesta $500 USD/año).</p>
+                        <a href="https://www.virustotal.com/gui/file/6494805b628b789aa7288b307a31e2bad4f066907f514b7e88f82feea38cdeb6?nocache=1" target="_blank"
+                           style="display: inline-block; margin: 10px 0; padding: 10px 20px;
+                           background: #4caf50; color: white; text-decoration: none; border-radius: 5px;">
+                            ✓ Verificado en VirusTotal
+                        </a>
+                        <p style="margin: 8px 0 0 0;">
+                            <a href="../paginas/instrucciones-descarga.html"
+                               style="color: #1976d2; font-weight: bold;">
+                                → Instrucciones paso a paso para instalar
+                            </a>
+                        </p>
+                    </div>
                     <div class="mensaje-botones">
                         <button class="btn-mensaje btn-primario" onclick="cerrarMensajeDescarga()">Entendido</button>
                     </div>
