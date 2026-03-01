@@ -22,10 +22,12 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <meta name="description" content="Potencia tu tienda de abarrotes, ferretería, farmacia o minisúper con nuestro software Punto de Venta (TPV). Controla tu inventario, ventas y clientes con un sistema fácil y moderno." />
     <meta name="keywords" content="punto de venta para abarrotes, software para ferreterías, TPV para farmacias, sistema de ventas para minisupers, control de inventario, software punto de venta mexico, TPV moderno" />
     
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/stylePuntoVenta.css">
     <link rel="stylesheet" href="../css/mensaje-exito.css?version=2">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
 
     <script type="application/ld+json">
     {
@@ -141,6 +143,728 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             </div>
         </section>
 
+        <!-- ── Barra de estadísticas ──────────────────────────────────── -->
+        <div class="stats-bar">
+            <div class="stats-bar-inner">
+                <div class="stat-item">
+                    <span class="stat-icon">🏪</span>
+                    <span class="stat-num" id="statTotal">+500</span>
+                    <span class="stat-label">negocios activos</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-icon">⬇️</span>
+                    <span class="stat-num" id="statMes">+50</span>
+                    <span class="stat-label">descargas este mes</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-label stat-free">Gratis para siempre</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Galería "Míralo en Acción" ─────────────────────────────── -->
+        <section id="galeria" class="glass-section galeria-section">
+            <h2 class="glass-title">Míralo en Acción</h2>
+            <p class="glass-subtitle">Una interfaz diseñada para que cualquiera pueda usarla desde el primer día.</p>
+            <div class="swiper-container pos-swiper">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/puntodeventa_ventas.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Cobra en segundos</h3>
+                            <p class="pos-slide-desc">Busca por nombre o escanea el código de barras.</p>
+                        </div>
+                    </div>
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/puntodeventa_inventario.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Todo tu catálogo bajo control</h3>
+                            <p class="pos-slide-desc">Alta, baja y edición de productos sin complicaciones.</p>
+                        </div>
+                    </div>
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/dashboard_horizontal.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Reportes visuales en un clic</h3>
+                            <p class="pos-slide-desc">Gráficas de ventas, ganancia y tendencias del día.</p>
+                        </div>
+                    </div>
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/puntodeventa_ventas_dark.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Modo claro y oscuro</h3>
+                            <p class="pos-slide-desc">Elige el tema que más se adapte a tu espacio de trabajo.</p>
+                        </div>
+                    </div>
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/light.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Control de cajeros y turnos</h3>
+                            <p class="pos-slide-desc">Apertura, cierre y diferencia de caja por vendedor.</p>
+                        </div>
+                    </div>
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/puntodeventa_usuarios_dark.png');">
+                        <div class="pos-slide-overlay">
+                            <h3 class="pos-slide-title">Múltiples usuarios con permisos</h3>
+                            <p class="pos-slide-desc">Cada empleado con su acceso. Tú decides qué puede hacer.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="swiper-pagination pos-pagination"></div>
+                <div class="swiper-button-prev pos-btn-prev"></div>
+                <div class="swiper-button-next pos-btn-next"></div>
+            </div>
+        </section>
+
+        <!-- ── ¿Para qué tipo de negocio? ─────────────────────────────── -->
+        <section id="tipos-negocio" class="glass-section">
+            <h2 class="glass-title">¿Para Qué Tipo de Negocio?</h2>
+            <p class="glass-subtitle">Diseñado para ser versátil. Si vendes algo, Antipartícula POS funciona para ti.</p>
+            <div class="negocio-grid">
+                <div class="negocio-card glass-panel">
+                    <span class="negocio-emoji">🛒</span>
+                    <h3>Abarrotes y Tienditas</h3>
+                    <p>Cobra rápido, controla existencias y nunca te quedes sin stock.</p>
+                </div>
+                <div class="negocio-card glass-panel">
+                    <span class="negocio-emoji">🔧</span>
+                    <h3>Ferreterías</h3>
+                    <p>Miles de SKUs manejados con búsqueda por código de barras o nombre.</p>
+                </div>
+                <div class="negocio-card glass-panel">
+                    <span class="negocio-emoji">💊</span>
+                    <h3>Farmacias</h3>
+                    <p>Control exacto por producto y alertas para reponer a tiempo.</p>
+                </div>
+                <div class="negocio-card glass-panel">
+                    <span class="negocio-emoji">🥩</span>
+                    <h3>Carnicerías y Tortillerías</h3>
+                    <p>Ventas por kilogramo con precio calculado automáticamente.</p>
+                </div>
+                <div class="negocio-card glass-panel">
+                    <span class="negocio-emoji">🧴</span>
+                    <h3>Minisupers</h3>
+                    <p>Múltiples cajeros con sus propios permisos y cierre de turno.</p>
+                </div>
+                <div class="negocio-card glass-panel negocio-card-cta">
+                    <span class="negocio-emoji">🏪</span>
+                    <h3>Tu Negocio</h3>
+                    <p>Si vendes algo, Antipartícula POS funciona para ti. Gratis.</p>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 40px;">
+                <button class="glass-btn btn-cta-giant" onclick="descargarPrueba()">
+                    <i class="fa-solid fa-download"></i> Descargar Gratis — Es para ti
+                </button>
+            </div>
+        </section>
+
+        <style>
+            /* ── Stats bar ─────────────────────────────────────────────── */
+            .stats-bar {
+                background: rgba(74, 222, 128, 0.08);
+                border-top: 1px solid rgba(74, 222, 128, 0.2);
+                border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+                padding: 18px 40px;
+            }
+            .stats-bar-inner {
+                max-width: 900px;
+                margin: 0 auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 32px;
+                flex-wrap: wrap;
+            }
+            .stat-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .stat-icon { font-size: 1.4rem; }
+            .stat-num {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #4ade80;
+                font-family: 'Montserrat', sans-serif;
+            }
+            .stat-label {
+                font-size: 0.85rem;
+                color: #d1d5db;
+                font-weight: 500;
+            }
+            .stat-free {
+                font-size: 1rem;
+                font-weight: 700;
+                color: #4ade80;
+            }
+            .stat-divider {
+                width: 1px;
+                height: 32px;
+                background: rgba(74, 222, 128, 0.3);
+            }
+            @media (max-width: 600px) {
+                .stats-bar { padding: 16px 20px; }
+                .stat-divider { display: none; }
+                .stats-bar-inner { gap: 16px; flex-direction: column; }
+            }
+
+            /* ── Galería ───────────────────────────────────────────────── */
+            .galeria-section { overflow: hidden; }
+            .pos-swiper {
+                width: 100%;
+                border-radius: 20px;
+                overflow: hidden;
+                margin-top: 36px;
+            }
+            .pos-slide {
+                height: 380px;
+                background-size: cover;
+                background-position: center;
+                position: relative;
+            }
+            .pos-slide-overlay {
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.25) 60%, transparent 100%);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                padding: 32px;
+            }
+            .pos-slide-title {
+                font-size: 1.4rem;
+                font-weight: 700;
+                color: #ffffff;
+                margin: 0 0 8px 0;
+                text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            }
+            .pos-slide-desc {
+                font-size: 0.95rem;
+                color: #e5e7eb;
+                margin: 0;
+                text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            }
+            .pos-pagination .swiper-pagination-bullet {
+                background: #4ade80;
+                opacity: 0.5;
+            }
+            .pos-pagination .swiper-pagination-bullet-active { opacity: 1; }
+            .pos-btn-prev, .pos-btn-next {
+                color: #ffffff;
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                width: 44px !important;
+                height: 44px !important;
+                backdrop-filter: blur(4px);
+            }
+            .pos-btn-prev::after, .pos-btn-next::after {
+                font-size: 14px !important;
+                font-weight: 700;
+            }
+            @media (max-width: 600px) {
+                .pos-slide { height: 240px; }
+                .pos-slide-title { font-size: 1.1rem; }
+                .pos-slide-desc { font-size: 0.82rem; }
+                .pos-slide-overlay { padding: 20px; }
+            }
+
+            /* ── Tipos de negocio ──────────────────────────────────────── */
+            .negocio-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 24px;
+                margin-top: 36px;
+            }
+            .negocio-card {
+                text-align: center;
+                padding: 32px 24px;
+                cursor: default;
+                transition: transform 0.25s ease, border-color 0.25s ease;
+            }
+            .negocio-card:hover {
+                transform: translateY(-6px) !important;
+                border-color: rgba(74, 222, 128, 0.5) !important;
+                box-shadow: 0 12px 40px rgba(74, 222, 128, 0.15) !important;
+            }
+            .negocio-emoji {
+                font-size: 2.4rem;
+                display: block;
+                margin-bottom: 16px;
+            }
+            .negocio-card h3 {
+                font-size: 1rem;
+                font-weight: 700;
+                color: #ffffff;
+                margin: 0 0 10px 0;
+            }
+            .negocio-card p {
+                font-size: 0.85rem;
+                color: #9ca3af;
+                line-height: 1.5;
+                margin: 0;
+            }
+            .negocio-card-cta {
+                background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(22, 163, 74, 0.08) 100%) !important;
+                border-color: rgba(74, 222, 128, 0.35) !important;
+            }
+            .negocio-card-cta h3, .negocio-card-cta p { color: #4ade80; }
+            @media (max-width: 860px) {
+                .negocio-grid { grid-template-columns: repeat(2, 1fr); }
+            }
+            @media (max-width: 540px) {
+                .negocio-grid { grid-template-columns: 1fr; }
+            }
+        </style>
+
+        <section id="dashboard-web" class="glass-section">
+            <div class="dashboard-badge">
+                <i class="fa-solid fa-globe"></i> Nuevo — Panel Web
+            </div>
+            <h2 class="glass-title">Vigila tus Ventas Desde Donde Estés</h2>
+            <p class="glass-subtitle">Tu punto de venta ahora tiene un panel de informes accesible desde cualquier navegador. Sin instalar nada. Solo abre el link en tu celular y listo.</p>
+
+            <div class="dashboard-showcase">
+                <!-- Beneficios -->
+                <div class="dashboard-benefits">
+                    <div class="dashboard-benefit">
+                        <div class="benefit-icon">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <div class="benefit-text">
+                            <h4>Cualquier dispositivo</h4>
+                            <p>Celular, tablet o computadora. Solo necesitas un navegador y conexión a internet.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-benefit">
+                        <div class="benefit-icon">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div class="benefit-text">
+                            <h4>Ventas en tiempo real</h4>
+                            <p>Ve cuánto vendiste hoy, la ganancia del turno y el histórico de los últimos 7 días.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-benefit">
+                        <div class="benefit-icon">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                        <div class="benefit-text">
+                            <h4>Control de turnos</h4>
+                            <p>Sabe quién está en caja, a qué hora abrió el turno y cuánto ha vendido.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-benefit">
+                        <div class="benefit-icon">
+                            <i class="fa-solid fa-rotate"></i>
+                        </div>
+                        <div class="benefit-text">
+                            <h4>Sincronización automática</h4>
+                            <p>El panel se actualiza solo cada vez que realizas una venta. Sin configuración adicional.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mockup de teléfono -->
+                <div class="dashboard-phone-wrap">
+                    <div class="dashboard-phone-frame">
+                        <div class="dashboard-phone-bar">
+                            <span class="phone-bar-dot"></span>
+                            <span class="phone-bar-dot"></span>
+                            <span class="phone-bar-dot"></span>
+                        </div>
+                        <div class="dashboard-phone-screen">
+                            <img src="../img/dashboard_parteSuperior.png" alt="Panel de ventas superior — ventas hoy, ganancia y turno actual">
+                            <img src="../img/dashboard_parteInferior.png"  alt="Panel de ventas inferior — gráfica semanal y últimas ventas">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- URL de acceso -->
+            <div class="dashboard-url-block">
+                <p class="dashboard-url-label"><i class="fa-solid fa-link"></i> Tu URL de acceso al panel</p>
+                <div class="dashboard-url-display">
+                    <span class="url-base">antiparticula.com/dashboard/</span><span class="url-id">TU-HARDWARE-ID</span>
+                </div>
+                <p class="dashboard-url-hint">Ábrela en cualquier navegador — en tu celular, tablet o computadora.</p>
+            </div>
+
+            <!-- Guía: cómo obtener el Hardware ID -->
+            <div class="hw-guide-block">
+                <h3 class="hw-guide-title"><i class="fa-solid fa-circle-info"></i> ¿Cómo obtengo mi Hardware ID?</h3>
+                <div class="hw-guide-content">
+                    <div class="hw-gif-wrap">
+                        <div class="hw-gif-container">
+                            <img class="hw-img hw-img-1" src="../img/hardware_ID_p1.png" alt="Paso 1 — pantalla de login del punto de venta, haz clic en Activar suscripción premium">
+                            <img class="hw-img hw-img-2" src="../img/hardware_ID_p2.png" alt="Paso 2 — modal de activación mostrando tu Hardware ID único">
+                        </div>
+                        <div class="hw-gif-steps">
+                            <span class="hw-step hw-step-active" id="hwStep1">1</span>
+                            <span class="hw-step" id="hwStep2">2</span>
+                        </div>
+                    </div>
+                    <ol class="hw-steps-list">
+                        <li>
+                            <span class="hw-num">1</span>
+                            <div>
+                                <strong>Abre el Punto de Venta</strong>
+                                <p>En la pantalla de inicio de sesión, haz clic en <em>"Activar suscripción premium"</em>.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="hw-num">2</span>
+                            <div>
+                                <strong>Copia tu Hardware ID</strong>
+                                <p>En el cuadro <em>"Tu ID de equipo"</em> verás un código como <code>79350C063DFC1727</code>. Ese es tu ID único.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="hw-num">3</span>
+                            <div>
+                                <strong>Construye tu URL</strong>
+                                <p>Visita <code>antiparticula.com/dashboard/79350C063DFC1727</code> (sustituyendo con tu ID).</p>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <style>
+            .dashboard-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%);
+                color: #ffffff;
+                border-radius: 50px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 700;
+                margin-bottom: 20px;
+                letter-spacing: 0.5px;
+                box-shadow: 0 4px 16px rgba(74, 222, 128, 0.35);
+            }
+            .dashboard-badge i { font-size: 16px; }
+
+            .dashboard-showcase {
+                display: flex;
+                align-items: center;
+                gap: 48px;
+                margin-top: 40px;
+            }
+
+            /* Beneficios — columna izquierda */
+            .dashboard-benefits {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 28px;
+            }
+            .dashboard-benefit {
+                display: flex;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            .benefit-icon {
+                width: 52px;
+                height: 52px;
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.25rem;
+                color: #ffffff;
+                flex-shrink: 0;
+                position: relative;
+            }
+            /* Gradiente único por cada tarjeta de beneficio */
+            .dashboard-benefit:nth-child(1) .benefit-icon {
+                background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+                box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+            }
+            .dashboard-benefit:nth-child(2) .benefit-icon {
+                background: linear-gradient(135deg, #4ade80 0%, #059669 100%);
+                box-shadow: 0 6px 20px rgba(74, 222, 128, 0.40);
+            }
+            .dashboard-benefit:nth-child(3) .benefit-icon {
+                background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+                box-shadow: 0 6px 20px rgba(245, 158, 11, 0.40);
+            }
+            .dashboard-benefit:nth-child(4) .benefit-icon {
+                background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+                box-shadow: 0 6px 20px rgba(168, 85, 247, 0.40);
+            }
+            .benefit-text h4 {
+                font-size: 0.95rem;
+                font-weight: 600;
+                margin-bottom: 4px;
+                color: #ffffff;
+            }
+            .benefit-text p {
+                font-size: 0.85rem;
+                color: #d1d5db;
+                line-height: 1.5;
+                margin: 0;
+            }
+
+            /* Mockup de teléfono — columna derecha */
+            .dashboard-phone-wrap {
+                flex: 1;
+                display: flex;
+                justify-content: center;
+            }
+            .dashboard-phone-frame {
+                width: 280px;
+                border-radius: 28px;
+                background: #f2f2f7;
+                box-shadow:
+                    0 0 0 2px #d1d1d6,
+                    0 20px 60px rgba(0,0,0,0.18),
+                    0 4px 16px rgba(0,0,0,0.10);
+                overflow: hidden;
+            }
+            .dashboard-phone-bar {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 10px 14px;
+                background: #e5e5ea;
+                border-bottom: 1px solid #d1d1d6;
+            }
+            .phone-bar-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #c7c7cc;
+            }
+            .dashboard-phone-screen {
+                overflow-y: auto;
+                max-height: 480px;
+                scroll-behavior: smooth;
+                /* ocultar scrollbar */
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            .dashboard-phone-screen::-webkit-scrollbar { display: none; }
+            .dashboard-phone-screen img {
+                width: 100%;
+                display: block;
+            }
+
+            /* ── URL de acceso ─────────────────────────────── */
+            .dashboard-url-block {
+                margin-top: 48px;
+                text-align: center;
+            }
+            .dashboard-url-label {
+                font-size: 0.82rem;
+                color: #9ca3af;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+            }
+            .dashboard-url-display {
+                display: inline-flex;
+                align-items: center;
+                background: rgba(255,255,255,0.06);
+                border: 1px solid rgba(99,102,241,0.35);
+                border-radius: 12px;
+                padding: 14px 24px;
+                font-family: 'Courier New', monospace;
+                font-size: 1rem;
+                letter-spacing: 0.02em;
+                gap: 0;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .url-base { color: #d1d5db; }
+            .url-id {
+                color: #818cf8;
+                font-weight: 700;
+                background: rgba(99,102,241,0.15);
+                padding: 2px 8px;
+                border-radius: 6px;
+                margin-left: 2px;
+            }
+            .dashboard-url-hint {
+                font-size: 0.82rem;
+                color: #6b7280;
+                margin-top: 10px;
+            }
+
+            /* ── Guía Hardware ID ──────────────────────────── */
+            .hw-guide-block {
+                margin-top: 56px;
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 20px;
+                padding: 36px;
+                text-align: left;
+            }
+            .hw-guide-title {
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: #ffffff;
+                margin-bottom: 28px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .hw-guide-title i { color: #818cf8; }
+            .hw-guide-content {
+                display: flex;
+                gap: 40px;
+                align-items: flex-start;
+            }
+
+            /* Crossfade "gif" */
+            .hw-gif-wrap {
+                flex-shrink: 0;
+                width: 260px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+            .hw-gif-container {
+                position: relative;
+                width: 260px;
+                aspect-ratio: 1 / 1.06;
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            }
+            .hw-img {
+                position: absolute;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                object-fit: cover;
+                object-position: top;
+                border-radius: 16px;
+            }
+            .hw-img-1 { animation: hwFade1 5s ease-in-out infinite; }
+            .hw-img-2 { animation: hwFade2 5s ease-in-out infinite; }
+            @keyframes hwFade1 {
+                0%, 38%  { opacity: 1; }
+                48%, 90% { opacity: 0; }
+                100%     { opacity: 1; }
+            }
+            @keyframes hwFade2 {
+                0%, 38%  { opacity: 0; }
+                48%, 90% { opacity: 1; }
+                100%     { opacity: 0; }
+            }
+
+            /* Indicadores de paso */
+            .hw-gif-steps {
+                display: flex;
+                gap: 8px;
+            }
+            .hw-step {
+                width: 28px; height: 28px;
+                border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 0.75rem;
+                font-weight: 700;
+                background: rgba(255,255,255,0.08);
+                color: #6b7280;
+                border: 1px solid rgba(255,255,255,0.1);
+                animation: stepToggle1 5s ease-in-out infinite;
+            }
+            .hw-step:last-child {
+                animation: stepToggle2 5s ease-in-out infinite;
+            }
+            @keyframes stepToggle1 {
+                0%, 38%  { background: rgba(99,102,241,0.25); color: #818cf8; border-color: rgba(99,102,241,0.4); }
+                48%, 90% { background: rgba(255,255,255,0.08); color: #6b7280; border-color: rgba(255,255,255,0.1); }
+                100%     { background: rgba(99,102,241,0.25); color: #818cf8; border-color: rgba(99,102,241,0.4); }
+            }
+            @keyframes stepToggle2 {
+                0%, 38%  { background: rgba(255,255,255,0.08); color: #6b7280; border-color: rgba(255,255,255,0.1); }
+                48%, 90% { background: rgba(99,102,241,0.25); color: #818cf8; border-color: rgba(99,102,241,0.4); }
+                100%     { background: rgba(255,255,255,0.08); color: #6b7280; border-color: rgba(255,255,255,0.1); }
+            }
+
+            /* Lista de pasos */
+            .hw-steps-list {
+                list-style: none;
+                padding: 0; margin: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+                flex: 1;
+            }
+            .hw-steps-list li {
+                display: flex;
+                gap: 16px;
+                align-items: flex-start;
+            }
+            .hw-num {
+                width: 28px; height: 28px;
+                border-radius: 50%;
+                background: rgba(99,102,241,0.2);
+                border: 1px solid rgba(99,102,241,0.4);
+                color: #818cf8;
+                font-weight: 700;
+                font-size: 0.8rem;
+                display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0;
+                margin-top: 2px;
+            }
+            .hw-steps-list strong {
+                display: block;
+                color: #ffffff;
+                font-size: 0.9rem;
+                margin-bottom: 4px;
+            }
+            .hw-steps-list p {
+                color: #9ca3af;
+                font-size: 0.83rem;
+                line-height: 1.5;
+                margin: 0; padding: 0;
+            }
+            .hw-steps-list em {
+                color: #d1d5db;
+                font-style: normal;
+                font-weight: 500;
+            }
+            .hw-steps-list code {
+                background: rgba(99,102,241,0.15);
+                color: #818cf8;
+                padding: 1px 6px;
+                border-radius: 5px;
+                font-size: 0.8rem;
+                font-family: 'Courier New', monospace;
+            }
+
+            /* Responsive */
+            @media (max-width: 860px) {
+                .dashboard-showcase {
+                    flex-direction: column-reverse;
+                    gap: 32px;
+                }
+                .dashboard-phone-frame {
+                    width: 240px;
+                }
+                .dashboard-phone-screen {
+                    max-height: 380px;
+                }
+                .hw-guide-content {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .hw-gif-wrap { width: 220px; }
+                .hw-gif-container { width: 220px; }
+                .hw-guide-block { padding: 24px 20px; }
+                .dashboard-url-display { font-size: 0.85rem; padding: 12px 16px; }
+            }
+        </style>
+
         <section id="features" class="glass-section">
             <h2 class="glass-title">Administra tu Tienda sin Complicaciones</h2>
             <p class="glass-subtitle">Diseñamos cada función para que ahorres tiempo en la administración y te enfoques en crecer tus ventas.</p>
@@ -194,6 +918,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <li><i class="fa-solid fa-check"></i> Control de clientes</li>
                         <li><i class="fa-solid fa-check"></i> Actualizaciones gratuitas</li>
                         <li><i class="fa-solid fa-check"></i> Sin límites de productos</li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
                     </ul>
                     <button class="glass-btn btn-download" onclick="descargarPrueba()" style="width: 100%;">
                         <i class="fa-solid fa-download"></i> Descargar Ahora
@@ -210,8 +935,10 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel ilimitado</strong></li>
                         <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel ilimitado</strong></li>
                         <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
                     </ul>
                     <a href="https://buy.stripe.com/28E8wQ3C57Pp3XC9MXeUU03" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Obtener Premium Anual</a>
+                    <p class="garantia-badge"><i class="fa-solid fa-shield-halved"></i> Garantía de devolución 7 días</p>
                 </div>
 
                 <div class="glass-panel pricing-card">
@@ -223,8 +950,10 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel ilimitado</strong></li>
                         <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel ilimitado</strong></li>
                         <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
+                        <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
                     </ul>
                     <a href="https://buy.stripe.com/fZuaEY6Oh8Ttbq44sDeUU04" target="_blank" class="glass-btn btn-primary" style="width: 100%; text-align: center;">Obtener Premium Semestral</a>
+                    <p class="garantia-badge"><i class="fa-solid fa-shield-halved"></i> Garantía de devolución 7 días</p>
                 </div>
             </div>
 
@@ -233,6 +962,140 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 <button class="glass-btn btn-cta-secondary" onclick="solicitarLinkDescarga()">
                     <i class="fa-solid fa-share-nodes"></i> Enviarme el Link
                 </button>
+            </div>
+        </section>
+
+        <!-- ══ TESTIMONIOS ══════════════════════════════════════════════ -->
+        <section id="testimonios" class="glass-section">
+            <h2 class="glass-title">Lo que dicen nuestros usuarios</h2>
+            <p class="glass-subtitle">Negocios reales que ya transformaron su manera de vender.</p>
+
+            <div class="testimonios-grid">
+                <div class="testimonio-card">
+                    <div class="testimonio-header">
+                        <div class="testimonio-avatar">M</div>
+                        <div class="testimonio-info">
+                            <h4>Marisol R.</h4>
+                            <span>Tienda de Abarrotes · CDMX</span>
+                        </div>
+                    </div>
+                    <div class="testimonio-estrellas">★★★★★</div>
+                    <p class="testimonio-texto">"Antes llevaba todo en papel y siempre me faltaba dinero al cuadrar. Con Antipartícula ya sé exactamente cuánto vendí cada día. Lo instalé yo sola en 5 minutos."</p>
+                </div>
+
+                <div class="testimonio-card">
+                    <div class="testimonio-header">
+                        <div class="testimonio-avatar av2">J</div>
+                        <div class="testimonio-info">
+                            <h4>Jorge T.</h4>
+                            <span>Ferretería · Monterrey, NL</span>
+                        </div>
+                    </div>
+                    <div class="testimonio-estrellas">★★★★★</div>
+                    <p class="testimonio-texto">"Lo que más me gustó es que funciona sin internet. En mi zona se va seguido la señal y el sistema nunca falla. Además el panel web me avisa las ventas desde el celular."</p>
+                </div>
+
+                <div class="testimonio-card">
+                    <div class="testimonio-header">
+                        <div class="testimonio-avatar av3">L</div>
+                        <div class="testimonio-info">
+                            <h4>Lupita V.</h4>
+                            <span>Papelería · Puebla</span>
+                        </div>
+                    </div>
+                    <div class="testimonio-estrellas">★★★★★</div>
+                    <p class="testimonio-texto">"El inventario de papelería tiene cientos de productos. Lo importé todo desde Excel en minutos. Ya no tengo que capturarlo uno por uno. Vale mucho la pena Premium."</p>
+                </div>
+
+                <div class="testimonio-card">
+                    <div class="testimonio-header">
+                        <div class="testimonio-avatar av4">R</div>
+                        <div class="testimonio-info">
+                            <h4>Roberto M.</h4>
+                            <span>Carnicería · Guadalajara, Jal</span>
+                        </div>
+                    </div>
+                    <div class="testimonio-estrellas">★★★★★</div>
+                    <p class="testimonio-texto">"Vendía por kilos y buscaba algo que lo manejara bien. Este sistema lo hace perfecto. Además el ticket que imprime se ve muy profesional, mis clientes lo notan."</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ FAQ ══════════════════════════════════════════════════════ -->
+        <section id="faq" class="glass-section">
+            <h2 class="glass-title">Preguntas Frecuentes</h2>
+            <p class="glass-subtitle">Resolvemos tus dudas antes de que las tengas.</p>
+
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿El sistema funciona sin internet?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Sí, 100% sin conexión. Todo funciona en tu computadora local: ventas, inventario, reportes e impresión de tickets. El panel web en tiempo real es una función adicional opcional; si no tienes internet, el resto del sistema no se ve afectado.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿Qué pasa con mis datos si desinstalo el programa?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Tus datos son completamente tuyos. La base de datos es un archivo local en tu computadora (datos.db). Puedes hacer una copia en cualquier momento y restaurarla cuando quieras. Antipartícula no tiene acceso a la información de tu negocio.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿La versión gratuita es realmente gratis para siempre?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Sí, sin letra chica. La versión gratuita incluye ventas, inventario, reportes, control de usuarios, turnos, impresión de tickets y panel web en tiempo real, sin límite de tiempo ni de productos. Premium solo agrega la importación/exportación masiva de Excel.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿En qué versiones de Windows funciona?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        El sistema es compatible con Windows 10 y Windows 11 (64 bits). Incluye su propio entorno Java, por lo que no necesitas instalar nada adicional. No es compatible con Windows 7 ni Windows 8.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿Cuántos productos puedo registrar?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Sin límite, tanto en la versión gratuita como en Premium. Puedes tener desde 10 hasta 10,000 productos registrados. El rendimiento no se ve afectado.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿Cómo recibo las actualizaciones?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        El sistema verifica automáticamente si hay una versión nueva cada vez que lo abres. Si hay una actualización disponible, te aparece un aviso con el enlace de descarga. El proceso tarda menos de 2 minutos y tus datos se conservan intactos.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿Puedo usarlo en varias computadoras del mismo negocio?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Actualmente cada instalación es independiente con su propia base de datos. Si tienes varias cajas, cada una tiene su propio sistema. El modo multi-caja sincronizado está en el roadmap de desarrollo. Para más información, contáctanos por WhatsApp.
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -254,7 +1117,14 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             </div>
         </section>
     </main>
-    
+
+    <!-- Botón flotante WhatsApp -->
+    <a href="https://wa.me/5584323945?text=Hola%2C%20tengo%20una%20pregunta%20sobre%20el%20Punto%20de%20Venta%20Antipart%C3%ADcula"
+       target="_blank" class="whatsapp-float" title="¿Dudas? Escríbenos por WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+        <span class="wa-label">¿Dudas? Escríbenos</span>
+    </a>
+
     <footer>
         <div class="rowFooter">
             <div class="colFooter">
@@ -346,9 +1216,76 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
         </div>
     </div>
 
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/js/swiper.min.js"></script>
+    <script>
+        /* ── Galería Swiper ─────────────────────────────────────────── */
+        (function () {
+            new Swiper('.pos-swiper', {
+                loop: true,
+                autoplay: { delay: 3500, disableOnInteraction: false },
+                effect: 'slide',
+                pagination: { el: '.pos-pagination', clickable: true },
+                navigation: { nextEl: '.pos-btn-next', prevEl: '.pos-btn-prev' }
+            });
+        })();
+
+        /* ── Contador animado de estadísticas ──────────────────────── */
+        (function () {
+            var statsLoaded = false;
+
+            function animateCount(el, target, duration) {
+                var startTime = null;
+                function step(ts) {
+                    if (!startTime) startTime = ts;
+                    var progress = Math.min((ts - startTime) / duration, 1);
+                    el.textContent = '+' + Math.floor(progress * target);
+                    if (progress < 1) requestAnimationFrame(step);
+                    else el.textContent = '+' + target;
+                }
+                requestAnimationFrame(step);
+            }
+
+            function loadStats() {
+                if (statsLoaded) return;
+                statsLoaded = true;
+                fetch('https://antiparticula.com/get_stats.php')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.total !== undefined)
+                            animateCount(document.getElementById('statTotal'), data.total, 1500);
+                        if (data.este_mes !== undefined)
+                            animateCount(document.getElementById('statMes'), data.este_mes, 1500);
+                    })
+                    .catch(function () { /* fallback ya visible en el HTML */ });
+            }
+
+            var statsBar = document.querySelector('.stats-bar');
+            if (statsBar && 'IntersectionObserver' in window) {
+                var obs = new IntersectionObserver(function (entries) {
+                    if (entries[0].isIntersecting) { loadStats(); obs.disconnect(); }
+                }, { threshold: 0.3 });
+                obs.observe(statsBar);
+            } else {
+                loadStats();
+            }
+        })();
+    </script>
     <script async src="https://js.stripe.com/v3/buy-button.js"></script>
     <script src="../js/script.js"></script>
     <script src="../js/mensaje-exito.js?version=2"></script>
-    <script src="https://kit.fontawesome.com/1d197b94ec.js" crossorigin="anonymous"></script>
+
+    <!-- FAQ Acordeón -->
+    <script>
+        function toggleFaq(btn) {
+            var item = btn.parentElement;
+            var isOpen = item.classList.contains('open');
+            // Cerrar todos
+            document.querySelectorAll('.faq-item.open').forEach(function(el) {
+                el.classList.remove('open');
+            });
+            // Abrir el clickeado si estaba cerrado
+            if (!isOpen) item.classList.add('open');
+        }
+    </script>
     </body>
 </html>
