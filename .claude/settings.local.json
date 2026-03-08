@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(xargs -I {} sh -c 'jar tf {} 2>/dev/null | grep -E \"\"\\(PrinterMatrix|Extenso\\)\"\" && echo \"\"Found in: {}\"\"')",
+      "Bash(jar tf:*)"
+    ]
+  }
+}
