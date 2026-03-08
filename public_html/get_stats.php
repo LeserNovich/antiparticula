@@ -2,10 +2,17 @@
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=UTF-8');
 
-$servername = "127.0.0.1";
-$username   = "u450756829_Leser";
-$password   = "#s*/gDkR5Pcuba";
-$dbname     = "u450756829_PaginaWeb";
+$cfg_path = dirname(__DIR__) . '/config_db.php';
+if (!file_exists($cfg_path)) {
+    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
+            'username' => 'u450756829_Leser', 'password' => ''];
+} else {
+    $cfg = require $cfg_path;
+}
+$servername = $cfg['host'];
+$username   = $cfg['username'];
+$password   = $cfg['password'];
+$dbname     = $cfg['dbname'];
 
 try {
     $conn = new PDO(

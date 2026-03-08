@@ -1,10 +1,12 @@
-const CACHE_NAME = 'antiparticula-dashboard-v1';
+const CACHE_NAME = 'antiparticula-dashboard-v2';
 const SHELL_FILES = [
     './',
     './index.html',
     './dashboard.css',
     './dashboard.js',
-    './manifest.json'
+    './manifest.json',
+    // MEDIO-04 fix: cachear Chart.js para que la PWA funcione offline
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
 
 self.addEventListener('install', event => {

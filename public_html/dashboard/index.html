@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#4ade80">
+    <meta name="theme-color" content="#202936">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Dashboard">
@@ -12,8 +12,8 @@
     <title>Dashboard — Antiparticula POS</title>
 
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="../../img/logo.png">
-    <link rel="apple-touch-icon" href="../../img/logo.png">
+    <link rel="icon" href="../img/A.png">
+    <link rel="apple-touch-icon" href="../img/A.png">
     <link rel="stylesheet" href="dashboard.css">
 
     <!-- Chart.js CDN — async para no bloquear el render -->
@@ -29,17 +29,27 @@
     </div>
 
     <script>
+        // CRITICO-02 fix: escapar datos antes de insertar en innerHTML
+        function escHtmlInline(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;');
+        }
         window.onerror = function(msg, src, line) {
             document.getElementById('app').innerHTML =
                 '<div style="padding:20px;color:#f87171;font-family:monospace;font-size:13px;background:#1a1a1a;min-height:100vh">' +
-                '<b>ERROR JS:</b><br>' + msg + '<br><br>' +
-                '<b>Archivo:</b> ' + src + '<br>' +
-                '<b>Línea:</b> ' + line + '</div>';
+                '<b>ERROR JS:</b><br>' + escHtmlInline(msg) + '<br><br>' +
+                '<b>Archivo:</b> ' + escHtmlInline(src) + '<br>' +
+                '<b>Línea:</b> ' + parseInt(line, 10) + '</div>';
         };
         window.addEventListener('unhandledrejection', function(e) {
+            const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
             document.getElementById('app').innerHTML =
                 '<div style="padding:20px;color:#fbbf24;font-family:monospace;font-size:13px;background:#1a1a1a;min-height:100vh">' +
-                '<b>PROMISE ERROR:</b><br>' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)) + '</div>';
+                '<b>PROMISE ERROR:</b><br>' + escHtmlInline(msg) + '</div>';
         });
     </script>
     <script src="dashboard.js" defer></script>

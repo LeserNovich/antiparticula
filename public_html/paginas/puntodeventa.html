@@ -21,6 +21,23 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <title>Software Punto de Venta para Abarrotes, Ferreterías y Farmacias | Antipartícula</title>
     <meta name="description" content="Potencia tu tienda de abarrotes, ferretería, farmacia o minisúper con nuestro software Punto de Venta (TPV). Controla tu inventario, ventas y clientes con un sistema fácil y moderno." />
     <meta name="keywords" content="punto de venta para abarrotes, software para ferreterías, TPV para farmacias, sistema de ventas para minisupers, control de inventario, software punto de venta mexico, TPV moderno" />
+
+    <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://antiparticula.com/puntodeventa" />
+    <meta property="og:site_name"   content="Antipartícula" />
+    <meta property="og:title"       content="Software Punto de Venta para Abarrotes, Ferreterías y Farmacias" />
+    <meta property="og:description" content="Controla tus ventas, inventario y turnos desde una app moderna. Descarga gratis y empieza hoy." />
+    <meta property="og:image"       content="https://antiparticula.com/img/dashboard_horizontal.png" />
+    <meta property="og:image:width"  content="2834" />
+    <meta property="og:image:height" content="1570" />
+    <meta property="og:locale"      content="es_MX" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="Software Punto de Venta para Abarrotes, Ferreterías y Farmacias" />
+    <meta name="twitter:description" content="Controla tus ventas, inventario y turnos desde una app moderna. Descarga gratis y empieza hoy." />
+    <meta name="twitter:image"       content="https://antiparticula.com/img/dashboard_horizontal.png" />
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
@@ -171,7 +188,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             <p class="glass-subtitle">Una interfaz diseñada para que cualquiera pueda usarla desde el primer día.</p>
             <div class="swiper-container pos-swiper">
                 <div class="swiper-wrapper">
-                    <div class="swiper-slide pos-slide" style="background-image: url('../img/puntodeventa_ventas.png');">
+                    <div class="swiper-slide pos-slide" style="background-image: url('../img/dashboard_horizontal.png');">
                         <div class="pos-slide-overlay">
                             <h3 class="pos-slide-title">Cobra en segundos</h3>
                             <p class="pos-slide-desc">Busca por nombre o escanea el código de barras.</p>
@@ -681,6 +698,8 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 gap: 0;
                 flex-wrap: wrap;
                 justify-content: center;
+                max-width: 100%;
+                word-break: break-all;
             }
             .url-base { color: #d1d5db; }
             .url-id {
@@ -862,6 +881,15 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 .hw-gif-container { width: 220px; }
                 .hw-guide-block { padding: 24px 20px; }
                 .dashboard-url-display { font-size: 0.85rem; padding: 12px 16px; }
+            }
+            @media (max-width: 480px) {
+                .hw-guide-block { padding: 20px 14px; margin-top: 36px; }
+                .hw-gif-wrap { width: 180px; }
+                .hw-gif-container { width: 180px; }
+                .dashboard-url-display { font-size: 0.72rem; padding: 10px 12px; letter-spacing: 0; }
+                .hw-guide-title { font-size: 0.95rem; }
+                .hw-steps-list strong { font-size: 0.85rem; }
+                .hw-steps-list p { font-size: 0.78rem; }
             }
         </style>
 
@@ -1063,7 +1091,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
                     <div class="faq-respuesta">
-                        El sistema es compatible con Windows 10 y Windows 11 (64 bits). Incluye su propio entorno Java, por lo que no necesitas instalar nada adicional. No es compatible con Windows 7 ni Windows 8.
+                        El sistema es compatible con Windows (64 bits). Incluye su propio entorno Java, por lo que no necesitas instalar nada adicional.
                     </div>
                 </div>
 
@@ -1093,11 +1121,246 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
                     <div class="faq-respuesta">
-                        Actualmente cada instalación es independiente con su propia base de datos. Si tienes varias cajas, cada una tiene su propio sistema. El modo multi-caja sincronizado está en el roadmap de desarrollo. Para más información, contáctanos por WhatsApp.
+                        Sí, el modo multi-caja está disponible en la versión Premium. Permite conectar varias cajas en el mismo negocio compartiendo el mismo inventario y datos en tiempo real. Contáctanos por WhatsApp para activarlo.
                     </div>
                 </div>
             </div>
         </section>
+
+        <!-- ══ COMENTARIOS ══════════════════════════════════════════════ -->
+        <section id="comentarios" class="glass-section">
+            <h2 class="glass-title">Comentarios y Sugerencias</h2>
+            <p class="glass-subtitle">¿Tienes alguna opinión o sugerencia? Nos ayuda a mejorar el sistema.</p>
+
+            <!-- Formulario -->
+            <div class="com-form-wrap glass-panel">
+                <textarea id="comTexto" class="com-textarea" maxlength="1000" rows="3"
+                    placeholder="Escribe tu comentario o sugerencia..."></textarea>
+                <div class="com-form-footer">
+                    <span id="comContador" class="com-contador">0 / 1000</span>
+                    <button id="comBtn" class="glass-btn btn-primary com-btn" onclick="enviarComentario()">
+                        <i class="fa-solid fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+                <p id="comMsg" class="com-msg" aria-live="polite"></p>
+            </div>
+
+            <!-- Lista de comentarios -->
+            <div id="comLista" class="com-lista">
+                <div class="com-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando comentarios...</div>
+            </div>
+        </section>
+
+        <style>
+            /* ── Sección comentarios ─────────────────────────────── */
+            .com-form-wrap {
+                max-width: 680px;
+                margin: 0 auto 40px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .com-textarea {
+                width: 100%;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 12px;
+                color: #e5e7eb;
+                font-size: 0.92rem;
+                line-height: 1.6;
+                padding: 14px 16px;
+                resize: vertical;
+                min-height: 90px;
+                font-family: inherit;
+                transition: border-color 0.2s;
+                outline: none;
+            }
+            .com-textarea:focus { border-color: rgba(99,102,241,0.55); }
+            .com-textarea::placeholder { color: #4b5563; }
+            .com-form-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+            .com-contador {
+                font-size: 0.75rem;
+                color: #6b7280;
+            }
+            .com-btn {
+                padding: 10px 22px;
+                font-size: 0.88rem;
+                white-space: nowrap;
+            }
+            .com-msg {
+                font-size: 0.82rem;
+                min-height: 1rem;
+                text-align: center;
+            }
+            .com-msg.ok  { color: #4ade80; }
+            .com-msg.err { color: #f87171; }
+
+            /* ── Lista ───────────────────────────────────────────── */
+            .com-lista {
+                max-width: 680px;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+            .com-loading, .com-vacio {
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.88rem;
+                padding: 32px 0;
+            }
+            .com-card {
+                background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.09);
+                border-radius: 14px;
+                padding: 18px 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                animation: comFadeIn 0.3s ease;
+            }
+            @keyframes comFadeIn {
+                from { opacity: 0; transform: translateY(8px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            .com-texto {
+                color: #e5e7eb;
+                font-size: 0.9rem;
+                line-height: 1.6;
+                word-break: break-word;
+                margin: 0;
+            }
+            .com-meta {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .com-lugar {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.72rem;
+                color: #6b7280;
+            }
+            .com-lugar i { color: #4b5563; font-size: 0.65rem; }
+            .com-fecha {
+                font-size: 0.72rem;
+                color: #4b5563;
+                margin-left: auto;
+            }
+        </style>
+
+        <script>
+        (function () {
+            const textarea = document.getElementById('comTexto');
+            const contador = document.getElementById('comContador');
+            const msg      = document.getElementById('comMsg');
+            const btn      = document.getElementById('comBtn');
+
+            // Contador de caracteres
+            textarea.addEventListener('input', () => {
+                contador.textContent = textarea.value.length + ' / 1000';
+            });
+
+            // Escape HTML
+            function esc(s) {
+                return String(s)
+                    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+                    .replace(/'/g,'&#x27;');
+            }
+
+            // Fecha relativa
+            function fechaRelativa(iso) {
+                const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+                if (diff < 60)   return 'hace un momento';
+                if (diff < 3600) return 'hace ' + Math.floor(diff / 60) + ' min';
+                if (diff < 86400) return 'hace ' + Math.floor(diff / 3600) + ' h';
+                const d = Math.floor(diff / 86400);
+                return d === 1 ? 'ayer' : 'hace ' + d + ' días';
+            }
+
+            // Construir tarjeta
+            function crearCard(c) {
+                const lugar = (c.ciudad && c.ciudad !== 'Desconocida' && c.ciudad !== 'Desconocido')
+                    ? esc(c.ciudad) + (c.pais && c.pais !== 'Desconocido' ? ', ' + esc(c.pais) : '')
+                    : (c.pais && c.pais !== 'Desconocido' ? esc(c.pais) : '');
+
+                return `<div class="com-card">
+                    <p class="com-texto">${esc(c.comentario)}</p>
+                    <div class="com-meta">
+                        ${lugar ? `<span class="com-lugar"><i class="fa-solid fa-location-dot"></i>${lugar}</span>` : ''}
+                        <span class="com-fecha">${fechaRelativa(c.fecha_hora)}</span>
+                    </div>
+                </div>`;
+            }
+
+            // Cargar comentarios
+            function cargarComentarios() {
+                fetch('/get_comentarios.php')
+                    .then(r => r.json())
+                    .then(data => {
+                        const lista = document.getElementById('comLista');
+                        if (!data.comentarios || data.comentarios.length === 0) {
+                            lista.innerHTML = '<p class="com-vacio">Aún no hay comentarios. ¡Sé el primero!</p>';
+                            return;
+                        }
+                        lista.innerHTML = data.comentarios.map(crearCard).join('');
+                    })
+                    .catch(() => {
+                        document.getElementById('comLista').innerHTML =
+                            '<p class="com-vacio">No se pudieron cargar los comentarios.</p>';
+                    });
+            }
+
+            // Enviar comentario
+            window.enviarComentario = function () {
+                const texto = textarea.value.trim();
+                msg.className = 'com-msg';
+                msg.textContent = '';
+
+                if (texto.length < 10) {
+                    msg.className = 'com-msg err';
+                    msg.textContent = 'El comentario debe tener al menos 10 caracteres.';
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...';
+
+                const body = new URLSearchParams({ comentario: texto });
+                fetch('/registrar_comentario.php', { method: 'POST', body })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'exitoso') {
+                            msg.className = 'com-msg ok';
+                            msg.textContent = '¡Gracias por tu comentario!';
+                            textarea.value = '';
+                            contador.textContent = '0 / 1000';
+                            cargarComentarios();
+                        } else {
+                            throw new Error(data.message || 'Error');
+                        }
+                    })
+                    .catch(e => {
+                        msg.className = 'com-msg err';
+                        msg.textContent = 'No se pudo enviar. Intenta de nuevo.';
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
+                    });
+            };
+
+            cargarComentarios();
+        })();
+        </script>
 
         <section id="contact" class="glass-section">
             <h2 class="glass-title">¿Necesitas más información? Contáctanos</h2>

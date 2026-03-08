@@ -16,10 +16,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // --- 2. CONFIGURACIÓN DE BASE DE DATOS ---
-$servername = "127.0.0.1";
-$username = "u450756829_Leser";
-$password = "#s*/gDkR5Pcuba";
-$dbname = "u450756829_PaginaWeb";
+$cfg_path = dirname(__DIR__) . '/config_db.php';
+if (!file_exists($cfg_path)) {
+    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
+            'username' => 'u450756829_Leser', 'password' => ''];
+} else {
+    $cfg = require $cfg_path;
+}
+$servername = $cfg['host'];
+$username   = $cfg['username'];
+$password   = $cfg['password'];
+$dbname     = $cfg['dbname'];
 
 // --- 3. OBTENER DATOS DEL FORMULARIO ---
 $comentario = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
@@ -98,52 +105,63 @@ $ciudad = isset($geo_data->city) ? $geo_data->city : 'Desconocida';
 
 // --- 6. INSERTAR EN BASE DE DATOS ---
 try {
-    // Crear conexión PDO
-    $conn = new PDO("mysql:host=$servername;dbname=$dbname;charset=utf8mb4", $username, $password);
+    $conn = new PDO(
+        "mysql:host=$servername;dbname=$dbname;charset=utf8mb4",
+        $username,
+        $password
+    );
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // Configurar zona horaria
     date_default_timezone_set('America/Mexico_City');
     $conn->exec("SET time_zone = '-06:00'");
 
-    // Preparar sentencia SQL
+    // Rate limit: máximo 2 comentarios por IP en 10 minutos; 5 en 24 horas
+    $rl = $conn->prepare(
+        "SELECT
+            SUM(fecha_hora >= NOW() - INTERVAL 10 MINUTE) AS recientes,
+            SUM(fecha_hora >= NOW() - INTERVAL 24 HOUR)   AS dia
+         FROM comentarios_sugerencias
+         WHERE ip_address = ?"
+    );
+    $rl->execute([$ip_address]);
+    $counts = $rl->fetch(PDO::FETCH_ASSOC);
+
+    if ((int)$counts['recientes'] >= 2) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Espera unos minutos antes de enviar otro comentario.']);
+        exit;
+    }
+    if ((int)$counts['dia'] >= 5) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Has alcanzado el límite de comentarios por hoy.']);
+        exit;
+    }
+
+    // Insertar
     $stmt = $conn->prepare("
         INSERT INTO comentarios_sugerencias
         (comentario, email, ip_address, pais, ciudad, fecha_hora)
         VALUES
         (:comentario, :email, :ip_address, :pais, :ciudad, NOW())
     ");
-
-    // Vincular parámetros
     $stmt->bindParam(':comentario', $comentario, PDO::PARAM_STR);
-    $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+    $stmt->bindParam(':email',      $email,      PDO::PARAM_STR);
     $stmt->bindParam(':ip_address', $ip_address, PDO::PARAM_STR);
-    $stmt->bindParam(':pais', $pais, PDO::PARAM_STR);
-    $stmt->bindParam(':ciudad', $ciudad, PDO::PARAM_STR);
-
-    // Ejecutar inserción
+    $stmt->bindParam(':pais',       $pais,       PDO::PARAM_STR);
+    $stmt->bindParam(':ciudad',     $ciudad,     PDO::PARAM_STR);
     $stmt->execute();
 
-    // Respuesta exitosa
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'status' => 'exitoso',
-        'message' => 'Comentario registrado correctamente',
-        'id' => $conn->lastInsertId()
-    ]);
+    echo json_encode(['status' => 'exitoso', 'message' => 'Comentario registrado correctamente']);
 
-} catch(PDOException $e) {
-    // Error en base de datos
+} catch (PDOException $e) {
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Error al guardar en base de datos',
-        'error' => $e->getMessage()
-    ]);
+    echo json_encode(['status' => 'error', 'message' => 'Error de base de datos']);
+    error_log('registrar_comentario.php PDO error: ' . $e->getMessage());
 }
 
-// Cerrar conexión
 $conn = null;
 ?>

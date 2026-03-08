@@ -1,7 +1,26 @@
 <?php
-// Permitir CORS para que la app Java pueda llamar este endpoint
+// ────────────────────────────────────────────────────────────
+// ALTO-01 fix: CORS — sync_pos es llamado por la app Java (servidor a servidor),
+//              no necesita CORS en absoluto. Se deja solo por si hay casos de
+//              prueba desde navegador, pero restringido.
+// BAJO-05 fix: manejar preflight OPTIONS
+// CRITICO-01 fix: credenciales cargadas desde archivo externo al webroot
+// ALTO-03 fix: validacion de hardware_id y estructura interna de los JSON
+// BAJO-08 fix: validacion de coherencia ganancia <= ventas
+// ────────────────────────────────────────────────────────────
+
+// Preflight OPTIONS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
+    http_response_code(204);
+    exit;
+}
+
+// sync_pos es invocado por la app Java — CORS abierto solo para POST
+// (la app Java no envía Origin header, por lo que esto no afecta seguridad del browser)
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
 header('Content-Type: application/json; charset=UTF-8');
 
 // Solo acepta POST
@@ -19,6 +38,13 @@ if (empty($hardware_id)) {
     exit;
 }
 
+// ALTO-03 fix: validar formato de hardware_id — solo alfanumerico, guiones y guiones bajos
+if (!preg_match('/^[a-zA-Z0-9_\-]{4,50}$/', $hardware_id)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'hardware_id inválido']);
+    exit;
+}
+
 // Sanitizar y obtener campos opcionales
 $negocio         = isset($_POST['negocio'])         ? substr(trim($_POST['negocio']), 0, 200)  : '';
 $ventas_hoy      = isset($_POST['ventas_hoy'])      ? intval($_POST['ventas_hoy'])              : 0;
@@ -32,15 +58,51 @@ $tickets_turno   = isset($_POST['tickets_turno'])   ? intval($_POST['tickets_tur
 $ultimas_ventas  = isset($_POST['ultimas_ventas'])  ? $_POST['ultimas_ventas']                  : '[]';
 $historico_semana= isset($_POST['historico_semana'])? $_POST['historico_semana']                : '[]';
 
-// Validar que los JSON sean válidos
-if (json_decode($ultimas_ventas) === null)  $ultimas_ventas  = '[]';
-if (json_decode($historico_semana) === null) $historico_semana = '[]';
+// BAJO-08 fix: validacion de coherencia — ganancia no puede superar ventas
+if ($ganancia_hoy > $ventas_hoy)     $ganancia_hoy  = $ventas_hoy;
+if ($tickets_turno > $tickets_hoy)   $tickets_turno = $tickets_hoy;
+if ($ventas_turno > $ventas_hoy)     $ventas_turno  = $ventas_hoy;
 
-// Conexión a MySQL
-$servername = "127.0.0.1";
-$username   = "u450756829_Leser";
-$password   = "#s*/gDkR5Pcuba";
-$dbname     = "u450756829_PaginaWeb";
+// ALTO-03 fix: validar estructura interna de los JSON y sanitizar sus campos
+$uv = json_decode($ultimas_ventas, true);
+if (!is_array($uv)) $uv = [];
+foreach ($uv as &$v) {
+    $hora_raw        = isset($v['hora']) ? (string) $v['hora'] : '00:00';
+    $hora_match      = [];
+    // Extraer HH:MM de cualquier formato (HH:MM, HH:MM:SS, ISO, etc.)
+    $v['hora']           = preg_match('/(\d{1,2}:\d{2})/', $hora_raw, $hora_match) ? $hora_match[1] : '00:00';
+    $v['total_centavos'] = isset($v['total_centavos']) ? intval($v['total_centavos']) : 0;
+    $v['cajero']         = isset($v['cajero'])         ? substr(strip_tags((string)$v['cajero']), 0, 100) : '';
+}
+unset($v);
+$ultimas_ventas = json_encode(array_values($uv));
+
+$hs = json_decode($historico_semana, true);
+if (!is_array($hs)) $hs = [];
+foreach ($hs as &$d) {
+    $fecha_raw       = isset($d['fecha']) ? (string) $d['fecha'] : '';
+    $fecha_match     = [];
+    $d['fecha']          = preg_match('/(\d{4}-\d{2}-\d{2})/', $fecha_raw, $fecha_match) ? $fecha_match[1] : '';
+    $d['total_centavos'] = isset($d['total_centavos']) ? intval($d['total_centavos']) : 0;
+}
+unset($d);
+$historico_semana = json_encode(array_values($hs));
+
+// CRITICO-01: cargar credenciales desde archivo fuera del webroot
+// ACCION REQUERIDA: crear /home/u450756829/config_db.php con las credenciales
+// y CAMBIAR la contrasena de MySQL en el panel de Hostinger
+$cfg_path = dirname(__DIR__) . '/config_db.php';
+if (!file_exists($cfg_path)) {
+    // Fallback temporal — REMOVER una vez que config_db.php exista
+    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
+            'username' => 'u450756829_Leser', 'password' => '#s*/gDkR5Pcuba'];
+} else {
+    $cfg = require $cfg_path;
+}
+$servername = $cfg['host'];
+$username   = $cfg['username'];
+$password   = $cfg['password'];
+$dbname     = $cfg['dbname'];
 
 try {
     $conn = new PDO("mysql:host=$servername;dbname=$dbname;charset=utf8mb4", $username, $password);

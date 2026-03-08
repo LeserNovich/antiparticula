@@ -1,3 +1,6 @@
+# MEDIO-08 fix: deshabilitar listado de directorios
+Options -Indexes
+
 RewriteEngine On
 
 # Dashboard PWA: /dashboard/:hardware_id → /dashboard/index.html

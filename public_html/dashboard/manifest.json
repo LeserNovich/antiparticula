@@ -3,18 +3,19 @@
   "short_name": "Dashboard",
   "description": "Panel de ventas en tiempo real para Antiparticula POS",
   "start_url": "./",
+  "scope": "/dashboard/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f1419",
-  "theme_color": "#4ade80",
+  "theme_color": "#202936",
   "icons": [
     {
-      "src": "../../img/logo.png",
+      "src": "../img/A.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "../../img/logo.png",
+      "src": "../img/A.png",
       "sizes": "512x512",
       "type": "image/png"
     }

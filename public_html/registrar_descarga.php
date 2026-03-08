@@ -1,18 +1,23 @@
 <?php
-echo "PHP fue invocado correctamente";
-// --- AÑADE ESTA VERIFICACIÓN DE SEGURIDAD ---
-// Si la solicitud no es de tipo POST, detiene el script.
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    // Opcional: puedes mostrar un mensaje de error o simplemente salir.
-    http_response_code(405); // Código de "Método no permitido"
-    exit('Acceso denegado.'); 
-}
-// --- FIN DE LA VERIFICACIÓN ---
+header('Content-Type: application/json; charset=UTF-8');
 
-$servername = "127.0.0.1"; // O la IP de tu servidor de BD
-$username = "u450756829_Leser";    // Tu usuario de la base de datos
-$password = "#s*/gDkR5Pcuba"; // Tu contraseña de la base de datos
-$dbname = "u450756829_PaginaWeb";     // El nombre de tu base de datos
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Método no permitido']);
+    exit;
+}
+
+$cfg_path = dirname(__DIR__) . '/config_db.php';
+if (!file_exists($cfg_path)) {
+    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
+            'username' => 'u450756829_Leser', 'password' => ''];
+} else {
+    $cfg = require $cfg_path;
+}
+$servername = $cfg['host'];
+$username   = $cfg['username'];
+$password   = $cfg['password'];
+$dbname     = $cfg['dbname'];
 
 // --- 2. OBTENCIÓN DE DATOS DEL USUARIO ---
 // Obtener la dirección IP del visitante
@@ -51,8 +56,9 @@ try {
     echo json_encode(['status' => 'exitoso', 'message' => 'Registro registrado en BD.']);
 
 } catch(PDOException $e) {
-    // Opcional: manejar el error
-    echo json_encode(['status' => 'error', 'message' => 'Error al registrar: ' . $e->getMessage()]);
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Error de base de datos']);
+    error_log('registrar_descarga.php PDO error: ' . $e->getMessage());
 }
 
 // Cerrar la conexión

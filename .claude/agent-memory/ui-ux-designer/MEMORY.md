@@ -1,5 +1,19 @@
 # UI/UX Designer — Memoria del Proyecto Antipartícula
 
+## Dashboard POS — Dark Command Center (aprobado)
+- Archivos: `public_html/dashboard/dashboard.css`, `dashboard.js`, `index.html`
+- Fondo global: `#0f1419` | Cards: `#1a2332` | Card hover: `#202936`
+- Borde cards: `#2c3e55` | Acento: `#2c6e95` | Acento glow: `rgba(44,110,149,0.15)`
+- Verde positivo: `#34d399` | Rojo: `#e05252`
+- Texto primario: `#e2e8f0` | Secundario: `#7ab8d9` | Muted: `#4a6278`
+- Header: `#202936` con borde inferior `#2c3e55`
+- sync-badge activo: `rgba(52,211,153,0.12)` fondo, `#34d399` texto
+- sync-badge stale: `rgba(224,82,82,0.12)` fondo, `#e05252` texto
+- Chart: `backgroundColor rgba(44,110,149,0.25)`, `borderColor #2c6e95`
+- Chart ejes: ticks `#4a6278`, grid `rgba(44,110,149,0.08)` — ambos ejes x e y
+- max-width: 640px | border-radius cards: 14px | responsive breakpoint: 480px
+- Font: `-apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif`
+
 ## Paleta de colores aprobada
 - Navy oscuro: `#202936` — botones primarios, títulos de forma
 - Steel blue: `#2c6e95` — headers de sección, subtítulos, focusedBorderColor, acento

@@ -22,10 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Configuración de base de datos
-$host = '127.0.0.1';
-$dbname = 'u450756829_PaginaWeb';
-$username = 'u450756829_Leser';
-$password = '#s*/gDkR5Pcuba';
+$cfg_path = dirname(__DIR__) . '/config_db.php';
+if (!file_exists($cfg_path)) {
+    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
+            'username' => 'u450756829_Leser', 'password' => ''];
+} else {
+    $cfg = require $cfg_path;
+}
+$host     = $cfg['host'];
+$dbname   = $cfg['dbname'];
+$username = $cfg['username'];
+$password = $cfg['password'];
 
 try {
     // Conectar a MySQL con PDO
