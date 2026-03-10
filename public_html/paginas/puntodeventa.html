@@ -998,7 +998,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             <h2 class="glass-title">Lo que dicen nuestros usuarios</h2>
             <p class="glass-subtitle">Negocios reales que ya transformaron su manera de vender.</p>
 
-            <div class="testimonios-grid">
+            <div class="testimonios-grid" id="testimoniosGrid">
                 <div class="testimonio-card">
                     <div class="testimonio-header">
                         <div class="testimonio-avatar">M</div>
@@ -1047,7 +1047,292 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                     <p class="testimonio-texto">"Vendía por kilos y buscaba algo que lo manejara bien. Este sistema lo hace perfecto. Además el ticket que imprime se ve muy profesional, mis clientes lo notan."</p>
                 </div>
             </div>
+
+            <!-- CTA para dejar opinión -->
+            <div class="tst-cta">
+                <button class="tst-toggle-btn" id="tstToggleBtn" onclick="toggleFormTst()">
+                    <i class="fa-solid fa-pen-to-square"></i> Comparte tu experiencia
+                </button>
+            </div>
+
+            <!-- Formulario (oculto por defecto) -->
+            <div class="tst-form-box" id="tstFormBox" hidden>
+                <div class="tst-stars-row" id="tstStars">
+                    <button class="tst-star" data-v="1" type="button">★</button>
+                    <button class="tst-star" data-v="2" type="button">★</button>
+                    <button class="tst-star" data-v="3" type="button">★</button>
+                    <button class="tst-star" data-v="4" type="button">★</button>
+                    <button class="tst-star" data-v="5" type="button">★</button>
+                </div>
+                <div class="tst-row-inputs">
+                    <input class="tst-input" id="tstNombre" type="text" maxlength="100" placeholder="Tu nombre (opcional)">
+                    <input class="tst-input" id="tstNegocio" type="text" maxlength="100" placeholder="Tipo de negocio · Ciudad (opcional)">
+                </div>
+                <textarea class="tst-textarea" id="tstTexto" maxlength="1000" rows="3"
+                    placeholder="Cuéntanos tu experiencia con el sistema..."></textarea>
+                <div class="tst-form-footer">
+                    <span class="tst-contador" id="tstContador">0 / 1000</span>
+                    <button class="glass-btn btn-primary" id="tstBtn" onclick="enviarTestimonio()">
+                        <i class="fa-solid fa-paper-plane"></i> Publicar
+                    </button>
+                </div>
+                <p class="tst-msg" id="tstMsg" aria-live="polite"></p>
+            </div>
         </section>
+
+        <style>
+            /* ── Testimonios: form y cards dinámicas ─────────────────── */
+            .tst-cta {
+                text-align: center;
+                margin-top: 40px;
+            }
+            .tst-toggle-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: rgba(99,102,241,0.1);
+                border: 1px solid rgba(99,102,241,0.35);
+                color: #818cf8;
+                border-radius: 50px;
+                padding: 12px 28px;
+                font-size: 0.9rem;
+                font-weight: 600;
+                cursor: pointer;
+                font-family: inherit;
+                transition: background 0.2s, transform 0.15s;
+            }
+            .tst-toggle-btn:hover {
+                background: rgba(99,102,241,0.2);
+                transform: translateY(-1px);
+            }
+            .tst-form-box {
+                max-width: 600px;
+                margin: 28px auto 0;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 20px;
+                padding: 28px 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                animation: tstFadeIn 0.25s ease;
+            }
+            @keyframes tstFadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            .tst-stars-row {
+                display: flex;
+                gap: 4px;
+                justify-content: center;
+            }
+            .tst-star {
+                background: none;
+                border: none;
+                font-size: 2rem;
+                cursor: pointer;
+                color: rgba(255,255,255,0.15);
+                transition: color 0.1s, transform 0.1s;
+                padding: 0 2px;
+                line-height: 1;
+            }
+            .tst-star.active { color: #fbbf24; }
+            .tst-star:hover  { transform: scale(1.15); }
+            .tst-row-inputs {
+                display: flex;
+                gap: 10px;
+            }
+            .tst-input, .tst-textarea {
+                width: 100%;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 10px;
+                color: #e5e7eb;
+                font-size: 0.88rem;
+                padding: 10px 14px;
+                font-family: inherit;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+            .tst-input:focus, .tst-textarea:focus { border-color: rgba(99,102,241,0.55); }
+            .tst-input::placeholder, .tst-textarea::placeholder { color: #4b5563; }
+            .tst-textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+            .tst-form-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .tst-contador { font-size: 0.75rem; color: #6b7280; }
+            .tst-msg { font-size: 0.82rem; text-align: center; min-height: 1rem; }
+            .tst-msg.ok  { color: #4ade80; }
+            .tst-msg.err { color: #f87171; }
+            .testimonio-avatar.av5 { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+            .tst-loading {
+                grid-column: 1 / -1;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.85rem;
+                padding: 16px 0;
+            }
+            @media (max-width: 600px) {
+                .tst-row-inputs { flex-direction: column; }
+                .tst-form-box   { padding: 20px 16px; }
+                .tst-star       { font-size: 1.7rem; }
+            }
+        </style>
+
+        <script>
+        (function () {
+            let calificacion = 5;
+
+            // ── Stars ────────────────────────────────────────────────
+            const stars = document.querySelectorAll('.tst-star');
+            function setStars(n) {
+                calificacion = n;
+                stars.forEach((s, i) => s.classList.toggle('active', i < n));
+            }
+            setStars(5);
+            stars.forEach((s, i) => {
+                s.addEventListener('click', () => setStars(i + 1));
+                s.addEventListener('mouseenter', () => stars.forEach((x, j) => x.classList.toggle('active', j <= i)));
+                s.addEventListener('mouseleave', () => setStars(calificacion));
+            });
+
+            // ── Contador textarea ────────────────────────────────────
+            const textarea = document.getElementById('tstTexto');
+            const contador = document.getElementById('tstContador');
+            textarea.addEventListener('input', () => {
+                contador.textContent = textarea.value.length + ' / 1000';
+            });
+
+            // ── Toggle formulario ────────────────────────────────────
+            window.toggleFormTst = function () {
+                const box = document.getElementById('tstFormBox');
+                const btn = document.getElementById('tstToggleBtn');
+                const show = box.hidden;
+                box.hidden = !show;
+                btn.innerHTML = show
+                    ? '<i class="fa-solid fa-xmark"></i> Cancelar'
+                    : '<i class="fa-solid fa-pen-to-square"></i> Comparte tu experiencia';
+                if (show) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            };
+
+            // ── Escape HTML ──────────────────────────────────────────
+            function esc(s) {
+                return String(s)
+                    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+                    .replace(/'/g,'&#x27;');
+            }
+
+            // ── Construir card con estilo testimonio ─────────────────
+            const avClasses = ['', 'av2', 'av3', 'av4', 'av5'];
+            function crearCard(c, idx) {
+                const nombre  = (c.nombre && c.nombre.trim()) ? c.nombre.trim() : 'Usuario';
+                const inicial = nombre.charAt(0).toUpperCase();
+                const av      = avClasses[idx % 5];
+                const calif   = Math.min(5, Math.max(1, parseInt(c.calificacion) || 5));
+                const estrellas = '★'.repeat(calif) + '☆'.repeat(5 - calif);
+
+                let sub = '';
+                if (c.tipo_negocio && c.tipo_negocio.trim()) sub = esc(c.tipo_negocio.trim());
+                const lugar = (c.ciudad && c.ciudad !== 'Desconocida' && c.ciudad !== 'Desconocido')
+                    ? c.ciudad : (c.pais && c.pais !== 'Desconocido' ? c.pais : '');
+                if (lugar) sub += (sub ? ' · ' : '') + esc(lugar);
+
+                return `<div class="testimonio-card" style="animation:tstFadeIn 0.35s ease">
+                    <div class="testimonio-header">
+                        <div class="testimonio-avatar ${av}">${inicial}</div>
+                        <div class="testimonio-info">
+                            <h4>${esc(nombre)}</h4>
+                            ${sub ? `<span>${sub}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="testimonio-estrellas">${estrellas}</div>
+                    <p class="testimonio-texto">"${esc(c.comentario)}"</p>
+                </div>`;
+            }
+
+            // ── Cargar comentarios de BD ─────────────────────────────
+            function cargarComentarios() {
+                const grid = document.getElementById('testimoniosGrid');
+                grid.querySelectorAll('.tst-db').forEach(el => el.remove());
+                const loader = document.createElement('div');
+                loader.className = 'tst-loading tst-db';
+                loader.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+                grid.appendChild(loader);
+
+                fetch('/get_comentarios.php')
+                    .then(r => r.json())
+                    .then(data => {
+                        loader.remove();
+                        if (!data.comentarios || !data.comentarios.length) return;
+                        data.comentarios.forEach((c, i) => {
+                            const wrap = document.createElement('div');
+                            wrap.className = 'tst-db';
+                            wrap.innerHTML = crearCard(c, i);
+                            grid.appendChild(wrap);
+                        });
+                    })
+                    .catch(() => loader.remove());
+            }
+
+            // ── Enviar ───────────────────────────────────────────────
+            window.enviarTestimonio = function () {
+                const texto   = textarea.value.trim();
+                const nombre  = document.getElementById('tstNombre').value.trim();
+                const negocio = document.getElementById('tstNegocio').value.trim();
+                const msg     = document.getElementById('tstMsg');
+                const btn     = document.getElementById('tstBtn');
+
+                msg.className = 'tst-msg';
+                msg.textContent = '';
+
+                if (texto.length < 10) {
+                    msg.className = 'tst-msg err';
+                    msg.textContent = 'El comentario debe tener al menos 10 caracteres.';
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...';
+
+                const body = new URLSearchParams({
+                    comentario:   texto,
+                    nombre:       nombre,
+                    tipo_negocio: negocio,
+                    calificacion: calificacion
+                });
+
+                fetch('/registrar_comentario.php', { method: 'POST', body })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'exitoso') {
+                            msg.className = 'tst-msg ok';
+                            msg.textContent = '¡Gracias por tu opinión!';
+                            textarea.value = '';
+                            document.getElementById('tstNombre').value = '';
+                            document.getElementById('tstNegocio').value = '';
+                            contador.textContent = '0 / 1000';
+                            setStars(5);
+                            cargarComentarios();
+                        } else {
+                            throw new Error(data.message || 'Error');
+                        }
+                    })
+                    .catch(e => {
+                        msg.className = 'tst-msg err';
+                        msg.textContent = e.message || 'No se pudo enviar. Intenta de nuevo.';
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Publicar';
+                    });
+            };
+
+            cargarComentarios();
+        })();
+        </script>
 
         <!-- ══ FAQ ══════════════════════════════════════════════════════ -->
         <section id="faq" class="glass-section">
@@ -1127,258 +1412,6 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             </div>
         </section>
 
-        <!-- ══ COMENTARIOS ══════════════════════════════════════════════ -->
-        <section id="comentarios" class="glass-section">
-            <h2 class="glass-title">Comentarios y Sugerencias</h2>
-            <p class="glass-subtitle">¿Tienes alguna opinión o sugerencia? Nos ayuda a mejorar el sistema.</p>
-
-            <!-- Formulario -->
-            <div class="com-form-wrap glass-panel">
-                <textarea id="comTexto" class="com-textarea" maxlength="1000" rows="3"
-                    placeholder="Escribe tu comentario o sugerencia..."></textarea>
-                <div class="com-form-footer">
-                    <span id="comContador" class="com-contador">0 / 1000</span>
-                    <button id="comBtn" class="glass-btn btn-primary com-btn" onclick="enviarComentario()">
-                        <i class="fa-solid fa-paper-plane"></i> Enviar
-                    </button>
-                </div>
-                <p id="comMsg" class="com-msg" aria-live="polite"></p>
-            </div>
-
-            <!-- Lista de comentarios -->
-            <div id="comLista" class="com-lista">
-                <div class="com-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando comentarios...</div>
-            </div>
-        </section>
-
-        <style>
-            /* ── Sección comentarios ─────────────────────────────── */
-            .com-form-wrap {
-                max-width: 680px;
-                margin: 0 auto 40px;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            .com-textarea {
-                width: 100%;
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.12);
-                border-radius: 12px;
-                color: #e5e7eb;
-                font-size: 0.92rem;
-                line-height: 1.6;
-                padding: 14px 16px;
-                resize: vertical;
-                min-height: 90px;
-                font-family: inherit;
-                transition: border-color 0.2s;
-                outline: none;
-            }
-            .com-textarea:focus { border-color: rgba(99,102,241,0.55); }
-            .com-textarea::placeholder { color: #4b5563; }
-            .com-form-footer {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 12px;
-            }
-            .com-contador {
-                font-size: 0.75rem;
-                color: #6b7280;
-            }
-            .com-btn {
-                padding: 10px 22px;
-                font-size: 0.88rem;
-                white-space: nowrap;
-            }
-            .com-msg {
-                font-size: 0.82rem;
-                min-height: 1rem;
-                text-align: center;
-            }
-            .com-msg.ok  { color: #4ade80; }
-            .com-msg.err { color: #f87171; }
-
-            /* ── Lista ───────────────────────────────────────────── */
-            .com-lista {
-                max-width: 680px;
-                margin: 0 auto;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-            }
-            .com-loading, .com-vacio {
-                text-align: center;
-                color: #6b7280;
-                font-size: 0.88rem;
-                padding: 32px 0;
-            }
-            .com-card {
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.09);
-                border-radius: 14px;
-                padding: 18px 20px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                animation: comFadeIn 0.3s ease;
-            }
-            @keyframes comFadeIn {
-                from { opacity: 0; transform: translateY(8px); }
-                to   { opacity: 1; transform: translateY(0); }
-            }
-            .com-texto {
-                color: #e5e7eb;
-                font-size: 0.9rem;
-                line-height: 1.6;
-                word-break: break-word;
-                margin: 0;
-            }
-            .com-meta {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-            .com-lugar {
-                display: flex;
-                align-items: center;
-                gap: 5px;
-                font-size: 0.72rem;
-                color: #6b7280;
-            }
-            .com-lugar i { color: #4b5563; font-size: 0.65rem; }
-            .com-fecha {
-                font-size: 0.72rem;
-                color: #4b5563;
-                margin-left: auto;
-            }
-        </style>
-
-        <script>
-        (function () {
-            const textarea = document.getElementById('comTexto');
-            const contador = document.getElementById('comContador');
-            const msg      = document.getElementById('comMsg');
-            const btn      = document.getElementById('comBtn');
-
-            // Contador de caracteres
-            textarea.addEventListener('input', () => {
-                contador.textContent = textarea.value.length + ' / 1000';
-            });
-
-            // Escape HTML
-            function esc(s) {
-                return String(s)
-                    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-                    .replace(/'/g,'&#x27;');
-            }
-
-            // Fecha relativa
-            function fechaRelativa(iso) {
-                const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-                if (diff < 60)   return 'hace un momento';
-                if (diff < 3600) return 'hace ' + Math.floor(diff / 60) + ' min';
-                if (diff < 86400) return 'hace ' + Math.floor(diff / 3600) + ' h';
-                const d = Math.floor(diff / 86400);
-                return d === 1 ? 'ayer' : 'hace ' + d + ' días';
-            }
-
-            // Construir tarjeta
-            function crearCard(c) {
-                const lugar = (c.ciudad && c.ciudad !== 'Desconocida' && c.ciudad !== 'Desconocido')
-                    ? esc(c.ciudad) + (c.pais && c.pais !== 'Desconocido' ? ', ' + esc(c.pais) : '')
-                    : (c.pais && c.pais !== 'Desconocido' ? esc(c.pais) : '');
-
-                return `<div class="com-card">
-                    <p class="com-texto">${esc(c.comentario)}</p>
-                    <div class="com-meta">
-                        ${lugar ? `<span class="com-lugar"><i class="fa-solid fa-location-dot"></i>${lugar}</span>` : ''}
-                        <span class="com-fecha">${fechaRelativa(c.fecha_hora)}</span>
-                    </div>
-                </div>`;
-            }
-
-            // Cargar comentarios
-            function cargarComentarios() {
-                fetch('/get_comentarios.php')
-                    .then(r => r.json())
-                    .then(data => {
-                        const lista = document.getElementById('comLista');
-                        if (!data.comentarios || data.comentarios.length === 0) {
-                            lista.innerHTML = '<p class="com-vacio">Aún no hay comentarios. ¡Sé el primero!</p>';
-                            return;
-                        }
-                        lista.innerHTML = data.comentarios.map(crearCard).join('');
-                    })
-                    .catch(() => {
-                        document.getElementById('comLista').innerHTML =
-                            '<p class="com-vacio">No se pudieron cargar los comentarios.</p>';
-                    });
-            }
-
-            // Enviar comentario
-            window.enviarComentario = function () {
-                const texto = textarea.value.trim();
-                msg.className = 'com-msg';
-                msg.textContent = '';
-
-                if (texto.length < 10) {
-                    msg.className = 'com-msg err';
-                    msg.textContent = 'El comentario debe tener al menos 10 caracteres.';
-                    return;
-                }
-
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...';
-
-                const body = new URLSearchParams({ comentario: texto });
-                fetch('/registrar_comentario.php', { method: 'POST', body })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.status === 'exitoso') {
-                            msg.className = 'com-msg ok';
-                            msg.textContent = '¡Gracias por tu comentario!';
-                            textarea.value = '';
-                            contador.textContent = '0 / 1000';
-                            cargarComentarios();
-                        } else {
-                            throw new Error(data.message || 'Error');
-                        }
-                    })
-                    .catch(e => {
-                        msg.className = 'com-msg err';
-                        msg.textContent = 'No se pudo enviar. Intenta de nuevo.';
-                    })
-                    .finally(() => {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
-                    });
-            };
-
-            cargarComentarios();
-        })();
-        </script>
-
-        <section id="contact" class="glass-section">
-            <h2 class="glass-title">¿Necesitas más información? Contáctanos</h2>
-            <p class="glass-subtitle">Estamos listos para resolver tus dudas. Envíanos un mensaje directo a nuestro WhatsApp y te atenderemos personalmente.</p>
-            
-            <div class="glass-panel contact-form-container">
-                <div class="whatsapp-sender">
-                    <div class="input-group">
-                        <label for="whatsapp-message">Escribe tu Mensaje</label>
-                        <textarea id="whatsapp-message" class="contact-input" rows="5" placeholder="Hola, me gustaría saber si el punto de venta funciona para una farmacia..." required></textarea>
-                    </div>
-                    
-                    <button type="button" class="glass-btn btn-primary" style="width: 100%;" onclick="sendWhatsAppMessage()">
-                        <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
-                    </button>
-                </div>
-            </div>
-        </section>
     </main>
 
     <!-- Botón flotante WhatsApp -->

@@ -27,7 +27,7 @@ try {
 
     // Solo devuelve campos públicos — nunca email ni ip_address
     $stmt = $conn->query(
-        "SELECT id, comentario, pais, ciudad, fecha_hora
+        "SELECT id, comentario, nombre, tipo_negocio, calificacion, pais, ciudad, fecha_hora
          FROM comentarios_sugerencias
          ORDER BY fecha_hora DESC
          LIMIT 30"

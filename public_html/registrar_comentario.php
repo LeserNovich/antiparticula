@@ -29,8 +29,11 @@ $password   = $cfg['password'];
 $dbname     = $cfg['dbname'];
 
 // --- 3. OBTENER DATOS DEL FORMULARIO ---
-$comentario = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
-$email = isset($_POST['email']) ? trim($_POST['email']) : null;
+$comentario   = isset($_POST['comentario'])   ? trim($_POST['comentario'])                  : '';
+$email        = isset($_POST['email'])        ? trim($_POST['email'])                       : null;
+$nombre       = isset($_POST['nombre'])       ? substr(trim($_POST['nombre']), 0, 100)      : null;
+$tipo_negocio = isset($_POST['tipo_negocio']) ? substr(trim($_POST['tipo_negocio']), 0, 100): null;
+$calificacion = isset($_POST['calificacion']) ? max(1, min(5, intval($_POST['calificacion']))): 5;
 
 // --- 4. VALIDACIONES ---
 if (empty($comentario)) {
@@ -141,15 +144,18 @@ try {
     // Insertar
     $stmt = $conn->prepare("
         INSERT INTO comentarios_sugerencias
-        (comentario, email, ip_address, pais, ciudad, fecha_hora)
+        (comentario, email, nombre, tipo_negocio, calificacion, ip_address, pais, ciudad, fecha_hora)
         VALUES
-        (:comentario, :email, :ip_address, :pais, :ciudad, NOW())
+        (:comentario, :email, :nombre, :tipo_negocio, :calificacion, :ip_address, :pais, :ciudad, NOW())
     ");
-    $stmt->bindParam(':comentario', $comentario, PDO::PARAM_STR);
-    $stmt->bindParam(':email',      $email,      PDO::PARAM_STR);
-    $stmt->bindParam(':ip_address', $ip_address, PDO::PARAM_STR);
-    $stmt->bindParam(':pais',       $pais,       PDO::PARAM_STR);
-    $stmt->bindParam(':ciudad',     $ciudad,     PDO::PARAM_STR);
+    $stmt->bindParam(':comentario',   $comentario,   PDO::PARAM_STR);
+    $stmt->bindParam(':email',        $email,        PDO::PARAM_STR);
+    $stmt->bindParam(':nombre',       $nombre,       PDO::PARAM_STR);
+    $stmt->bindParam(':tipo_negocio', $tipo_negocio, PDO::PARAM_STR);
+    $stmt->bindParam(':calificacion', $calificacion, PDO::PARAM_INT);
+    $stmt->bindParam(':ip_address',   $ip_address,   PDO::PARAM_STR);
+    $stmt->bindParam(':pais',         $pais,         PDO::PARAM_STR);
+    $stmt->bindParam(':ciudad',       $ciudad,       PDO::PARAM_STR);
     $stmt->execute();
 
     http_response_code(200);
