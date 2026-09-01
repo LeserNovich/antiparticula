@@ -28,6 +28,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
+    // Solo interceptar peticiones de nuestro origen o CDN conocido
+    const isOurOrigin = url.origin === self.location.origin;
+    const isKnownCDN = url.href.startsWith('https://cdn.jsdelivr.net/');
+    if (!isOurOrigin && !isKnownCDN) return;
+
     // Las llamadas a la API siempre van a red (no cachear datos dinámicos)
     if (url.pathname.includes('get_dashboard_data.php') || url.pathname.includes('sync_pos.php')) {
         event.respondWith(fetch(event.request));

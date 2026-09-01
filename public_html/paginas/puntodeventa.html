@@ -46,74 +46,130 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
 
+    <!-- Datos estructurados Schema.org (rich snippets de Google).
+         OJO: uploadDate del VideoObject es un valor aproximado; ajustalo a la
+         fecha real de publicacion del video en YouTube. -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "SoftwareApplication",
-          "name": "Antipartícula | Punto de Venta",
-          "applicationCategory": "BusinessApplication",
-          "description": "Software de Punto de Venta (TPV) para abarrotes, ferreterías, farmacias y minisupers. Controla inventario, ventas y clientes con un sistema fácil y moderno.",
-          "operatingSystem": "Windows",
-          "offers": [
-            {
-              "@type": "Offer",
-              "name": "Versión Gratuita",
-              "price": "0",
-              "priceCurrency": "MXN",
-              "description": "Versión gratuita para siempre con todas las funciones principales incluidas."
-            },
-            {
-              "@type": "Offer",
-              "name": "Plan Premium Semestral",
-              "price": "954",
-              "priceCurrency": "MXN",
-              "description": "Facturado cada 6 meses. Incluye importación y exportación ilimitada de productos vía Excel."
-            },
-            {
-              "@type": "Offer",
-              "name": "Plan Premium Anual",
-              "price": "1669",
-              "priceCurrency": "MXN",
-              "description": "Facturado anualmente con un 12% de ahorro. Incluye importación y exportación ilimitada de productos vía Excel."
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Antipartícula | Punto de Venta",
+            "applicationCategory": "BusinessApplication",
+            "description": "Software de Punto de Venta (TPV) para abarrotes, ferreterías, farmacias y minisupers. Controla inventario, ventas y clientes con un sistema fácil y moderno.",
+            "operatingSystem": "Windows",
+            "url": "https://antiparticula.com/puntodeventa",
+            "softwareVersion": "2.3.1",
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Versión Gratuita",
+                "price": "0",
+                "priceCurrency": "MXN",
+                "description": "Versión gratuita para siempre con todas las funciones principales incluidas."
+              },
+              {
+                "@type": "Offer",
+                "name": "Plan Premium Semestral",
+                "price": "954",
+                "priceCurrency": "MXN",
+                "description": "Facturado cada 6 meses. Incluye importación y exportación ilimitada de productos vía Excel."
+              },
+              {
+                "@type": "Offer",
+                "name": "Plan Premium Anual",
+                "price": "1669",
+                "priceCurrency": "MXN",
+                "description": "Facturado anualmente con un 12% de ahorro. Incluye importación y exportación ilimitada de productos vía Excel."
+              }
+            ]
+          },
+          {
+            "@type": "Organization",
+            "name": "Antipartícula",
+            "url": "https://antiparticula.com",
+            "logo": "https://antiparticula.com/img/A.png",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "telephone": "+52-55-8432-3945",
+              "contactType": "Customer Support",
+              "email": "contacto@antiparticula.com"
             }
-          ]
-        },
-        {
-          "@type": "Organization",
-          "name": "Antipartícula",
-          "url": "https://antiparticula.com",
-          "logo": "https://antiparticula.com/img/A.png",
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "telephone": "+52-55-8432-3945",
-            "contactType": "Customer Support",
-            "email": "contacto@antiparticula.com"
+          },
+          {
+            "@type": "VideoObject",
+            "name": "Punto de Venta 2026 | Gratis para abarroterías, ferreterías, farmacias, minisupers y más",
+            "description": "Sigue nuestro tutorial de instalación y configuración. En pocos minutos estarás listo para realizar tu primera venta.",
+            "thumbnailUrl": "https://i.ytimg.com/vi/AE9ACnZ04qE/maxresdefault.jpg",
+            "uploadDate": "2026-01-15",
+            "embedUrl": "https://www.youtube.com/embed/AE9ACnZ04qE"
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "¿El sistema funciona sin internet?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí, 100% sin conexión. Todo funciona en tu computadora local: ventas, inventario, reportes e impresión de tickets. El panel web en tiempo real es una función adicional opcional; si no tienes internet, el resto del sistema no se ve afectado."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Qué pasa con mis datos si desinstalo el programa?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Tus datos son completamente tuyos. La base de datos es un archivo local en tu computadora (datos.db). Puedes hacer una copia en cualquier momento y restaurarla cuando quieras. Antipartícula no tiene acceso a la información de tu negocio."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿La versión gratuita es realmente gratis para siempre?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí, sin letra chica. La versión gratuita incluye ventas, inventario, reportes, control de usuarios, turnos, impresión de tickets y panel web en tiempo real, sin límite de tiempo ni de productos. Premium solo agrega la importación/exportación masiva de Excel."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿En qué versiones de Windows funciona?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "El sistema es compatible con Windows (64 bits). Incluye su propio entorno Java, por lo que no necesitas instalar nada adicional."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Cuántos productos puedo registrar?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sin límite, tanto en la versión gratuita como en Premium. Puedes tener desde 10 hasta 10,000 productos registrados. El rendimiento no se ve afectado."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Cómo recibo las actualizaciones?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "El sistema verifica automáticamente si hay una versión nueva cada vez que lo abres. Si hay una actualización disponible, te aparece un aviso con el enlace de descarga. El proceso tarda menos de 2 minutos y tus datos se conservan intactos."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Puedo usarlo en varias computadoras del mismo negocio?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Sí, el modo multi-caja está disponible en la versión Premium. Permite conectar varias cajas en el mismo negocio compartiendo el mismo inventario y datos en tiempo real. Contáctanos por WhatsApp para activarlo."
+                }
+              }
+            ]
           }
-        },
-        {
-          "@type": "VideoObject",
-          "name": "Tutorial de Instalación del Punto de Venta Antipartícula",
-          "description": "Sigue nuestro tutorial de instalación y configuración. En pocos minutos estarás listo para realizar tu primera venta.",
-          "thumbnailUrl": "https://i.ytimg.com/vi/kNuoGYkww5I/maxresdefault.jpg",
-          "uploadDate": "2023-10-27",
-          "embedUrl": "https://www.youtube.com/embed/kNuoGYkww5I"
-        },
-        {
-          "@type": "FAQPage",
-          "mainEntity": [{
-            "@type": "Question",
-            "name": "¿El software de punto de venta funciona para mi negocio (abarrotes, ferretería, farmacia)?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Sí, nuestro Punto de Venta está diseñado para ser versátil y potente, ideal para administrar negocios como tiendas de abarrotes, ferreterías, farmacias, minisupers y más. Te permite controlar inventario, gestionar ventas y obtener reportes para tomar mejores decisiones."
-            }
-          }]
-        }
-      ]
-    }
+        ]
+      }
     </script>
+
     </head>
 <body class="glass-body">
     <header class="glass-header">
@@ -921,7 +977,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <div class="glass-panel" style="padding: 20px;">
         <div class="video-container">
             <iframe 
-                src="https://www.youtube.com/embed/bjfV6LbThr0" 
+                src="https://www.youtube.com/embed/AE9ACnZ04qE"
                 title="Tutorial de Instalación del Punto de Venta Antipartícula" 
                 frameborder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 

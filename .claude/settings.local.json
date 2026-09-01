@@ -4,7 +4,9 @@
       "Bash(git:*)",
       "Bash(xargs -I {} sh -c 'jar tf {} 2>/dev/null | grep -E \"\"\\(PrinterMatrix|Extenso\\)\"\" && echo \"\"Found in: {}\"\"')",
       "Bash(jar tf:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(sqlite3:*)",
+      "Bash(sudo apt-get:*)"
     ]
   }
 }

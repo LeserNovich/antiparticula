@@ -5,23 +5,30 @@
 // CRITICO-01 fix: credenciales cargadas desde archivo externo al webroot
 // ────────────────────────────────────────────────────────────
 
+// CORS restringido al dominio del dashboard (www y sin www).
+// Se resuelve ANTES del preflight: antes se usaba $origin sin haberla definido
+// todavia, por lo que OPTIONS respondia con un header vacio y el navegador
+// rechazaba la peticion.
+$allowed_origins  = ['https://www.antiparticula.com', 'https://antiparticula.com'];
+$origin           = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+$origin_permitido = in_array($origin, $allowed_origins, true);
+
 // Preflight OPTIONS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: $origin");
-    header('Access-Control-Allow-Methods: GET, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
+    if ($origin_permitido) {
+        header("Access-Control-Allow-Origin: $origin");
+        header('Access-Control-Allow-Methods: GET, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type');
+    }
     header('Vary: Origin');
     http_response_code(204);
     exit;
 }
 
-// CORS restringido al dominio del dashboard (www y sin www)
-$allowed_origins = ['https://www.antiparticula.com', 'https://antiparticula.com'];
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-if (in_array($origin, $allowed_origins, true)) {
+if ($origin_permitido) {
     header("Access-Control-Allow-Origin: $origin");
-    header('Vary: Origin');
 }
+header('Vary: Origin');
 
 header('Content-Type: application/json; charset=UTF-8');
 
@@ -80,6 +87,30 @@ try {
     // Decodificar los JSON guardados
     $row['ultimas_ventas']   = json_decode($row['ultimas_ventas'],   true) ?: [];
     $row['historico_semana'] = json_decode($row['historico_semana'], true) ?: [];
+
+    // Historial mensual del año en curso — calculado desde dashboard_pos_historico
+    $anio   = (int) date('Y');
+    $stmt2  = $conn->prepare(
+        "SELECT DATE_FORMAT(fecha, '%Y-%m') AS mes,
+                SUM(ventas_centavos)        AS ventas_centavos,
+                SUM(ganancia_centavos)      AS ganancia_centavos
+         FROM   dashboard_pos_historico
+         WHERE  hardware_id = :id
+           AND  YEAR(fecha) = :anio
+         GROUP  BY mes
+         ORDER  BY mes"
+    );
+    $stmt2->bindParam(':id',   $hardware_id);
+    $stmt2->bindParam(':anio', $anio,       PDO::PARAM_INT);
+    $stmt2->execute();
+    $anual = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($anual as &$m) {
+        $m['ventas_centavos']   = (int) $m['ventas_centavos'];
+        $m['ganancia_centavos'] = (int) $m['ganancia_centavos'];
+    }
+    unset($m);
+    $row['historico_anual'] = $anual;
+
     // ALTO-05 fix: clamp hace_minutos a 0 para evitar badge verde falso con reloj desincronizado
     $row['hace_minutos']     = max(0, (int) $row['hace_minutos']);
     $row['status']           = 'exitoso';

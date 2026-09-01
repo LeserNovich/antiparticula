@@ -55,13 +55,17 @@ $turno_inicio    = isset($_POST['turno_inicio'])    ? substr(trim($_POST['turno_
 $turno_abierto   = isset($_POST['turno_abierto'])   ? intval($_POST['turno_abierto'])           : 0;
 $ventas_turno    = isset($_POST['ventas_turno'])    ? intval($_POST['ventas_turno'])            : 0;
 $tickets_turno   = isset($_POST['tickets_turno'])   ? intval($_POST['tickets_turno'])           : 0;
+$abonos_hoy      = isset($_POST['abonos_hoy'])      ? intval($_POST['abonos_hoy'])              : 0;
+$abonos_turno    = isset($_POST['abonos_turno'])    ? intval($_POST['abonos_turno'])            : 0;
 $ultimas_ventas  = isset($_POST['ultimas_ventas'])  ? $_POST['ultimas_ventas']                  : '[]';
 $historico_semana= isset($_POST['historico_semana'])? $_POST['historico_semana']                : '[]';
+$historico_anual = isset($_POST['historico_anual']) ? $_POST['historico_anual']                 : '[]';
 
-// BAJO-08 fix: validacion de coherencia — ganancia no puede superar ventas
-if ($ganancia_hoy > $ventas_hoy)     $ganancia_hoy  = $ventas_hoy;
+// BAJO-08 fix: validacion de coherencia — ganancia no puede superar ingresos totales del día
+// (ventas_hoy son solo tickets normales; los abonos de apartados son ingresos adicionales)
+if ($ganancia_hoy > ($ventas_hoy + $abonos_hoy))  $ganancia_hoy = $ventas_hoy + $abonos_hoy;
 if ($tickets_turno > $tickets_hoy)   $tickets_turno = $tickets_hoy;
-if ($ventas_turno > $ventas_hoy)     $ventas_turno  = $ventas_hoy;
+// Nota: ventas_turno puede diferir de ventas_hoy cuando hay abonos de apartados en el turno
 
 // ALTO-03 fix: validar estructura interna de los JSON y sanitizar sus campos
 $uv = json_decode($ultimas_ventas, true);
@@ -88,6 +92,21 @@ foreach ($hs as &$d) {
 unset($d);
 $historico_semana = json_encode(array_values($hs));
 
+$ha = json_decode($historico_anual, true);
+if (!is_array($ha)) $ha = [];
+foreach ($ha as &$entry) {
+    $mes_raw   = isset($entry['mes']) ? (string) $entry['mes'] : '';
+    $mes_match = [];
+    $entry['mes']               = preg_match('/(\d{4}-\d{2})/', $mes_raw, $mes_match) ? $mes_match[1] : '';
+    $entry['ventas_centavos']   = isset($entry['ventas_centavos'])   ? intval($entry['ventas_centavos'])   : 0;
+    $entry['ganancia_centavos'] = isset($entry['ganancia_centavos']) ? intval($entry['ganancia_centavos']) : 0;
+    // coherencia: ganancia no puede superar ventas
+    if ($entry['ganancia_centavos'] > $entry['ventas_centavos'])
+        $entry['ganancia_centavos'] = $entry['ventas_centavos'];
+}
+unset($entry);
+$historico_anual = json_encode(array_values($ha));
+
 // CRITICO-01: cargar credenciales desde archivo fuera del webroot
 // ACCION REQUERIDA: crear /home/u450756829/config_db.php con las credenciales
 // y CAMBIAR la contrasena de MySQL en el panel de Hostinger
@@ -111,25 +130,30 @@ try {
 
     $sql = "INSERT INTO dashboard_pos
                 (hardware_id, negocio, ventas_hoy, tickets_hoy, ganancia_hoy,
-                 turno_usuario, turno_inicio, turno_abierto, ventas_turno, tickets_turno,
-                 ultimas_ventas, historico_semana)
+                 abonos_hoy, turno_usuario, turno_inicio, turno_abierto,
+                 ventas_turno, tickets_turno, abonos_turno,
+                 ultimas_ventas, historico_semana, historico_anual)
             VALUES
                 (:hardware_id, :negocio, :ventas_hoy, :tickets_hoy, :ganancia_hoy,
-                 :turno_usuario, :turno_inicio, :turno_abierto, :ventas_turno, :tickets_turno,
-                 :ultimas_ventas, :historico_semana)
+                 :abonos_hoy, :turno_usuario, :turno_inicio, :turno_abierto,
+                 :ventas_turno, :tickets_turno, :abonos_turno,
+                 :ultimas_ventas, :historico_semana, :historico_anual)
             ON DUPLICATE KEY UPDATE
                 negocio          = VALUES(negocio),
                 ultima_sync      = CURRENT_TIMESTAMP,
                 ventas_hoy       = VALUES(ventas_hoy),
                 tickets_hoy      = VALUES(tickets_hoy),
                 ganancia_hoy     = VALUES(ganancia_hoy),
+                abonos_hoy       = VALUES(abonos_hoy),
                 turno_usuario    = VALUES(turno_usuario),
                 turno_inicio     = VALUES(turno_inicio),
                 turno_abierto    = VALUES(turno_abierto),
                 ventas_turno     = VALUES(ventas_turno),
                 tickets_turno    = VALUES(tickets_turno),
+                abonos_turno     = VALUES(abonos_turno),
                 ultimas_ventas   = VALUES(ultimas_ventas),
-                historico_semana = VALUES(historico_semana)";
+                historico_semana = VALUES(historico_semana),
+                historico_anual  = VALUES(historico_anual)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':hardware_id',      $hardware_id);
@@ -140,11 +164,34 @@ try {
     $stmt->bindParam(':turno_usuario',    $turno_usuario);
     $stmt->bindParam(':turno_inicio',     $turno_inicio);
     $stmt->bindParam(':turno_abierto',    $turno_abierto,    PDO::PARAM_INT);
+    $stmt->bindParam(':abonos_hoy',       $abonos_hoy,       PDO::PARAM_INT);
     $stmt->bindParam(':ventas_turno',     $ventas_turno,     PDO::PARAM_INT);
     $stmt->bindParam(':tickets_turno',    $tickets_turno,    PDO::PARAM_INT);
+    $stmt->bindParam(':abonos_turno',     $abonos_turno,     PDO::PARAM_INT);
     $stmt->bindParam(':ultimas_ventas',   $ultimas_ventas);
     $stmt->bindParam(':historico_semana', $historico_semana);
+    $stmt->bindParam(':historico_anual',  $historico_anual);
     $stmt->execute();
+
+    // Guardar snapshot diario para historial anual (sin necesidad de actualizar el POS app)
+    // Usar el mismo timezone que MySQL (-06:00 Mexico City) para evitar duplicados al cruce de medianoche UTC
+    $hoy   = (new DateTime('now', new DateTimeZone('America/Mexico_City')))->format('Y-m-d');
+    $stmt2 = $conn->prepare(
+        "INSERT INTO dashboard_pos_historico
+             (hardware_id, fecha, ventas_centavos, ganancia_centavos, tickets)
+         VALUES (:hw, :fecha, :ventas, :ganancia, :tickets)
+         ON DUPLICATE KEY UPDATE
+             ventas_centavos   = VALUES(ventas_centavos),
+             ganancia_centavos = VALUES(ganancia_centavos),
+             tickets           = VALUES(tickets)"
+    );
+    $stmt2->execute([
+        ':hw'       => $hardware_id,
+        ':fecha'    => $hoy,
+        ':ventas'   => $ventas_hoy + $abonos_hoy,
+        ':ganancia' => $ganancia_hoy,
+        ':tickets'  => $tickets_hoy
+    ]);
 
     echo json_encode(['status' => 'exitoso']);
 

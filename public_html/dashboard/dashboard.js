@@ -46,6 +46,11 @@ function render(data) {
     const minutos = Math.max(0, data.hace_minutos || 0);
     const stale = minutos > STALE_MIN;
 
+    const abonosHoy    = data.abonos_hoy   || 0;
+    const abonosTurno  = data.abonos_turno || 0;
+    const ingresosHoy  = data.ventas_hoy + abonosHoy;
+    const ingresosTurno = (data.ventas_turno || 0) + abonosTurno;
+
     const ticketProm = data.tickets_hoy > 0
         ? formatMXN(Math.round(data.ventas_hoy / data.tickets_hoy))
         : '$\u202f0.00';
@@ -53,6 +58,48 @@ function render(data) {
         ? ((data.ganancia_hoy / data.ventas_hoy) * 100).toFixed(1)
         : '0.0';
     const margenClass = parseFloat(margenPct) >= 20 ? 'card-margin-good' : 'card-margin-warn';
+
+    // ── Datos anuales ────────────────────────────────────────────
+    const anual           = buildAnualData(data.historico_anual);
+    const hayDatosAnuales = anual.totalVentas > 0;
+    const margenAnualPct  = hayDatosAnuales
+        ? ((anual.totalGanancia / anual.totalVentas) * 100).toFixed(1)
+        : '0.0';
+    const margenAnualClass = parseFloat(margenAnualPct) >= 20 ? 'card-margin-good' : 'card-margin-warn';
+    const anualChartHtml = hayDatosAnuales
+        ? `<div class="chart-wrap chart-wrap-anual"><canvas id="chartAnual"></canvas></div>
+           <div class="anual-legend">
+               <div class="anual-legend-item"><span class="anual-dot anual-dot-ventas"></span>Ventas</div>
+               <div class="anual-legend-item"><span class="anual-dot anual-dot-ganancia"></span>Ganancia</div>
+           </div>`
+        : '<p class="chart-empty">Sin datos anuales a\u00fan. Actualiza el POS a la \u00faltima versi\u00f3n.</p>';
+    let anualHtmlExtra = '';
+    if (hayDatosAnuales) {
+        anualHtmlExtra = `
+    <div class="card section-card">
+        <div class="section-title">Detalle por mes</div>
+        ${renderTablaAnual(data.historico_anual, anual)}
+    </div>
+    <div class="cards-grid">
+        <div class="card card-blue">
+            <div class="card-label">Total ventas ${anual.year}</div>
+            <div class="card-value">${formatMXN(anual.totalVentas)}</div>
+            <div class="card-sub">12 meses</div>
+        </div>
+        <div class="card card-green">
+            <div class="card-label">Total ganancia ${anual.year}</div>
+            <div class="card-value">${formatMXN(anual.totalGanancia)}</div>
+            <div class="card-sub">&nbsp;</div>
+        </div>
+    </div>
+    <div class="cards-grid">
+        <div class="card card-full ${margenAnualClass}">
+            <div class="card-label">Margen anual ${anual.year}</div>
+            <div class="card-value card-value-sm">${margenAnualPct}%</div>
+            <div class="card-sub">ganancia sobre ventas totales del a\u00f1o</div>
+        </div>
+    </div>`;
+    }
 
     app.innerHTML = `
     <div class="header">
@@ -71,9 +118,12 @@ function render(data) {
     <!-- KPI principales -->
     <div class="cards-grid">
         <div class="card card-green">
-            <div class="card-label">Ventas hoy</div>
-            <div class="card-value">${formatMXN(data.ventas_hoy)}</div>
-            <div class="card-sub">${data.tickets_hoy} ticket${data.tickets_hoy !== 1 ? 's' : ''}</div>
+            <div class="card-label">Ingresos hoy</div>
+            <div class="card-value">${formatMXN(ingresosHoy)}</div>
+            <div class="card-sub">${abonosHoy > 0
+                ? `${formatMXN(data.ventas_hoy)} ventas + ${formatMXN(abonosHoy)} apartados`
+                : `${data.tickets_hoy} ticket${data.tickets_hoy !== 1 ? 's' : ''}`
+            }</div>
         </div>
         <div class="card card-blue">
             <div class="card-label">Ganancia hoy</div>
@@ -122,8 +172,11 @@ function render(data) {
                 <span>${escHtml(data.turno_inicio || '—')}</span>
             </div>
             <div class="turno-row">
-                <span>Ventas del turno</span>
-                <span>${formatMXN(data.ventas_turno)} (${data.tickets_turno} tickets)</span>
+                <span>Ingresos del turno</span>
+                <span>${formatMXN(ingresosTurno)}${abonosTurno > 0
+                    ? ` <span style="font-size:0.8em;opacity:0.75">(${data.tickets_turno} tickets + ${formatMXN(abonosTurno)} aptos)</span>`
+                    : ` (${data.tickets_turno} tickets)`
+                }</span>
             </div>
             <div class="turno-row">
                 <span>Estado</span>
@@ -171,11 +224,19 @@ function render(data) {
         <div class="section-title">Últimas ventas</div>
         ${renderVentas(data.ultimas_ventas)}
     </div>
+
+    <!-- Ventas y ganancias por mes del año -->
+    <div class="card section-card">
+        <div class="section-title">Ventas y ganancias &mdash; ${anual.year}</div>
+        ${anualChartHtml}
+    </div>
+    ${anualHtmlExtra}
     `;
 
     renderChartHoras(data.ultimas_ventas);
     renderChartSemana(data.historico_semana);
     renderChartDonut(data.ventas_hoy, data.ganancia_hoy);
+    if (hayDatosAnuales) renderChartAnual(anual);
 }
 
 // ── Opciones base para bar charts ───────────────────────────────
@@ -377,6 +438,139 @@ function escHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;');
+}
+
+// ── Datos anuales ───────────────────────────────────────────────
+function buildAnualData(historico) {
+    const year  = new Date().getFullYear();
+    const mapa  = {};
+    (Array.isArray(historico) ? historico : []).forEach(d => {
+        if (d.mes) mapa[d.mes] = { v: d.ventas_centavos || 0, g: d.ganancia_centavos || 0 };
+    });
+    let totalVentas = 0, totalGanancia = 0;
+    const ventas = [], ganancias = [];
+    for (let m = 1; m <= 12; m++) {
+        const key = `${year}-${String(m).padStart(2, '0')}`;
+        const v = mapa[key] ? mapa[key].v : 0;
+        const g = mapa[key] ? mapa[key].g : 0;
+        ventas.push(v / 100);
+        ganancias.push(g / 100);
+        totalVentas   += v;
+        totalGanancia += g;
+    }
+    return { year, ventas, ganancias, totalVentas, totalGanancia };
+}
+
+// ── Tabla mensual ───────────────────────────────────────────────
+function renderTablaAnual(historico, anual) {
+    const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const mapa  = {};
+    (Array.isArray(historico) ? historico : []).forEach(d => {
+        if (d.mes) mapa[d.mes] = { v: d.ventas_centavos || 0, g: d.ganancia_centavos || 0 };
+    });
+    let rows = '';
+    for (let m = 1; m <= 12; m++) {
+        const key = `${anual.year}-${String(m).padStart(2, '0')}`;
+        const v   = mapa[key] ? mapa[key].v : 0;
+        const g   = mapa[key] ? mapa[key].g : 0;
+        const mrg = v > 0 ? ((g / v) * 100).toFixed(1) + '%' : '\u2014';
+        const cls = v === 0 ? ' anual-row-empty' : '';
+        rows += `<div class="anual-row${cls}">
+            <span class="anual-mes">${MESES[m - 1]}</span>
+            <span class="anual-ventas">${v ? formatMXN(v) : '\u2014'}</span>
+            <span class="anual-ganancia">${g ? formatMXN(g) : '\u2014'}</span>
+            <span class="anual-mrg">${mrg}</span>
+        </div>`;
+    }
+    const tMrg      = anual.totalVentas > 0
+        ? ((anual.totalGanancia / anual.totalVentas) * 100).toFixed(1) + '%'
+        : '0.0%';
+    const tMrgClass = parseFloat(tMrg) >= 20 ? 'anual-mrg-good' : 'anual-mrg-warn';
+    return `
+    <div class="anual-header-row">
+        <span>Mes</span><span>Ventas</span><span>Ganancia</span><span>Mrg</span>
+    </div>
+    ${rows}
+    <div class="anual-row anual-totales">
+        <span class="anual-mes">Total</span>
+        <span class="anual-ventas">${formatMXN(anual.totalVentas)}</span>
+        <span class="anual-ganancia">${formatMXN(anual.totalGanancia)}</span>
+        <span class="anual-mrg ${tMrgClass}">${tMrg}</span>
+    </div>`;
+}
+
+// ── Gráfica anual (líneas ventas/ganancia) ──────────────────────
+function renderChartAnual(anual) {
+    const canvas = document.getElementById('chartAnual');
+    if (!canvas) return;
+    if (typeof Chart === 'undefined') { waitForChart(() => renderChartAnual(anual)); return; }
+    if (charts.anual) { charts.anual.destroy(); }
+
+    const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    charts.anual = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: MESES,
+            datasets: [
+                {
+                    label: 'Ventas',
+                    data: anual.ventas,
+                    borderColor: '#2c6e95',
+                    backgroundColor: 'rgba(44,110,149,0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#2c6e95'
+                },
+                {
+                    label: 'Ganancia',
+                    data: anual.ganancias,
+                    borderColor: '#34d399',
+                    backgroundColor: 'rgba(52,211,153,0.10)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#34d399'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#202936',
+                    borderColor: '#2c3e55',
+                    borderWidth: 1,
+                    titleColor: '#7ab8d9',
+                    bodyColor: '#e2e8f0',
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': $\u202f' + ctx.parsed.y.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#4a6278', font: { size: 10 } },
+                    grid:  { color: 'rgba(44,110,149,0.08)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#4a6278',
+                        font: { size: 10 },
+                        callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
+                    },
+                    grid: { color: 'rgba(44,110,149,0.08)' }
+                }
+            }
+        }
+    });
 }
 
 // ── Loading / Error ─────────────────────────────────────────────

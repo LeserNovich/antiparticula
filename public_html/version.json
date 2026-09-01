@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
+  "version": "2.3.1",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Se agrega soporte para consultar el reporte desde celular en antiparticula.com/dashboard",
+  "changelog": "Se aplican mejoras a la pantalla de Apartados",
   "mandatory": false
 }

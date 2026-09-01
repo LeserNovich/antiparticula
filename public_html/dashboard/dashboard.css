@@ -310,6 +310,73 @@ body {
 .venta-cajero { color: var(--text-muted); font-weight: 400; font-size: 0.8rem; }
 .venta-total  { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; letter-spacing: -0.02em; }
 
+/* ── Gráfica anual ────────────────────────────────────────────── */
+.chart-wrap-anual {
+    height: 170px;
+    margin-bottom: 12px;
+}
+
+/* ── Leyenda gráfica anual ────────────────────────────────────── */
+.anual-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+.anual-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+.anual-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.anual-dot-ventas   { background: var(--accent); }
+.anual-dot-ganancia { background: var(--green); }
+
+/* ── Tabla mensual ────────────────────────────────────────────── */
+.anual-header-row,
+.anual-row {
+    display: grid;
+    grid-template-columns: 2.4rem 1fr 1fr 2.6rem;
+    gap: 4px;
+    align-items: center;
+    font-size: 0.79rem;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--separator);
+}
+.anual-header-row {
+    font-size: 0.63rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding-top: 0;
+}
+.anual-row:last-child { border-bottom: none; }
+.anual-row-empty { opacity: 0.35; }
+.anual-mes      { color: var(--text-muted); }
+.anual-ventas   { color: var(--text-secondary); font-weight: 600; text-align: right; }
+.anual-ganancia { color: var(--green);          font-weight: 600; text-align: right; }
+.anual-mrg      { color: var(--text-muted); text-align: right; font-size: 0.72rem; }
+.anual-mrg-good { color: var(--green);  font-weight: 700; }
+.anual-mrg-warn { color: var(--amber);  font-weight: 700; }
+
+.anual-totales {
+    border-top: 1px solid var(--border);
+    border-bottom: none !important;
+    padding-top: 10px;
+    margin-top: 2px;
+    font-weight: 700;
+}
+.anual-totales .anual-mes      { color: var(--text-primary); font-weight: 700; font-size: 0.79rem; }
+.anual-totales .anual-ventas,
+.anual-totales .anual-ganancia { font-size: 0.82rem; }
+
 /* ── Loading ──────────────────────────────────────────────────── */
 .loading-spinner {
     display: flex;
