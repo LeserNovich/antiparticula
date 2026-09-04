@@ -12,10 +12,10 @@
 
     <title>Dashboard — Antiparticula POS</title>
 
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="../img/A.png">
-    <link rel="apple-touch-icon" href="../img/A.png">
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="manifest" href="/dashboard/manifest.json">
+    <link rel="icon" href="/dashboard/icon-192.png">
+    <link rel="apple-touch-icon" href="/dashboard/icon-192.png">
+    <link rel="stylesheet" href="/dashboard/dashboard.css">
 
     <!-- Chart.js CDN — async para no bloquear el render -->
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,6 +28,13 @@
             <span>Cargando...</span>
         </div>
     </div>
+
+    <noscript>
+        <div style="padding:24px;color:#e2e8f0;font-family:system-ui,sans-serif">
+            <strong>Este panel necesita JavaScript activado.</strong>
+            <p style="color:#7ab8d9">Actívalo en tu navegador para ver las ventas.</p>
+        </div>
+    </noscript>
 
     <script>
         // CRITICO-02 fix: escapar datos antes de insertar en innerHTML
@@ -53,6 +60,6 @@
                 '<b>PROMISE ERROR:</b><br>' + escHtmlInline(msg) + '</div>';
         });
     </script>
-    <script src="dashboard.js" defer></script>
+    <script src="/dashboard/dashboard.js" defer></script>
 </body>
 </html>

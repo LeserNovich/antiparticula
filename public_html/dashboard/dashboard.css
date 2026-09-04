@@ -427,3 +427,42 @@ body {
     .chart-donut-wrap { gap: 14px; }
     .donut-val { font-size: 0.65rem; }
 }
+
+/* ── Banner de conexión ───────────────────────────────────────── */
+/* Aviso cuando el refresco de fondo lleva rato fallando: sin esto la
+   pantalla seguía mostrando cifras viejas como si fueran de ahora.    */
+.conn-banner {
+    margin: 0 16px 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--red-light);
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* [hidden] debe ganarle a las reglas con display explícito
+   (.donut-legend es flex, así que el hidden nativo no bastaba). */
+[hidden] { display: none !important; }
+
+/* Estados vacíos centrados dentro del alto fijo del contenedor */
+.chart-wrap > .chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.chart-donut-wrap > .chart-empty {
+    flex: 1;
+    padding: 24px 0;
+}
+
+/* Nota secundaria dentro de la fila de turno */
+.turno-nota {
+    font-size: 0.8em;
+    opacity: 0.75;
+}

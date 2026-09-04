@@ -121,8 +121,43 @@ The POS product page (`puntodeventa.html`) includes extensive Schema.org structu
 ### Security Considerations
 - `registrar_descarga.php` has POST-only validation (lines 5-9)
 - Uses PDO with prepared statements to prevent SQL injection
-- Database credentials are hardcoded (should be moved to environment variables)
+- Database credentials load from `config_db.php`, fuera del webroot y en `.gitignore`
+  (la contraseña anterior sigue en el historial de git; ya fue rotada)
 - No CSRF protection on download tracking endpoint
+
+### Dashboard PWA (`public_html/dashboard/`)
+
+Panel de ventas del POS, servido en `/dashboard/{hardware_id}`. La app Java del
+POS empuja datos a `sync_pos.php`; el navegador los lee de `get_dashboard_data.php`.
+
+**Migraciones SQL** — `sql/` (fuera del webroot). Ejecutar en orden sobre
+`u450756829_PaginaWeb`. Pendiente de aplicar: `001_ventas_por_hora.sql`.
+
+**Tablas**
+- `dashboard_pos` — snapshot actual, una fila por `hardware_id`.
+- `dashboard_pos_historico` — totales por día, base del histórico anual.
+- `dashboard_pos_ventas` — cada venta individual, base de la gráfica horaria.
+  El POS reenvía las mismas ventas en cada sync; la clave única
+  `(hardware_id, fecha, venta_key)` hace el INSERT idempotente. `venta_key` es
+  el folio del POS si lo manda, si no un hash de (hora, minuto, cajero, importe).
+  **Si el POS empieza a mandar `folio` (o `ticket`/`venta_id`) por venta, la
+  deduplicación deja de ser heurística** — hoy dos ventas del mismo cajero por
+  el mismo importe en el mismo minuto se cuentan como una.
+
+**Reglas del frontend**
+- `dashboard.js` monta el DOM una sola vez (`montar`) y luego solo actualiza
+  textos y datasets (`pintar`). No reconstruir el `innerHTML` en cada refresco:
+  se pierde el scroll y parpadean las gráficas.
+- Todos los recursos se referencian con ruta **absoluta** (`/dashboard/...`).
+  El `.htaccess` acepta `/dashboard/ID` y `/dashboard/ID/`, y con la barra final
+  las rutas relativas resuelven a `/dashboard/ID/archivo` y dan 404.
+- **Subir `CACHE_NAME` en `sw.js` en cada cambio de html/css/js**, si no los
+  clientes instalados siguen sirviendo la versión vieja desde caché.
+- El manifest se genera en runtime (`instalarManifest`) para inyectar el
+  `hardware_id` en `start_url`; el `manifest.json` estático es solo respaldo.
+
+**Pendiente conocido:** el endpoint solo está protegido por conocer el
+`hardware_id`. No hay autenticación real ni en lectura ni en escritura.
 
 ### Mobile Responsiveness
 - Hamburger menu toggle via `showMenu()` and `hideMenu()` functions

@@ -46,17 +46,18 @@ if (empty($hardware_id)) {
     exit;
 }
 
-// CRITICO-01: cargar credenciales desde archivo fuera del webroot
-// ACCION REQUERIDA: crear /home/u450756829/config_db.php con las credenciales
-// y CAMBIAR la contrasena de MySQL en el panel de Hostinger (ya esta comprometida en git)
+// CRITICO-01: credenciales desde archivo fuera del webroot.
+// El fallback hardcodeado se eliminó: la contraseña que contenía ya fue rotada
+// y seguía filtrada en el repo. Si falta el archivo, se falla en vez de
+// intentar conectar con credenciales obsoletas.
 $cfg_path = dirname(__DIR__) . '/config_db.php';
 if (!file_exists($cfg_path)) {
-    // Fallback temporal — REMOVER una vez que config_db.php exista
-    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
-            'username' => 'u450756829_Leser', 'password' => '#s*/gDkR5Pcuba'];
-} else {
-    $cfg = require $cfg_path;
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Error de configuración']);
+    error_log('get_dashboard_data.php: falta config_db.php en ' . $cfg_path);
+    exit;
 }
+$cfg = require $cfg_path;
 $servername = $cfg['host'];
 $username   = $cfg['username'];
 $password   = $cfg['password'];
@@ -110,6 +111,36 @@ try {
     }
     unset($m);
     $row['historico_anual'] = $anual;
+
+    // Gráfica horaria del día completo. Se construye desde el detalle acumulado
+    // en dashboard_pos_ventas, NO desde ultimas_ventas: ese JSON solo trae las
+    // últimas N ventas que mandó el POS, así que las horas tempranas del día
+    // salían vacías. Ver sql/001_ventas_por_hora.sql
+    $row['ventas_por_hora'] = [];
+    try {
+        $stmt3 = $conn->prepare(
+            "SELECT hora,
+                    SUM(total_centavos) AS total_centavos,
+                    COUNT(*)            AS tickets
+             FROM   dashboard_pos_ventas
+             WHERE  hardware_id = :id AND fecha = CURRENT_DATE
+             GROUP  BY hora
+             ORDER  BY hora"
+        );
+        $stmt3->bindParam(':id', $hardware_id);
+        $stmt3->execute();
+        foreach ($stmt3->fetchAll(PDO::FETCH_ASSOC) as $h) {
+            $row['ventas_por_hora'][] = [
+                'hora'           => (int) $h['hora'],
+                'total_centavos' => (int) $h['total_centavos'],
+                'tickets'        => (int) $h['tickets'],
+            ];
+        }
+    } catch (PDOException $e) {
+        // La tabla puede no existir todavía (migración 001 sin aplicar).
+        // El frontend cae de vuelta a derivar las horas de ultimas_ventas.
+        error_log('get_dashboard_data.php ventas_por_hora: ' . $e->getMessage());
+    }
 
     // ALTO-05 fix: clamp hace_minutos a 0 para evitar badge verde falso con reloj desincronizado
     $row['hace_minutos']     = max(0, (int) $row['hace_minutos']);

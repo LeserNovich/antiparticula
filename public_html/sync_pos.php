@@ -68,15 +68,61 @@ if ($tickets_turno > $tickets_hoy)   $tickets_turno = $tickets_hoy;
 // Nota: ventas_turno puede diferir de ventas_hoy cuando hay abonos de apartados en el turno
 
 // ALTO-03 fix: validar estructura interna de los JSON y sanitizar sus campos
+$hoy_mx  = new DateTime('now', new DateTimeZone('America/Mexico_City'));
+$hoy     = $hoy_mx->format('Y-m-d');
+$hora_mx = (int) $hoy_mx->format('G');
+
 $uv = json_decode($ultimas_ventas, true);
 if (!is_array($uv)) $uv = [];
+$ventas_detalle = [];
 foreach ($uv as &$v) {
-    $hora_raw        = isset($v['hora']) ? (string) $v['hora'] : '00:00';
-    $hora_match      = [];
+    $hora_raw   = isset($v['hora']) ? (string) $v['hora'] : '';
+    $hora_match = [];
     // Extraer HH:MM de cualquier formato (HH:MM, HH:MM:SS, ISO, etc.)
-    $v['hora']           = preg_match('/(\d{1,2}:\d{2})/', $hora_raw, $hora_match) ? $hora_match[1] : '00:00';
+    $hh = $mm = -1;
+    if (preg_match('/(\d{1,2}):(\d{2})/', $hora_raw, $hora_match)) {
+        $hh = (int) $hora_match[1];
+        $mm = (int) $hora_match[2];
+    }
+    $hora_valida = ($hh >= 0 && $hh <= 23 && $mm >= 0 && $mm <= 59);
+    if (!$hora_valida) { $hh = 0; $mm = 0; }
+
+    $v['hora']           = sprintf('%02d:%02d', $hh, $mm);
     $v['total_centavos'] = isset($v['total_centavos']) ? intval($v['total_centavos']) : 0;
     $v['cajero']         = isset($v['cajero'])         ? substr(strip_tags((string)$v['cajero']), 0, 100) : '';
+
+    if (!$hora_valida) continue;
+
+    // Fecha de la venta: la que mande el POS si viene y es reciente, si no hoy.
+    // Sin esto, las ventas de anoche que el POS reenvía a las 00:05 se
+    // registrarían como del día nuevo.
+    $fecha_v = $hoy;
+    if (isset($v['fecha']) && preg_match('/^(\d{4}-\d{2}-\d{2})$/', (string)$v['fecha'], $fm)) {
+        $dias = (int) $hoy_mx->diff(new DateTime($fm[1], new DateTimeZone('America/Mexico_City')))->days;
+        if ($dias <= 2) $fecha_v = $fm[1];
+    } elseif ($hh > $hora_mx + 1) {
+        // Hora futura respecto al reloj del servidor => es de ayer.
+        $fecha_v = (clone $hoy_mx)->modify('-1 day')->format('Y-m-d');
+    }
+
+    // Identidad estable de la venta: folio del POS si lo manda, si no un hash.
+    $folio = '';
+    foreach (['folio', 'ticket', 'venta_id', 'id'] as $k) {
+        if (isset($v[$k]) && $v[$k] !== '' && !is_array($v[$k])) {
+            $folio = substr(preg_replace('/[^a-zA-Z0-9_\-]/', '', (string) $v[$k]), 0, 40);
+            if ($folio !== '') break;
+        }
+    }
+    $ventas_detalle[] = [
+        'fecha'  => $fecha_v,
+        'hora'   => $hh,
+        'minuto' => $mm,
+        'cajero' => $v['cajero'],
+        'total'  => $v['total_centavos'],
+        'key'    => $folio !== ''
+            ? 'f:' . $folio
+            : 'h:' . sha1($hh . '|' . $mm . '|' . $v['cajero'] . '|' . $v['total_centavos']),
+    ];
 }
 unset($v);
 $ultimas_ventas = json_encode(array_values($uv));
@@ -107,17 +153,18 @@ foreach ($ha as &$entry) {
 unset($entry);
 $historico_anual = json_encode(array_values($ha));
 
-// CRITICO-01: cargar credenciales desde archivo fuera del webroot
-// ACCION REQUERIDA: crear /home/u450756829/config_db.php con las credenciales
-// y CAMBIAR la contrasena de MySQL en el panel de Hostinger
+// CRITICO-01: credenciales desde archivo fuera del webroot.
+// El fallback hardcodeado se eliminó: la contraseña que contenía ya fue rotada
+// y seguía filtrada en el repo. Si falta el archivo, se falla en vez de
+// intentar conectar con credenciales obsoletas.
 $cfg_path = dirname(__DIR__) . '/config_db.php';
 if (!file_exists($cfg_path)) {
-    // Fallback temporal — REMOVER una vez que config_db.php exista
-    $cfg = ['host' => '127.0.0.1', 'dbname' => 'u450756829_PaginaWeb',
-            'username' => 'u450756829_Leser', 'password' => '#s*/gDkR5Pcuba'];
-} else {
-    $cfg = require $cfg_path;
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Error de configuración']);
+    error_log('sync_pos.php: falta config_db.php en ' . $cfg_path);
+    exit;
 }
+$cfg = require $cfg_path;
 $servername = $cfg['host'];
 $username   = $cfg['username'];
 $password   = $cfg['password'];
@@ -174,8 +221,8 @@ try {
     $stmt->execute();
 
     // Guardar snapshot diario para historial anual (sin necesidad de actualizar el POS app)
-    // Usar el mismo timezone que MySQL (-06:00 Mexico City) para evitar duplicados al cruce de medianoche UTC
-    $hoy   = (new DateTime('now', new DateTimeZone('America/Mexico_City')))->format('Y-m-d');
+    // $hoy ya viene calculado arriba con el timezone de Mexico City, el mismo
+    // que usa MySQL, para evitar duplicados al cruce de medianoche UTC.
     $stmt2 = $conn->prepare(
         "INSERT INTO dashboard_pos_historico
              (hardware_id, fecha, ventas_centavos, ganancia_centavos, tickets)
@@ -193,9 +240,43 @@ try {
         ':tickets'  => $tickets_hoy
     ]);
 
+    // Acumular cada venta individual para la gráfica horaria del día completo.
+    // El POS reenvía las mismas ventas en syncs consecutivos; la clave única
+    // (hardware_id, fecha, venta_key) hace que el INSERT sea idempotente.
+    if (!empty($ventas_detalle)) {
+        $stmt3 = $conn->prepare(
+            "INSERT INTO dashboard_pos_ventas
+                 (hardware_id, fecha, hora, minuto, cajero, total_centavos, venta_key)
+             VALUES (:hw, :fecha, :hora, :minuto, :cajero, :total, :vkey)
+             ON DUPLICATE KEY UPDATE
+                 total_centavos = VALUES(total_centavos),
+                 cajero         = VALUES(cajero)"
+        );
+        $conn->beginTransaction();
+        foreach (array_slice($ventas_detalle, 0, 500) as $d) {
+            $stmt3->execute([
+                ':hw'     => $hardware_id,
+                ':fecha'  => $d['fecha'],
+                ':hora'   => $d['hora'],
+                ':minuto' => $d['minuto'],
+                ':cajero' => $d['cajero'],
+                ':total'  => $d['total'],
+                ':vkey'   => $d['key'],
+            ]);
+        }
+        $conn->commit();
+    }
+
+    // Purga ocasional (~2% de los syncs) del detalle con más de 120 días.
+    if (random_int(1, 50) === 1) {
+        $conn->exec("DELETE FROM dashboard_pos_ventas
+                     WHERE fecha < (CURRENT_DATE - INTERVAL 120 DAY) LIMIT 5000");
+    }
+
     echo json_encode(['status' => 'exitoso']);
 
 } catch (PDOException $e) {
+    if (isset($conn) && $conn->inTransaction()) $conn->rollBack();
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'Error de base de datos']);
     error_log('sync_pos.php PDO error: ' . $e->getMessage());
