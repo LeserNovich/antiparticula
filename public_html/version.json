@@ -1,5 +1,5 @@
 {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
   "changelog": "Se mejora la recuperación de contraseña olvidada y algunos problemas que se tenian al iniciar sesión",
   "mandatory": false
