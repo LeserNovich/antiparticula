@@ -1,6 +1,48 @@
 {
-  "version": "2.6.1",
+  "version": "2.8.0",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Se mejora la recuperación de contraseña olvidada y algunos problemas que se tenian al iniciar sesión",
-  "mandatory": false
+  "changelog": "Movimientos de caja para registrar retiros e ingresos sin que descuadre el corte, resumen del negocio por periodo con exportación a Excel, venta por litro y por unidad, y un programa más fluido en computadoras sencillas",
+  "mandatory": false,
+
+  "historial": [
+    {
+      "version": "2.8.0",
+      "fecha": "2026-09-09",
+      "titulo": "Movimientos de caja y resumen por periodo",
+      "cambios": [
+        "Movimientos de caja: registra retiros e ingresos de efectivo que no son ventas, como pagos a proveedores, gastos o dinero que se lleva a la caja fuerte",
+        "El corte de caja ya no marca como faltante el dinero que se sacó del cajón, y el cierre de turno muestra el desglose completo: fondo, ventas, ingresos y retiros",
+        "Comprobante impreso de cada movimiento de caja, con espacio para firma",
+        "Opción de exigir la contraseña de un administrador para cada movimiento de caja, desde Usuarios y permisos",
+        "Resumen del negocio por periodo: elige el rango de fechas en el calendario y compáralo con el periodo anterior",
+        "Análisis de ventas por día de la semana y por hora, para saber cuándo vendes más",
+        "Exportación a Excel del resumen del negocio: totales, desglose por día y productos más vendidos",
+        "Productos que se venden por litro o por unidad, además de por pieza y por kilogramo",
+        "El ticket imprime la unidad de cada artículo (Kg, L, Pz) y los precios de mil pesos o más ya no descuadran el papel",
+        "Pantalla de Usuarios y permisos rediseñada, con lo que puede hacer cada rol a la vista",
+        "Novedades: consulta qué trajo cada versión desde el menú lateral, y un aviso discreto cuando hay una versión nueva",
+        "Interfaz más fluida al escribir y al abrir el menú, sobre todo en computadoras sin tarjeta gráfica",
+        "Nuevo ícono de la aplicación e instalador renovado"
+      ]
+    },
+    {
+      "version": "2.7.0",
+      "fecha": "2026-09-04",
+      "titulo": "Categorías y rediseño de pantallas",
+      "cambios": [
+        "Administrador de categorías: crear, renombrar y eliminar sin salir del inventario",
+        "Rediseño del inventario y del historial de ventas para una lectura más clara",
+        "Ajustes de diseño en varias pantallas para aprovechar mejor el espacio"
+      ]
+    },
+    {
+      "version": "1.4.0",
+      "fecha": "2026-02-20",
+      "titulo": "Reportes desde el celular",
+      "cambios": [
+        "Consulta las ventas del día desde el celular en antiparticula.com/dashboard",
+        "El punto de venta sincroniza automáticamente después de cada venta y al cerrar turno"
+      ]
+    }
+  ]
 }

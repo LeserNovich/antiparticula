@@ -11,6 +11,10 @@ RewriteRule ^dashboard/([^/]+)/?$ /dashboard/index.html [L,NC]
 # Excepción para puntodeventa
 RewriteRule ^puntodeventa/?$ /paginas/puntodeventa.html [L,NC]
 
+# Historial de versiones. Va ANTES de la regla genérica de productos, que si no
+# se lleva /versiones a detail.html?slug=versiones
+RewriteRule ^versiones/?$ /paginas/versiones.html [L,NC]
+
 # Regla genérica para todos los productos
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

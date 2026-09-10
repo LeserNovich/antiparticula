@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../img/A.png" type="image/x-icon">
+
+    <title>Historial de versiones | Antipartícula Punto de Venta</title>
+    <meta name="description" content="Todas las versiones del Punto de Venta de Antipartícula y qué trae cada una: nuevas funciones, mejoras y correcciones." />
+    <meta name="keywords" content="antiparticula punto de venta versiones, changelog punto de venta, actualizaciones TPV, novedades software punto de venta" />
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://antiparticula.com/paginas/versiones.html" />
+    <meta property="og:site_name"   content="Antipartícula" />
+    <meta property="og:title"       content="Historial de versiones | Antipartícula Punto de Venta" />
+    <meta property="og:description" content="Todas las versiones del Punto de Venta y qué trae cada una." />
+    <meta property="og:image"       content="https://antiparticula.com/img/dashboard_horizontal.png" />
+    <meta property="og:locale"      content="es_MX" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ─────────────────────────────────────────────────────────────
+           Historial de versiones.
+
+           Los datos salen de /version.json, el MISMO archivo que consulta
+           el punto de venta para avisar de actualizaciones. Publicar una
+           versión nueva es editar ese archivo una sola vez: la app y esta
+           página se enteran las dos.
+           ───────────────────────────────────────────────────────────── */
+
+        :root {
+            --azul-profundo: #202936;
+            --azul-acento: #2c6e95;
+            --verde: #2f9e5f;
+            --gris-texto: #5a6675;
+            --gris-borde: #e2e6eb;
+        }
+
+        .versiones-hero {
+            background: linear-gradient(146deg, rgba(32,41,54,1) 23%, rgb(44, 110, 149) 96%);
+            color: #fff;
+            padding: 90px 8% 70px;
+            text-align: center;
+        }
+        .versiones-hero h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin: 0 0 14px;
+        }
+        .versiones-hero p {
+            font-size: 1.05rem;
+            max-width: 640px;
+            margin: 0 auto;
+            opacity: .9;
+            line-height: 1.6;
+        }
+        .version-actual-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 22px;
+            padding: 9px 20px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.14);
+            border: 1px solid rgba(255,255,255,.3);
+            font-size: .95rem;
+            font-weight: 600;
+        }
+
+        .timeline-wrap {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 60px 20px 80px;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 34px;
+        }
+        /* Línea vertical que une todas las versiones */
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: var(--gris-borde);
+        }
+
+        .version-item {
+            position: relative;
+            margin-bottom: 34px;
+        }
+        .version-item::before {
+            content: '';
+            position: absolute;
+            left: -34px;
+            top: 6px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid var(--gris-borde);
+        }
+        .version-item.destacada::before {
+            border-color: var(--azul-acento);
+            box-shadow: 0 0 0 4px rgba(44,110,149,.15);
+        }
+
+        .version-cabecera {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .version-numero {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--azul-profundo);
+        }
+        .version-fecha {
+            color: var(--gris-texto);
+            font-size: .87rem;
+            margin-left: auto;
+        }
+        .pill {
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            padding: 4px 11px;
+            border-radius: 999px;
+        }
+        .pill-nueva {
+            color: var(--verde);
+            background: rgba(47,158,95,.12);
+            border: 1px solid rgba(47,158,95,.45);
+        }
+
+        .version-titulo {
+            color: var(--azul-acento);
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 12px;
+        }
+
+        .version-cambios {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .version-cambios li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 8px;
+            color: #37414f;
+            line-height: 1.55;
+            font-size: .95rem;
+        }
+        .version-cambios li::before {
+            content: '\f058'; /* check-circle */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            top: 1px;
+            color: var(--azul-acento);
+            font-size: .85rem;
+        }
+
+        .estado-carga {
+            text-align: center;
+            color: var(--gris-texto);
+            padding: 50px 20px;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .estado-carga i {
+            font-size: 1.8rem;
+            margin-bottom: 12px;
+            display: block;
+            color: var(--azul-acento);
+        }
+
+        .cta-descarga {
+            text-align: center;
+            padding: 0 20px 80px;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .cta-descarga a {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--azul-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 15px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: background .2s, transform .2s;
+        }
+        .cta-descarga a:hover {
+            background: var(--azul-profundo);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 600px) {
+            .versiones-hero { padding: 70px 6% 55px; }
+            .versiones-hero h1 { font-size: 1.7rem; }
+            .version-fecha { margin-left: 0; width: 100%; }
+            .timeline-wrap { padding: 40px 16px 60px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="glass-header">
+        <nav>
+            <a href="../index.html"><img src="../img/A.png" alt="Logo de Antipartícula" class="logo"></a>
+            <div class="nav-links" id="navLinks">
+                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
+                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
+                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
+                </ul>
+            </div>
+            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
+        </nav>
+    </header>
+
+    <main>
+        <section class="versiones-hero">
+            <h1>Historial de versiones</h1>
+            <p>Cada actualización del Punto de Venta y qué trae. Las mejoras son gratuitas:
+               instala la versión nueva encima y tu información se conserva.</p>
+            <div class="version-actual-badge" id="badgeVersion">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                <span>Consultando la versión más reciente…</span>
+            </div>
+        </section>
+
+        <div class="timeline-wrap">
+            <div id="estadoCarga" class="estado-carga">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                Cargando el historial de versiones…
+            </div>
+            <div class="timeline" id="timeline" hidden></div>
+        </div>
+
+        <div class="cta-descarga">
+            <a href="../paginas/puntodeventa.html">
+                <i class="fa-solid fa-download"></i> Descargar la última versión
+            </a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="rowFooter">
+            <div class="colFooter">
+                <img src="../img/A.png" alt="logo de Antipartícula TPV" class="logoFooter">
+                <p>Impulsamos a negocios y tiendas en LATAM a través de la transformación digital. <br>
+                    <br> Con <i class="fa-regular fa-heart" style="color: #ffffff;"></i> para México y Latinoamérica.
+                </p>
+            </div>
+            <div class="colFooter">
+                <h3>Oficina</h3>
+                <p>Tecámac, Estado de México</p>
+                <p class="email-id">contacto&commat;antiparticula.com</p>
+                <h4>+52 (55) 8432 3945</h4>
+            </div>
+            <div class="colFooter">
+                <h3>Menú</h3>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
+                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
+                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Solicita Información</h3>
+                <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST">
+                    <i class="fa-regular fa-envelope"></i>
+                    <input type="email" placeholder="Ingresa tu email" required name="Correo">
+                    <button type="submit"><i class="fa-solid fa-arrow-right"></i></button>
+                    <input type="hidden" name="_next" value="https://antiparticula.com/paginas/versiones.html?enviado=true">
+                    <input type="hidden" name="_captcha" value="false">
+                </form>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/antiparticular" target="_blank" class="fa-brands fa-facebook-f"></a>
+                    <a href="https://www.instagram.com/antiparticular/" target="_blank" class="fa-brands fa-instagram"></a>
+                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" class="fa-brands fa-tiktok"></a>
+                    <a href="https://wa.me/5584323945" target="_blank" class="fa-brands fa-whatsapp"></a>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
+    </footer>
+
+    <script src="../js/script.js"></script>
+    <script>
+    (function () {
+        var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+        function escapar(texto) {
+            var div = document.createElement('div');
+            div.textContent = texto == null ? '' : texto;
+            return div.innerHTML;
+        }
+
+        /** "2026-09-04" -> "4 de septiembre de 2026". Se parte a mano en vez de
+            usar new Date() porque este último interpreta la fecha en UTC y en
+            México la corre un día hacia atrás. */
+        function formatearFecha(iso) {
+            if (!iso || iso.length < 10) { return iso || ''; }
+            var partes = iso.split('-');
+            var mes = parseInt(partes[1], 10);
+            if (isNaN(mes) || mes < 1 || mes > 12) { return iso; }
+            return parseInt(partes[2], 10) + ' de ' + MESES[mes - 1] + ' de ' + partes[0];
+        }
+
+        function pintar(datos) {
+            var historial = datos.historial || [];
+            var badge = document.getElementById('badgeVersion');
+            var estado = document.getElementById('estadoCarga');
+            var timeline = document.getElementById('timeline');
+
+            if (!historial.length) {
+                estado.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>' +
+                    'Por ahora no hay historial disponible.';
+                badge.innerHTML = '<i class="fa-solid fa-tag"></i><span>Versión ' +
+                    escapar(datos.version || '') + '</span>';
+                return;
+            }
+
+            badge.innerHTML = '<i class="fa-solid fa-tag"></i><span>Versión más reciente: ' +
+                escapar(datos.version || historial[0].version) + '</span>';
+
+            var html = '';
+            historial.forEach(function (v, indice) {
+                // Solo la primera lleva el punto resaltado y la etiqueta:
+                // es la que el visitante se va a llevar si descarga hoy
+                var esUltima = indice === 0;
+                html += '<div class="version-item' + (esUltima ? ' destacada' : '') + '">';
+                html += '<div class="version-cabecera">';
+                html += '<span class="version-numero">Versión ' + escapar(v.version) + '</span>';
+                if (esUltima) {
+                    html += '<span class="pill pill-nueva">Más reciente</span>';
+                }
+                html += '<span class="version-fecha">' + escapar(formatearFecha(v.fecha)) + '</span>';
+                html += '</div>';
+
+                if (v.titulo) {
+                    html += '<p class="version-titulo">' + escapar(v.titulo) + '</p>';
+                }
+
+                var cambios = v.cambios || [];
+                if (cambios.length) {
+                    html += '<ul class="version-cambios">';
+                    cambios.forEach(function (c) {
+                        html += '<li>' + escapar(c) + '</li>';
+                    });
+                    html += '</ul>';
+                }
+                html += '</div>';
+            });
+
+            timeline.innerHTML = html;
+            timeline.hidden = false;
+            estado.style.display = 'none';
+        }
+
+        function fallar() {
+            document.getElementById('estadoCarga').innerHTML =
+                '<i class="fa-solid fa-circle-exclamation"></i>' +
+                'No pudimos cargar el historial en este momento. Vuelve a intentarlo más tarde.';
+            document.getElementById('badgeVersion').style.display = 'none';
+        }
+
+        // Cache-busting: sin esto el navegador puede seguir mostrando el historial
+        // viejo durante horas después de publicar una versión
+        fetch('../version.json?t=' + Date.now())
+            .then(function (r) {
+                if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                return r.json();
+            })
+            .then(pintar)
+            .catch(function (e) {
+                console.error('No se pudo cargar version.json:', e);
+                fallar();
+            });
+    })();
+    </script>
+</body>
+</html>
