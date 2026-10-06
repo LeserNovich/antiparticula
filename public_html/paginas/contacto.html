@@ -21,23 +21,38 @@
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
     <title>Antipartícula | Desarrollo de software</title>
     
+    <link rel="stylesheet" href="../css/nav.css">
 </head>
 
 <body>
-    <section class="header">
-        <nav>
-            <a href="../index.html"><img src="../img/A.png" alt="logo" class="logo"></a>
-            <div class="nav-links" id="navLinks">
-                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
-                <ul>
-                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
-                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
-                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
-                    <li><a href="#">Contáctanos</a></li>
+    <!-- parcial:menu -->
+    <nav class="site-nav" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="../index.html">
+                <img src="../img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/contacto.html" aria-current="page">Contacto</a></li>
                 </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="../paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
             </div>
-            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
-        </nav>
+            <a class="site-nav__cta site-nav__cta--bar" href="../paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+    <!-- /parcial:menu -->
+
+    <section class="header nav-offset">
 
         <div class="container-contact">
             <div class="contact-box-toggle">
@@ -86,6 +101,7 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/js/swiper.min.js"></script>
     <script src="../js/script.js"></script>
     <script src="../js/mensaje-exito.js"></script>
+    <script src="../js/nav.js"></script>
 </body>
 
 </html>

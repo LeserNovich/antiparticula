@@ -1,0 +1,1273 @@
+/* - - - - - PUNTO DE VENTA (puntodeventa.html) - - - - - */
+/* Usa el fondo desenfocado y los tokens de paginas.css (body.pg-page).
+   Clases propias con prefijo pv-. Las de testimonios (testimonio-*, tst-*),
+   preguntas (faq-*), el modal (modal-*) y el botón flotante (whatsapp-float)
+   conservan su nombre porque las usa el JavaScript de la página. */
+
+.pv-page {
+  --pv-green: #22c55e;
+  --pv-green-claro: #86efac;
+  --pv-line: #e8ebf0;
+}
+
+.pv-page button {
+  font-family: inherit;
+}
+
+/* ----- Botones ----- */
+.pv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 26px;
+  border: 0;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.pv-btn:hover {
+  transform: translateY(-2px);
+}
+
+.pv-btn-primary {
+  background: #ffffff;
+  color: #0d1117;
+}
+
+.pv-btn-primary:hover {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pv-btn-wa {
+  background: rgba(37, 211, 102, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.5);
+  color: #ffffff;
+}
+
+.pv-btn-wa:hover {
+  background: rgba(37, 211, 102, 0.22);
+}
+
+.pv-btn-wa i {
+  font-size: 18px;
+  color: #4ade80;
+}
+
+.pv-btn-dark {
+  background-image: var(--pg-gradient);
+  color: #ffffff;
+  box-shadow: 0 14px 40px rgba(44, 110, 149, 0.4);
+}
+
+.pv-btn-light {
+  background: #ffffff;
+  color: #0d1117;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* ----- Encabezados de sección sobre el fondo ----- */
+.pv-section {
+  padding: clamp(64px, 9vw, 110px) 0 0;
+}
+
+.pv-head {
+  max-width: 760px;
+  margin: 0 auto clamp(32px, 4vw, 48px);
+  text-align: center;
+  color: #ffffff;
+}
+
+.pv-chip {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pv-head h2 {
+  font-size: clamp(28px, 3.6vw, 40px);
+  line-height: 1.2;
+  font-weight: 700;
+  margin-top: 18px;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+
+.pv-head p {
+  font-size: 18px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 12px;
+}
+
+/* ----- Ventana con captura real de la app ----- */
+.pv-window {
+  margin: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.pv-window img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ----- Portada ----- */
+.pv-hero {
+  padding: calc(var(--site-nav-h) + var(--pv-subnav-h) + clamp(32px, 5vw, 64px)) 0 0;
+  color: #ffffff;
+}
+
+.pv-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 64px);
+  align-items: center;
+}
+
+.pv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 50px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: var(--pv-green-claro);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pv-hero h1 {
+  font-size: clamp(34px, 4vw, 50px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 20px 0 18px;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pv-page .pv-lead {
+  font-size: 18px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.pv-lead strong {
+  display: block;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.pv-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.pv-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: #9fd3ef;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pv-hero-link i {
+  font-size: 13px;
+  transition: transform 0.2s;
+}
+
+.pv-hero-link:hover i {
+  transform: translateX(4px);
+}
+
+.pv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.pv-stats div {
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-stats strong {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.pv-stats span {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.pv-hero-visual {
+  padding: 0 0 48px;
+}
+
+.pv-window--flotante {
+  position: absolute;
+  right: -3%;
+  bottom: 0;
+  width: 44%;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+/* ----- Galería con pestañas ----- */
+.pv-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.pv-segmentos {
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.pv-segmentos button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 50px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.pv-segmentos button:hover {
+  color: #ffffff;
+}
+
+.pv-segmentos button[aria-selected="true"],
+.pv-segmentos button[aria-pressed="true"] {
+  background: #ffffff;
+  color: #0d1117;
+}
+
+.pv-page .pv-caption {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ----- Hoja blanca (funciones, panel web) ----- */
+.pv-sheet {
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 14px 80px rgba(34, 35, 58, 0.25);
+  padding: clamp(28px, 5vw, 56px);
+}
+
+.pv-funciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 36px 40px;
+}
+
+.pv-funcion > i,
+.pv-beneficios i {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #eef4f8;
+  color: var(--pg-steel);
+  font-size: 18px;
+}
+
+.pv-funcion h3 {
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 16px 0 6px;
+}
+
+.pv-page .pv-funcion p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--pg-text);
+}
+
+/* ----- Tipos de negocio ----- */
+.pv-negocios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pv-negocio {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+}
+
+.pv-negocio > i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 18px;
+}
+
+.pv-negocio strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.pv-negocio span {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pv-negocio--tuyo {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.pv-negocio--tuyo > i {
+  color: #4ade80;
+}
+
+.pv-centro {
+  margin-top: 36px;
+  text-align: center;
+}
+
+/* ----- Panel web ----- */
+.pv-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(32px, 5vw, 56px);
+  align-items: center;
+}
+
+.pv-badge--oscuro {
+  color: #15803d;
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+}
+
+.pv-panel h2 {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 16px 0 12px;
+}
+
+.pv-page .pv-panel-intro {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--pg-text);
+}
+
+.pv-beneficios {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 28px;
+  margin-top: 28px;
+}
+
+.pv-beneficios li {
+  display: flex;
+  gap: 14px;
+}
+
+.pv-beneficios i {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.pv-beneficios strong {
+  display: block;
+  font-size: 15.5px;
+  color: var(--pg-title);
+  margin-bottom: 4px;
+}
+
+.pv-beneficios span {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--pg-text);
+}
+
+.pv-telefono {
+  width: min(290px, 100%);
+  margin: 0 auto;
+  padding: 12px;
+  border-radius: 40px;
+  background: #0f1419;
+  box-shadow: 0 30px 70px rgba(15, 20, 25, 0.35);
+}
+
+.pv-telefono-pantalla {
+  height: 540px;
+  border-radius: 30px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: #0f1419;
+}
+
+.pv-telefono-pantalla::-webkit-scrollbar {
+  display: none;
+}
+
+.pv-telefono-pantalla img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pv-url {
+  margin-top: 40px;
+  padding: 22px;
+  border-radius: 18px;
+  background: #f3f5f8;
+  text-align: center;
+}
+
+.pv-page .pv-url p {
+  font-size: 14px;
+  color: var(--pg-text);
+}
+
+.pv-url-valor {
+  display: inline-block;
+  margin: 10px 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--pv-line);
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 16px;
+  color: var(--pg-title);
+  overflow-wrap: anywhere;
+}
+
+.pv-url-valor b {
+  color: #15803d;
+}
+
+.pv-hw {
+  margin-top: 16px;
+  border: 1px solid var(--pv-line);
+  border-radius: 18px;
+}
+
+.pv-hw summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pg-title);
+}
+
+.pv-hw summary::-webkit-details-marker {
+  display: none;
+}
+
+.pv-hw summary .fa-chevron-down {
+  color: var(--pg-steel);
+  transition: transform 0.2s;
+}
+
+.pv-hw[open] summary .fa-chevron-down {
+  transform: rotate(180deg);
+}
+
+.pv-hw-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 28px;
+  padding: 0 22px 24px;
+}
+
+.pv-hw-imagenes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pv-hw-imagenes img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--pv-line);
+}
+
+.pv-pasos {
+  list-style: none;
+  counter-reset: paso;
+  display: grid;
+  gap: 16px;
+}
+
+.pv-pasos li {
+  counter-increment: paso;
+  display: flex;
+  gap: 14px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--pg-text);
+}
+
+.pv-pasos li::before {
+  content: counter(paso);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-image: var(--pg-gradient);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pv-pasos strong {
+  display: block;
+  color: var(--pg-title);
+}
+
+.pv-pasos code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f3f5f8;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+/* ----- Video ----- */
+.pv-video {
+  max-width: 900px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #000000;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.pv-video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ----- Precios ----- */
+.pv-planes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+
+.pv-plan {
+  display: flex;
+  flex-direction: column;
+  padding: 36px 30px 30px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 14px 60px rgba(34, 35, 58, 0.22);
+}
+
+.pv-plan h3 {
+  text-align: left;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0 0 14px;
+}
+
+.pv-precio {
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--pg-title);
+}
+
+.pv-precio span {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--pg-muted);
+}
+
+.pv-page .pv-cobro {
+  font-size: 14px;
+  color: var(--pg-muted);
+  margin: 4px 0 24px;
+}
+
+.pv-plan ul {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.pv-plan li {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--pg-text);
+}
+
+.pv-plan li i {
+  flex: none;
+  margin-top: 3px;
+  color: var(--pv-green);
+}
+
+.pv-plan li .fa-star {
+  color: #f59e0b;
+}
+
+.pv-plan .pv-btn {
+  width: 100%;
+  margin-top: auto;
+  padding: 15px 16px;
+  font-size: 14.5px;
+}
+
+.pv-page .pv-garantia {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--pg-muted);
+}
+
+.pv-plan--recomendado {
+  background: linear-gradient(160deg, #1a2332 0%, #2c6e95 100%);
+  box-shadow: 0 30px 80px rgba(44, 110, 149, 0.45);
+  transform: translateY(-10px);
+}
+
+.pv-plan--recomendado h3,
+.pv-plan--recomendado .pv-precio,
+.pv-plan--recomendado li {
+  color: #ffffff;
+}
+
+.pv-plan--recomendado .pv-precio span,
+.pv-page .pv-plan--recomendado .pv-cobro,
+.pv-page .pv-plan--recomendado .pv-garantia {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pv-plan--recomendado li i {
+  color: #4ade80;
+}
+
+.pv-etiqueta {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 50px;
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pv-guardar {
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* style.css pinta de gris todo p: aquí va sobre el fondo oscuro */
+.pv-page .pv-guardar p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.pv-guardar .pv-btn {
+  margin-top: 14px;
+}
+
+/* ----- Testimonios (las tarjetas también las crea el JavaScript) ----- */
+.testimonios-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.testimonio-card {
+  height: 100%;
+  padding: 26px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 14px 50px rgba(34, 35, 58, 0.2);
+}
+
+.testimonio-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.testimonio-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-image: var(--pg-gradient);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.testimonio-avatar.av2 { background: #16a34a; }
+.testimonio-avatar.av3 { background: #db2777; }
+.testimonio-avatar.av4 { background: #ea580c; }
+.testimonio-avatar.av5 { background: #7c3aed; }
+
+.testimonio-info h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0;
+}
+
+.testimonio-info span {
+  font-size: 13px;
+  color: var(--pg-muted);
+}
+
+.testimonio-estrellas {
+  margin: 14px 0 8px;
+  color: #f59e0b;
+  letter-spacing: 2px;
+}
+
+.pv-page .testimonio-texto {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--pg-text);
+}
+
+.tst-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 16px 0;
+}
+
+.tst-cta {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.tst-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tst-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.tst-form-box {
+  max-width: 640px;
+  margin: 24px auto 0;
+  padding: 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 14px 50px rgba(34, 35, 58, 0.2);
+}
+
+.tst-form-box[hidden] {
+  display: none;
+}
+
+.tst-stars-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.tst-star {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 30px;
+  line-height: 1;
+  color: #d1d5db;
+  cursor: pointer;
+}
+
+.tst-star.active {
+  color: #f59e0b;
+}
+
+.tst-row-inputs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tst-input,
+.tst-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #d5dbe4;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--pg-title);
+}
+
+.tst-input:focus,
+.tst-textarea:focus {
+  outline: none;
+  border-color: var(--pg-steel);
+}
+
+.tst-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.tst-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tst-contador {
+  font-size: 13px;
+  color: var(--pg-muted);
+}
+
+.tst-msg {
+  margin-top: 10px;
+  padding: 0;
+  font-size: 14px;
+}
+
+.tst-msg.ok {
+  color: #15803d;
+}
+
+.tst-msg.err {
+  color: #dc2626;
+}
+
+@keyframes tstFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ----- Preguntas frecuentes ----- */
+.faq-list {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 6px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 14px 60px rgba(34, 35, 58, 0.22);
+}
+
+.faq-item + .faq-item {
+  border-top: 1px solid var(--pv-line);
+}
+
+.faq-pregunta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 22px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--pg-title);
+  cursor: pointer;
+}
+
+.faq-pregunta i {
+  flex: none;
+  color: var(--pg-steel);
+  transition: transform 0.2s;
+}
+
+.faq-item.open .faq-pregunta i {
+  transform: rotate(180deg);
+}
+
+.faq-respuesta {
+  display: none;
+  padding: 0 0 22px;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--pg-text);
+}
+
+.faq-item.open .faq-respuesta {
+  display: block;
+}
+
+.faq-respuesta a {
+  color: var(--pg-steel);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* ----- Botón flotante de WhatsApp ----- */
+.whatsapp-float {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px 12px 16px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 24px rgba(37, 211, 102, 0.45);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.whatsapp-float i {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.whatsapp-float:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(37, 211, 102, 0.55);
+}
+
+/* ----- Modal "¿Cómo prefieres recibir el link?" (lo abre script.js) ----- */
+.modal-link-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.modal-link-overlay.show {
+  display: flex;
+}
+
+.modal-link-content {
+  width: min(460px, 100% - 32px);
+  padding: 40px 28px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f5f8;
+  color: var(--pg-title);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.modal-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0 0 6px;
+}
+
+.modal-link-content .modal-subtitle {
+  padding: 0;
+  text-align: center;
+  font-size: 15px;
+  color: var(--pg-text);
+  margin-bottom: 26px;
+}
+
+.modal-options {
+  display: grid;
+  gap: 12px;
+}
+
+.modal-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--pv-line);
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.modal-option-btn:hover {
+  border-color: var(--pg-steel);
+  background: #f7f9fb;
+}
+
+.option-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.whatsapp-option .option-icon { background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); }
+.email-option .option-icon { background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%); }
+.copy-option .option-icon { background-image: var(--pg-gradient); }
+
+.option-text {
+  flex: 1;
+}
+
+.option-text h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0 0 2px;
+}
+
+.modal-link-content .option-text p {
+  padding: 0;
+  font-size: 13px;
+  color: var(--pg-muted);
+}
+
+.modal-option-btn > .fa-chevron-right {
+  color: #9ca3af;
+}
+
+/* ----- Responsive ----- */
+@media screen and (max-width: 1000px) {
+  .pv-hero-grid,
+  .pv-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pv-funciones,
+  .pv-negocios {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pv-planes {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .pv-plan--recomendado {
+    transform: none;
+    margin-top: 12px;
+  }
+
+  .pv-hw-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .pv-funciones,
+  .pv-negocios,
+  .pv-beneficios,
+  .testimonios-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pv-hero-actions .pv-btn,
+  .pg-cta .pv-btn {
+    width: 100%;
+  }
+
+  .pv-url-valor {
+    font-size: 14px;
+  }
+
+  /* En celular no se puede instalar: el link por WhatsApp va primero */
+  .pv-hero-actions .pv-btn-wa {
+    order: -1;
+  }
+
+  .pv-window--flotante {
+    display: none;
+  }
+
+  .pv-hero-visual {
+    padding-bottom: 0;
+  }
+
+  .pv-controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pv-segmentos {
+    justify-content: center;
+  }
+
+  .pv-segmentos button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Cuatro pestañas: en celular sin íconos para que quepan en una fila */
+  .pv-segmentos[role="tablist"] button i {
+    display: none;
+  }
+}
+
+/* En celulares angostos las cuatro pestañas van en dos filas */
+@media screen and (max-width: 389px) {
+  .pv-segmentos[role="tablist"] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-radius: 24px;
+  }
+
+  .pv-segmentos[role="tablist"] button {
+    justify-content: center;
+  }
+
+  .tst-row-inputs {
+    flex-direction: column;
+  }
+
+  .whatsapp-float {
+    padding: 14px;
+  }
+
+  .whatsapp-float .wa-label {
+    display: none;
+  }
+}
+
+/* Nota bajo los botones de descarga: qué sistema se detectó (la llena mensaje-exito.js) */
+.pv-os-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pv-os-note strong {
+  color: #fff;
+}
+
+.pv-os-note a {
+  color: #9fd3ef;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

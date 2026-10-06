@@ -1,0 +1,445 @@
+/* - - - - - MENU PRINCIPAL (todas las paginas) - - - - - */
+/* Barra fija de vidrio oscuro. Clases con prefijo site-nav para no chocar con
+   las reglas viejas de style.css (nav, .nav-links, nav .fa-solid). */
+
+:root {
+  --site-nav-h: 68px;
+  --pv-subnav-h: 46px;
+}
+
+.site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: block;
+  padding: 0;
+}
+
+/* El vidrio va en un pseudoelemento: un backdrop-filter en la propia barra
+   convertiría al menú móvil (position: fixed) en hijo de sus 68px de alto. */
+/* Hasta arriba la barra es transparente y deja ver el encabezado de cada
+   página; al hacer scroll (clase is-scrolled, la pone nav.js) se vuelve vidrio
+   oscuro. site-nav--solid es para páginas de fondo claro: siempre oscura. */
+.site-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.25s, border-color 0.25s;
+}
+
+.site-nav.is-scrolled::before,
+.site-nav--solid::before {
+  background: rgba(13, 17, 23, 0.85);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.site-nav--solid::before {
+  background: rgba(13, 17, 23, 0.97); /* sobre blanco, el vidrio se veía gris */
+}
+
+.site-nav :where(a, button, span, strong, small) {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+/* style.css oculta o agranda todo `nav .fa-solid` (icono de hamburguesa viejo) */
+.site-nav .fa-solid,
+.site-nav .fa-brands {
+  display: inline-block;
+  margin: 0;
+  font-size: inherit;
+  color: inherit;
+  cursor: inherit;
+}
+
+.site-nav__bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: min(1200px, 100% - 40px);
+  height: var(--site-nav-h);
+  margin: 0 auto;
+}
+
+.site-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.site-nav__brand img {
+  width: 34px;
+  height: auto;
+}
+
+.site-nav__menu {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.site-nav__list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+}
+
+.site-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.site-nav__link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.site-nav__link[aria-current="page"] {
+  color: #ffffff;
+}
+
+.site-nav__link[aria-current="page"]::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: #7ab8d9;
+}
+
+.site-nav a:focus-visible,
+.site-nav button:focus-visible,
+.pv-subnav a:focus-visible {
+  outline: 2px solid #7ab8d9;
+  outline-offset: 2px;
+}
+
+/* ----- Botón principal ----- */
+.site-nav__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 50px;
+  background: #ffffff;
+  color: #0d1117;
+  font-size: 14.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.site-nav__cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.site-nav__drawer-foot,
+.site-nav__toggle {
+  display: none;
+}
+
+/* Espacio para la barra fija en páginas donde el contenido empieza arriba */
+.nav-offset {
+  padding-top: var(--site-nav-h);
+}
+
+.site-nav-spacer {
+  height: var(--site-nav-h);
+}
+
+/* Al saltar a un ancla, que el título no quede debajo de la barra */
+html {
+  scroll-padding-top: calc(var(--site-nav-h) + 12px);
+}
+
+/* - - - - - BARRA SECUNDARIA DEL PUNTO DE VENTA - - - - - */
+/* Va justo después del menú (parcial subnav-pos) y se comporta igual: fija,
+   transparente arriba y de vidrio al hacer scroll. Da acceso directo a las
+   secciones del producto sin cargar el menú general. */
+.pv-subnav {
+  position: fixed;
+  top: var(--site-nav-h);
+  left: 0;
+  right: 0;
+  z-index: 999;
+  height: var(--pv-subnav-h);
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.pv-subnav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid transparent;
+  transition: background 0.25s, border-color 0.25s;
+}
+
+.site-nav.is-scrolled + .pv-subnav::before,
+.site-nav--solid + .pv-subnav::before {
+  background: rgba(13, 17, 23, 0.85);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.site-nav--solid + .pv-subnav::before {
+  background: rgba(20, 27, 36, 0.97);
+}
+
+.pv-subnav__inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: min(1200px, 100% - 40px);
+  height: 100%;
+  margin: 0 auto;
+}
+
+.pv-subnav__titulo {
+  flex: none;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pv-subnav__links {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pv-subnav__links::-webkit-scrollbar {
+  display: none;
+}
+
+.pv-subnav__link {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+}
+
+.pv-subnav__link:hover,
+.pv-subnav__link[aria-current="page"] {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Las páginas con barra secundaria reservan también su alto */
+.pv-subnav + .site-nav-spacer {
+  height: calc(var(--site-nav-h) + var(--pv-subnav-h));
+}
+
+html:has(.pv-subnav) {
+  scroll-padding-top: calc(var(--site-nav-h) + var(--pv-subnav-h) + 12px);
+}
+
+/* ----- Móvil y tablet: menú a pantalla completa ----- */
+@media (max-width: 1000px) {
+  .site-nav__cta--bar {
+    display: none;
+  }
+
+  .site-nav__bar {
+    justify-content: space-between;
+  }
+
+  .site-nav__toggle {
+    display: grid;
+    align-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .site-nav__toggle span {
+    display: block;
+    height: 2px;
+    border-radius: 2px;
+    background: #ffffff;
+    transition: transform 0.25s, opacity 0.2s;
+  }
+
+  .site-nav.is-open .site-nav__toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .site-nav.is-open .site-nav__toggle span:nth-child(2) { opacity: 0; }
+  .site-nav.is-open .site-nav__toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .site-nav__brand {
+    z-index: 2;
+  }
+
+  .site-nav__menu {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+    padding: calc(var(--site-nav-h) + 16px) 24px 32px;
+    overflow-y: auto;
+    background: rgba(11, 15, 20, 0.97);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+  }
+
+  .site-nav.is-open .site-nav__menu {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .site-nav__list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .site-nav__item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .site-nav__link {
+    width: 100%;
+    justify-content: space-between;
+    padding: 18px 4px;
+    border-radius: 0;
+    font-size: 20px;
+    color: #ffffff;
+  }
+
+  .site-nav__link:hover {
+    background: transparent;
+  }
+
+  .site-nav__link[aria-current="page"]::after {
+    left: auto;
+    right: 4px;
+    top: 50%;
+    bottom: auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+  }
+
+  .site-nav__drawer-foot {
+    display: grid;
+    gap: 12px;
+  }
+
+  .site-nav__drawer-foot .site-nav__cta {
+    padding: 15px 20px;
+    font-size: 16px;
+  }
+
+  .site-nav__whats {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-radius: 50px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .site-nav__whats .fa-brands {
+    font-size: 18px;
+    color: #4ade80;
+  }
+
+  html.nav-open,
+  html.nav-open body {
+    overflow: hidden;
+  }
+
+  /* En celular el título de la barra secundaria sobra: la sección ya se ve en la página */
+  .pv-subnav__titulo {
+    display: none;
+  }
+
+  .pv-subnav__links {
+    margin-left: -8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-nav *,
+  .site-nav,
+  .pv-subnav::before {
+    transition: none !important;
+  }
+}
+
+/* - - - - - PIE DE PAGINA: ajustes a las columnas de style.css - - - - - */
+/* style.css centra todo h3 y da padding a todo p; en el pie las columnas
+   van alineadas a la izquierda. */
+.colFooter h3 {
+  text-align: left;
+  margin-top: 0;
+}
+
+.rowFooter p {
+  padding: 0;
+}
+
+.colFooter p + p,
+.colFooter .email-id {
+  margin-top: 10px;
+}
+
+.colFooter .footer-form-label {
+  margin: 24px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.colFooter .social-icons {
+  margin-top: 24px;
+}

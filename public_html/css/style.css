@@ -1707,8 +1707,11 @@ a{
 .container-contact {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 20px;
+    align-items: center;
+    /* ocupa la pantalla bajo la barra fija para centrar la tarjeta en vertical */
+    min-height: calc(100vh - var(--site-nav-h, 68px));
+    padding-top: 40px;
+    padding-bottom: 40px;
 }
 
 .contact-box-toggle {

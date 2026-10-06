@@ -1,0 +1,438 @@
+/* - - - - - PAGINAS CON FONDO DESENFOCADO (Inicio, Nosotros, Servicios, Punto de Venta) - - - - - */
+/* Nosotros y Servicios: portada de solo texto y una sola hoja blanca con todo
+   el contenido, en filas "etiqueta | texto".
+   Estructura: body.pg-page > .pg-bg + header.pg-hero + main > article.pg-sheet
+   > section.pg-row (.pg-row-label + .pg-row-body), y section.pg-cta al final.
+   Inicio usa de aquí los tokens, el fondo y .pg-cta/.pg-pill; su diseño está
+   en inicio.css. */
+
+.pg-page {
+  --pg-title: #0d0925;
+  --pg-text: #4e4a67;
+  --pg-muted: #7b7992;
+  --pg-steel: #2c6e95;
+  --pg-line: #e8ebf0;
+  --pg-gradient: linear-gradient(146deg, #202936 23%, #2c6e95 96%);
+  background: #0f1419;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Fondo fijo: capa propia en lugar de background-attachment: fixed, que iOS ignora. */
+.pg-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(4, 9, 30, 0.4), rgba(4, 9, 30, 0.6)),
+    url(../img/programando-blur.webp) center / cover no-repeat;
+}
+
+.pg-container {
+  width: min(1040px, 100% - 40px);
+  margin: 0 auto;
+}
+
+/* style.css da padding y color gris a todo p */
+.pg-page main p,
+.pg-hero p {
+  padding: 0;
+}
+
+.pg-kicker {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pg-steel);
+}
+
+/* ----- Portada ----- */
+.pg-hero-inner {
+  max-width: 760px;
+  padding: clamp(56px, 10vw, 120px) 0 clamp(48px, 8vw, 96px);
+  text-align: center;
+  color: #ffffff;
+}
+
+.pg-hero .pg-kicker {
+  color: #9fd3ef;
+}
+
+.pg-hero h1 {
+  font-size: clamp(32px, 5vw, 54px);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 18px 0 20px;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pg-hero p {
+  font-size: clamp(17px, 1.8vw, 20px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* ----- Hoja de contenido ----- */
+.pg-sheet {
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 14px 80px rgba(34, 35, 58, 0.25);
+  padding: 0 clamp(24px, 6vw, 72px);
+}
+
+.pg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
+  gap: clamp(20px, 5vw, 64px);
+  padding: clamp(40px, 6vw, 72px) 0;
+  border-top: 1px solid var(--pg-line);
+}
+
+.pg-row:first-child {
+  border-top: 0;
+}
+
+/* En escritorio el título acompaña la lectura de los textos largos */
+@media screen and (min-width: 801px) {
+  .pg-row-label {
+    position: sticky;
+    top: calc(var(--site-nav-h, 68px) + 24px);
+    align-self: start;
+  }
+}
+
+.pg-row-label h2 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin-top: 10px;
+}
+
+.pg-row-body p {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--pg-text);
+  margin-bottom: 20px;
+}
+
+.pg-row-body p:last-child {
+  margin-bottom: 0;
+}
+
+.pg-story .pg-lead {
+  font-size: clamp(19px, 2vw, 22px);
+  line-height: 1.6;
+  color: var(--pg-title);
+}
+
+.pg-story .pg-firma {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin-top: 4px;
+}
+
+.pg-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin-top: 28px;
+}
+
+.pg-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pg-steel);
+}
+
+.pg-links i {
+  font-size: 13px;
+  transition: transform 0.2s;
+}
+
+.pg-links a:hover i {
+  transform: translateX(4px);
+}
+
+.pg-logo {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+
+.pg-row-body .pg-tags {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+  color: var(--pg-muted);
+}
+
+.pg-mv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+}
+
+.pg-mv h3 {
+  text-align: left;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0 0 10px;
+}
+
+/* Fila con el título arriba y el contenido a todo el ancho (listas largas) */
+.pg-row--stack {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+}
+
+.pg-row--stack .pg-row-label {
+  position: static;
+}
+
+/* ----- Lista de servicios: dos columnas separadas por líneas, sin tarjetas ----- */
+.pg-servicios {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 56px;
+}
+
+.pg-servicios li {
+  display: flex;
+  gap: 16px;
+  padding: 24px 0;
+  border-top: 1px solid var(--pg-line);
+}
+
+.pg-servicios li:nth-child(-n + 2) {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.pg-servicios i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #eef4f8;
+  color: var(--pg-steel);
+  font-size: 17px;
+}
+
+.pg-servicios h3 {
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 0 0 6px;
+}
+
+.pg-row-body .pg-servicios p {
+  font-size: 15.5px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ----- Proyecto destacado (Alvamex) en Servicios ----- */
+.pg-caso-wrap {
+  margin-top: clamp(72px, 9vw, 110px);
+}
+
+.pg-caso-wrap > h2 {
+  text-align: center;
+  font-size: clamp(26px, 3.2vw, 36px);
+  line-height: 1.2;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  margin-bottom: 36px;
+}
+
+.pg-caso {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  border-radius: 25px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 20px 80px rgba(0, 102, 254, 0.35);
+}
+
+/* Mismo azul que el fondo del logo (#0066FE) para que la imagen no tenga borde */
+.pg-caso-marca {
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: #0066fe;
+}
+
+.pg-caso-marca img {
+  display: block;
+  width: min(380px, 100%);
+  height: auto;
+}
+
+.pg-caso-info {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(32px, 4vw, 48px);
+}
+
+.pg-caso-info h3 {
+  text-align: left;
+  font-size: clamp(21px, 2.2vw, 26px);
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 10px 0 12px;
+}
+
+.pg-page .pg-caso-info p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--pg-text);
+}
+
+.pg-caso-feats {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 24px 0 0;
+}
+
+.pg-caso-feats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pg-title);
+}
+
+.pg-caso-feats i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #e8f1ff;
+  color: #0066fe;
+  font-size: 14px;
+}
+
+/* ----- Llamado final, sobre el fondo ----- */
+.pg-cta {
+  padding: clamp(64px, 9vw, 110px) 0;
+  text-align: center;
+  color: #ffffff;
+}
+
+.pg-cta h2 {
+  font-size: clamp(26px, 3.4vw, 38px);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.pg-cta p {
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 12px;
+}
+
+.pg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.pg-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 30px;
+  border-radius: 50px;
+  background: #ffffff;
+  color: #0d1117;
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.pg-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+.pg-pill-ghost {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.pg-pill-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.pg-pill i {
+  font-size: 18px;
+  color: #25d366;
+}
+
+/* ----- Responsive ----- */
+@media screen and (max-width: 800px) {
+  .pg-row,
+  .pg-mv,
+  .pg-servicios {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-servicios li:nth-child(2) {
+    border-top: 1px solid var(--pg-line);
+    padding-top: 24px;
+  }
+
+  .pg-caso {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-caso-marca {
+    padding: 32px;
+  }
+
+  .pg-mv {
+    gap: 28px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .pg-caso-feats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-actions,
+  .pg-pill {
+    width: 100%;
+  }
+}

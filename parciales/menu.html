@@ -1,0 +1,27 @@
+<!-- Menú principal de todo el sitio. Después de editarlo corre: php parciales/actualizar.php
+     No marques la página actual aquí: el script agrega aria-current en cada página.
+     Rutas internas siempre como {{raiz}}paginas/... o {{raiz}}img/... (nunca /paginas/...). -->
+    <nav class="site-nav" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="{{raiz}}index.html">
+                <img src="{{raiz}}img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="{{raiz}}paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="{{raiz}}paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="{{raiz}}paginas/quienes-somos.html">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="{{raiz}}paginas/contacto.html">Contacto</a></li>
+                </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="{{raiz}}paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
+            </div>
+            <a class="site-nav__cta site-nav__cta--bar" href="{{raiz}}paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>

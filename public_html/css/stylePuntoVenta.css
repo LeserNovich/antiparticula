@@ -276,7 +276,7 @@
             .glass-hero {
                 flex-direction: column;
                 text-align: center;
-                padding: 80px 6% 60px;
+                padding: 100px 6% 60px; /* deja libre la barra fija del menú (68px) */
             }
             .hero-text-container {
                 text-align: center;
@@ -307,6 +307,9 @@
             }
             .glass-section {
                 padding: 50px 5%;
+            }
+            .glass-hero {
+                padding-top: 100px; /* la regla de arriba lo dejaba debajo de la barra fija */
             }
             .price-tag {
                 font-size: 48px;

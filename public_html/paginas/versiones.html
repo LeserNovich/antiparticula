@@ -43,7 +43,7 @@
         .versiones-hero {
             background: linear-gradient(146deg, rgba(32,41,54,1) 23%, rgb(44, 110, 149) 96%);
             color: #fff;
-            padding: 90px 8% 70px;
+            padding: calc(90px + var(--site-nav-h) + var(--pv-subnav-h)) 8% 70px; /* sube bajo la barra transparente */
             text-align: center;
         }
         .versiones-hero h1 {
@@ -212,30 +212,57 @@
         }
 
         @media (max-width: 600px) {
-            .versiones-hero { padding: 70px 6% 55px; }
+            .versiones-hero { padding: calc(70px + var(--site-nav-h) + var(--pv-subnav-h)) 6% 55px; }
             .versiones-hero h1 { font-size: 1.7rem; }
             .version-fecha { margin-left: 0; width: 100%; }
             .timeline-wrap { padding: 40px 16px 60px; }
         }
     </style>
+    <link rel="stylesheet" href="../css/nav.css">
 </head>
 <body>
 
-    <header class="glass-header">
-        <nav>
-            <a href="../index.html"><img src="../img/A.png" alt="Logo de Antipartícula" class="logo"></a>
-            <div class="nav-links" id="navLinks">
-                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
-                <ul>
-                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
-                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
-                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
-                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
+    <!-- parcial:menu actual="paginas/puntodeventa.html" -->
+    <nav class="site-nav" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="../index.html">
+                <img src="../img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/puntodeventa.html" aria-current="page">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/contacto.html">Contacto</a></li>
                 </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="../paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
             </div>
-            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
-        </nav>
-    </header>
+            <a class="site-nav__cta site-nav__cta--bar" href="../paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+    <!-- /parcial:menu -->
+    <!-- parcial:subnav-pos -->
+    <nav class="pv-subnav" aria-label="Punto de Venta">
+        <div class="pv-subnav__inner">
+            <a class="pv-subnav__titulo" href="../paginas/puntodeventa.html">Punto de Venta</a>
+            <div class="pv-subnav__links">
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#features">Funciones</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#pricing">Precios</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#dashboard-web">Panel web</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#faq">Preguntas</a>
+                <a class="pv-subnav__link" href="../paginas/versiones.html" aria-current="page">Novedades</a>
+                <a class="pv-subnav__link" href="../paginas/instrucciones-descarga.html">Cómo instalarlo</a>
+            </div>
+        </div>
+    </nav>
+    <!-- /parcial:subnav-pos -->
 
     <main>
         <section class="versiones-hero">
@@ -263,49 +290,58 @@
         </div>
     </main>
 
+    <!-- parcial:footer lema="pos" -->
     <footer>
         <div class="rowFooter">
             <div class="colFooter">
-                <img src="../img/A.png" alt="logo de Antipartícula TPV" class="logoFooter">
+                <img src="../img/A.png" alt="Antipartícula Punto de Venta" class="logoFooter">
                 <p>Impulsamos a negocios y tiendas en LATAM a través de la transformación digital. <br>
                     <br> Con <i class="fa-regular fa-heart" style="color: #ffffff;"></i> para México y Latinoamérica.
                 </p>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/antiparticular" target="_blank" rel="noopener" class="fa-brands fa-facebook-f" aria-label="Facebook"></a>
+                    <a href="https://www.instagram.com/antiparticular/" target="_blank" rel="noopener" class="fa-brands fa-instagram" aria-label="Instagram"></a>
+                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" rel="noopener" class="fa-brands fa-tiktok" aria-label="TikTok"></a>
+                    <a href="https://wa.me/525584323945" target="_blank" rel="noopener" class="fa-brands fa-whatsapp" aria-label="WhatsApp"></a>
+                </div>
+            </div>
+            <div class="colFooter">
+                <h3>Punto de Venta</h3>
+                <ul>
+                    <li><a href="../paginas/puntodeventa.html">Conoce el sistema</a></li>
+                    <li><a href="../paginas/puntodeventa.html#pricing">Precios</a></li>
+                    <li><a href="../paginas/instrucciones-descarga.html">Cómo instalarlo</a></li>
+                    <li><a href="../paginas/puntodeventa.html#faq">Preguntas frecuentes</a></li>
+                    <li><a href="../paginas/versiones.html">Novedades</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Empresa</h3>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li><a href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li><a href="../paginas/contacto.html">Contacto</a></li>
+                </ul>
             </div>
             <div class="colFooter">
                 <h3>Oficina</h3>
                 <p>Tecámac, Estado de México</p>
                 <p class="email-id">contacto&commat;antiparticula.com</p>
                 <h4>+52 (55) 8432 3945</h4>
-            </div>
-            <div class="colFooter">
-                <h3>Menú</h3>
-                <ul>
-                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
-                    <li><a href="../paginas/quienes-somos.html">¿Quiénes somos?</a></li>
-                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
-                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
-                </ul>
-            </div>
-            <div class="colFooter">
-                <h3>Solicita Información</h3>
+                <p class="footer-form-label">Solicita información</p>
                 <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST">
                     <i class="fa-regular fa-envelope"></i>
-                    <input type="email" placeholder="Ingresa tu email" required name="Correo">
-                    <button type="submit"><i class="fa-solid fa-arrow-right"></i></button>
+                    <input type="email" placeholder="Ingresa tu email" required name="Correo" aria-label="Tu email">
+                    <button type="submit" aria-label="Enviar"><i class="fa-solid fa-arrow-right"></i></button>
                     <input type="hidden" name="_next" value="https://antiparticula.com/paginas/versiones.html?enviado=true">
                     <input type="hidden" name="_captcha" value="false">
                 </form>
-                <div class="social-icons">
-                    <a href="https://www.facebook.com/antiparticular" target="_blank" class="fa-brands fa-facebook-f"></a>
-                    <a href="https://www.instagram.com/antiparticular/" target="_blank" class="fa-brands fa-instagram"></a>
-                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" class="fa-brands fa-tiktok"></a>
-                    <a href="https://wa.me/5584323945" target="_blank" class="fa-brands fa-whatsapp"></a>
-                </div>
             </div>
         </div>
         <hr>
         <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
     </footer>
+    <!-- /parcial:footer -->
 
     <script src="../js/script.js"></script>
     <script>
@@ -402,5 +438,6 @@
             });
     })();
     </script>
+    <script src="../js/nav.js"></script>
 </body>
 </html>

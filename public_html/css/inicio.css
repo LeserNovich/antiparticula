@@ -1,0 +1,439 @@
+/* - - - - - INICIO (index.html) - - - - - */
+/* Portada: el carrusel (tarjeta blanca de style.css) sobre el fondo fijo
+   desenfocado .pg-bg de paginas.css. Debajo, una hoja blanca de esquinas
+   redondeadas que sube sobre ese fondo, con secciones sobrias: texto, líneas
+   finas y mucho aire. Usa los tokens --pg-* de body.pg-page.
+   Clases propias con prefijo in-. */
+
+/* ----- Portada ----- */
+/* Deja ver el fondo fijo en lugar de su propia imagen, para que no haya corte.
+   La tarjeta (.blog-slider) va en el flujo, centrada con flex, y no con
+   position: absolute + translate(-50%, -50%) como en style.css: así nunca queda
+   debajo del menú en pantallas bajas y, si no cabe, la portada crece en vez de
+   encimarse. svh: alto visible con las barras del navegador del celular. */
+.in-page .header {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: calc(var(--site-nav-h, 68px) + 16px) 0 96px;
+  background: none;
+}
+
+.in-page .blog-slider {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  margin: 0 auto;
+}
+
+/* En celular la foto sobresale 85px por arriba de la tarjeta (translateY(-50%)
+   de style.css); el margen le reserva ese espacio */
+@media screen and (max-width: 768px) {
+  .in-page .blog-slider {
+    margin-top: 96px;
+  }
+}
+
+/* ----- Flecha para bajar, al pie de la portada ----- */
+.in-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.in-scroll:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .in-scroll i {
+    animation: in-bote 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes in-bote {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(3px); }
+}
+
+/* En pantallas bajas la tarjeta llega hasta abajo y la flecha le estorbaría;
+   sin flecha, la portada ya no necesita guardarle espacio abajo */
+@media (max-height: 760px) {
+  .in-scroll {
+    display: none;
+  }
+
+  .in-page .header {
+    padding-bottom: 40px;
+  }
+}
+
+/* ----- Hoja blanca ----- */
+.in-main {
+  background: #ffffff;
+  border-radius: 32px 32px 0 0;
+  padding-bottom: clamp(24px, 4vw, 48px);
+  /* La flecha salta justo al borde de la hoja, no una barra de menú antes */
+  scroll-margin-top: calc(-1 * (var(--site-nav-h, 68px) + 12px));
+}
+
+.in-container {
+  width: min(1120px, 100% - 40px);
+  margin: 0 auto;
+}
+
+.in-section {
+  padding-top: clamp(80px, 10vw, 136px);
+}
+
+.in-h2 {
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pg-title);
+  margin-top: 16px;
+  text-wrap: balance;
+}
+
+/* Que un nombre (p. ej. "Punto de Venta") no se parta entre dos líneas */
+.in-nowrap {
+  white-space: nowrap;
+}
+
+.in-page .in-lead {
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--pg-text);
+  margin-top: 20px;
+}
+
+/* ----- Botón y enlace ----- */
+.in-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin-top: 36px;
+}
+
+.in-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 28px;
+  border-radius: 50px;
+  background-image: var(--pg-gradient);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 10px 30px rgba(44, 110, 149, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.in-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(44, 110, 149, 0.4);
+}
+
+.in-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pg-steel);
+}
+
+.in-btn i,
+.in-link i {
+  font-size: 13px;
+  transition: transform 0.2s;
+}
+
+.in-btn:hover i,
+.in-link:hover i {
+  transform: translateX(4px);
+}
+
+/* ----- Qué hacemos: frase grande y tres servicios en columnas ----- */
+.in-statement {
+  max-width: 940px;
+  margin-top: 20px;
+  font-size: clamp(30px, 4.2vw, 50px);
+  line-height: 1.14;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--pg-title);
+  text-wrap: balance;
+}
+
+.in-statement span {
+  color: var(--pg-muted);
+}
+
+.in-servicios {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px;
+  margin-top: clamp(56px, 7vw, 88px);
+}
+
+.in-servicios li {
+  padding-top: 28px;
+  border-top: 1px solid var(--pg-line);
+}
+
+.in-num {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--pg-steel);
+}
+
+.in-servicios h3 {
+  text-align: left;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pg-title);
+  margin: 14px 0 10px;
+}
+
+.in-page .in-servicios p {
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--pg-text);
+}
+
+.in-servicios + .in-actions {
+  margin-top: 44px;
+}
+
+/* ----- Dos columnas: texto e imagen ----- */
+.in-split {
+  display: grid;
+  grid-template-columns: minmax(0, 11fr) minmax(0, 13fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: center;
+}
+
+/* Imagen a la izquierda: la columna angosta es la de la imagen */
+.in-split--rev {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.in-checks {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.in-checks li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--pg-title);
+}
+
+.in-checks i {
+  flex: none;
+  font-size: 14px;
+  color: var(--pg-steel);
+}
+
+/* Captura de la app: asoma por la esquina de un fondo gris muy claro */
+.in-stage {
+  margin: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(150deg, #e9f0f6 0%, #f5f7fa 100%);
+  padding: clamp(28px, 4vw, 48px) 0 0 clamp(28px, 4vw, 48px);
+}
+
+/* Más ancha que el fondo: el lado derecho de la captura queda recortado */
+.in-stage img {
+  display: block;
+  width: 122%;
+  max-width: none;
+  height: auto;
+  border-radius: 12px 0 0 0;
+  box-shadow: 0 20px 60px rgba(13, 9, 37, 0.14), 0 2px 8px rgba(13, 9, 37, 0.06);
+}
+
+/* ----- Proyecto destacado (Alvamex) ----- */
+/* Mismo azul que el fondo del logo (#0066FE) para que la imagen no tenga borde */
+.in-marca {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding: 40px;
+  border-radius: 24px;
+  background: #0066fe;
+}
+
+.in-marca img {
+  display: block;
+  width: min(360px, 82%);
+  height: auto;
+}
+
+.in-feats {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--pg-line);
+}
+
+.in-feats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pg-title);
+}
+
+.in-feats i {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: #0066fe;
+}
+
+/* ----- Nosotros: cita del fundador ----- */
+.in-cita {
+  max-width: 860px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.in-cita blockquote {
+  margin: 28px 0 0;
+}
+
+.in-cita blockquote::before {
+  content: "“";
+  display: block;
+  height: 44px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 88px;
+  line-height: 1;
+  color: var(--pg-steel);
+}
+
+.in-page .in-cita blockquote p {
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.45;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--pg-title);
+}
+
+.in-page .in-cita .in-firma {
+  margin-top: 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pg-muted);
+}
+
+.in-cita .in-actions {
+  justify-content: center;
+  margin-top: 28px;
+}
+
+/* ----- Llamado final: el mismo fondo desenfocado de la portada ----- */
+/* El texto y los botones son .pg-cta / .pg-pill de paginas.css */
+.in-cta {
+  border-radius: 28px;
+  overflow: hidden;
+  padding-left: clamp(24px, 6vw, 88px);
+  padding-right: clamp(24px, 6vw, 88px);
+  background:
+    linear-gradient(rgba(4, 9, 30, 0.55), rgba(4, 9, 30, 0.72)),
+    url(../img/programando-blur.webp) center / cover no-repeat;
+}
+
+.in-cta h2 {
+  text-wrap: balance;
+}
+
+/* ----- Aparición suave al entrar en pantalla (js/inicio.js pone .in-anim) ----- */
+.in-anim .in-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.in-anim .in-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ----- Responsive ----- */
+@media screen and (max-width: 900px) {
+  .in-split,
+  .in-split--rev {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .in-servicios {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .in-servicios li {
+    padding: 24px 0;
+  }
+
+  .in-servicios h3 {
+    margin-top: 10px;
+  }
+
+  .in-servicios + .in-actions {
+    margin-top: 16px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .in-main {
+    border-radius: 24px 24px 0 0;
+  }
+
+  .in-feats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .in-marca {
+    aspect-ratio: auto;
+    padding: 48px 32px;
+  }
+
+  .in-cta {
+    border-radius: 22px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

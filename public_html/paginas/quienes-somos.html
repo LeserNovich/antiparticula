@@ -8,129 +8,193 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/mensaje-exito.css">
-    <meta name="description" content="Antipartícula es una organización de servicios de tecnología, consultoría y soluciones comerciales. Desarrollamos software y aplicaciones."/>
-    <meta name="keywords" content="software, desarrollo, web, aplicaciones"/>
-    
+    <link rel="stylesheet" href="../css/paginas.css">
+    <meta name="description" content="Conoce Antipartícula: empresa de software que impulsa a micro y pequeñas empresas a escalar con tecnología, con productos propios y desarrollos a la medida."/>
+    <meta name="keywords" content="software, desarrollo, web, aplicaciones, automatización, punto de venta"/>
+
     <meta property="og:image" content="https://antiparticula.com/img/programando.jpg"/>
     <meta property="og:url" content="https://antiparticula.com/paginas/quienes-somos.html"/>
-    <meta property="og:title" content="Antipartícula | Desarrollo de software"/>
-    <meta property="og:description" content="Antipartícula es una organización de servicios de tecnología, consultoría y soluciones comerciales. Desarrollamos software y aplicaciones."/>
+    <meta property="og:title" content="Quiénes somos | Antipartícula"/>
+    <meta property="og:description" content="Conoce Antipartícula: empresa de software que impulsa a micro y pequeñas empresas a escalar con tecnología, con productos propios y desarrollos a la medida."/>
     <meta property="og:type" content="website">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/css/swiper.css">
-    <title>Antipartícula | Desarrollo de software</title>
-    
+
+    <title>Quiénes somos | Antipartícula</title>
+    <link rel="stylesheet" href="../css/nav.css">
 </head>
 
-<body class="cuerpo">
-    <section class="headerQueHacemos">
-        <nav>
-            <a href="../index.html"><img src="../img/A.png" alt="logo" class="logo"></a>
-            <div class="nav-links" id="navLinks">
-                <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
-                <ul>
-                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
-                    <li><a href="#">¿Quiénes somos?</a></li>
-                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
-                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
+<body class="pg-page">
+    <!-- parcial:menu -->
+    <nav class="site-nav" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="../index.html">
+                <img src="../img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/puntodeventa.html">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/quienes-somos.html" aria-current="page">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/contacto.html">Contacto</a></li>
                 </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="../paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
             </div>
-            <i class="fa-solid fa-bars fa-2xl" onclick="showMenu()"></i>
-        </nav>
-        <h2>¿Quiénes somos?</h2>
-    </section>
-
-    <div class="about-section">
-        <div class="izq"></div>
-        <div class="inner-container">
-            <h1>Acerca de Antipartícula</h1>
-            <p class="texto-about">Antipartícula es una organización de servicios de TI, 
-                consultoría y soluciones comerciales. Creemos que la innovación y el conocimiento 
-                pueden transformar nuestro futuro con un mayor propósito.
-            </p>
+            <a class="site-nav__cta site-nav__cta--bar" href="../paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
         </div>
-    </div>
+    </nav>
+    <!-- /parcial:menu -->
 
+    <div class="pg-bg" aria-hidden="true"></div>
 
-    <div class="containerCards padding">
-        <h1>Servicios</h1>
-        <div class="rowCards">
-            <div class="serviceCards">
-                <i class="fa-solid fa-screwdriver-wrench"></i>
-                <h2>Nuestra Misión</h2>
-                <p>Crear soluciones tecnológicas innovadoras y de la más alta calidad 
-                    para nuestros clientes. Además, nos comprometemos a proporcionar 
-                    un entorno laboral profundamente humano que refleje nuestro compromiso
-                     con el bienestar y la calidad de vida de nuestro equipo.
-                </p>
-            </div>
-
-            <div class="serviceCards">
-                <i class="fa-solid fa-bullseye"></i>
-                <h2>Nuestra Visión</h2>
-                <p>Nuestra visión es liderar la industria de desarrollo de 
-                    software en México, superando las expectativas de nuestros
-                     clientes y contribuyendo al crecimiento y la innovación 
-                     tecnológica en la región.</p>
-            </div>
+    <header class="pg-hero nav-offset">
+        <div class="pg-container pg-hero-inner">
+            <span class="pg-kicker">Nosotros</span>
+            <h1>Tecnología para que las micro y pequeñas empresas escalen</h1>
+            <p>Somos una empresa de software mexicana. Esta es nuestra historia.</p>
         </div>
-    </div>
-    
-       
-   
+    </header>
 
-    
+    <main class="pg-container">
+        <article class="pg-sheet">
+            <section class="pg-row" id="historia">
+                <div class="pg-row-label">
+                    <span class="pg-kicker">Nuestra historia</span>
+                    <h2>Por qué existe Antipartícula</h2>
+                </div>
+                <div class="pg-row-body pg-story">
+                    <p class="pg-lead">La idea de desarrollar una empresa de software surge de querer hacer un
+                        cambio en la comunidad, generando trabajos de alta calidad y altamente humanos para
+                        que la comunidad crezca económicamente. A la par, también busca consolidarse como
+                        una iniciativa altamente rentable y sostenible.</p>
+                    <p>Soy ingeniero de software egresado de la UNAM y me gusta crear y escalar empresas
+                        con el objetivo de llegar a tener un conglomerado en el largo plazo. Cuento con
+                        experiencia en el ámbito financiero y bancario como desarrollador de software e
+                        inversionista.</p>
+                    <p>Con el propósito de integrar mis intereses, enfocar mis conocimientos y materializar
+                        todo lo anterior mencionado, se crea Antipartícula: una empresa de software que
+                        impulse a micro y pequeñas empresas ayudándolas a escalar con tecnología. Esto
+                        incluye desde productos propios de Antipartícula hasta desarrollos a la medida, que
+                        van desde sitios web hasta la automatización de procesos.</p>
+                    <p class="pg-firma">— Fundador de Antipartícula</p>
+                    <div class="pg-links">
+                        <a href="../paginas/puntodeventa.html">Conoce el Punto de Venta <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="../paginas/queHacemos.html">Ver servicios <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </section>
 
+            <section class="pg-row" id="alvamex">
+                <div class="pg-row-label">
+                    <span class="pg-kicker">Proyecto destacado</span>
+                    <h2>Alvamex Química</h2>
+                </div>
+                <div class="pg-row-body">
+                    <picture>
+                        <source srcset="../img/alvamex-logo.webp" type="image/webp">
+                        <img class="pg-logo" src="../img/alvamex-logo.jpg" alt="Alvamex Pinturas" width="1000" height="295" loading="lazy">
+                    </picture>
+                    <p>Desarrollamos para Alvamex Química el sistema web con el que sus concesionarios y
+                        talleres de pintura automotriz gestionan su operación diaria, desde cualquier
+                        dispositivo e incluso sin conexión a internet.</p>
+                    <p class="pg-tags">Órdenes de trabajo · Inventario · Igualación de color · Reportes · Funciona sin internet</p>
+                </div>
+            </section>
 
+            <section class="pg-row">
+                <div class="pg-row-label">
+                    <span class="pg-kicker">Lo que nos mueve</span>
+                    <h2>Misión y visión</h2>
+                </div>
+                <div class="pg-row-body pg-mv">
+                    <div>
+                        <h3>Misión</h3>
+                        <p>Crear soluciones tecnológicas innovadoras y de la más alta calidad para nuestros
+                            clientes, en un entorno laboral profundamente humano que refleje nuestro
+                            compromiso con el bienestar y la calidad de vida de nuestro equipo.</p>
+                    </div>
+                    <div>
+                        <h3>Visión</h3>
+                        <p>Liderar la industria de desarrollo de software en México, superando las
+                            expectativas de nuestros clientes y contribuyendo al crecimiento y la innovación
+                            tecnológica de la región.</p>
+                    </div>
+                </div>
+            </section>
+        </article>
+
+        <section class="pg-cta">
+            <h2>¿Listo para que tu negocio crezca con tecnología?</h2>
+            <p>Cuéntanos qué necesitas y te ayudamos a encontrar la mejor solución.</p>
+            <div class="pg-actions">
+                <a class="pg-pill" href="https://wa.me/525584323945?text=Hola%2C%20me%20interesa%20platicar%20sobre%20un%20proyecto" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Escríbenos por WhatsApp</a>
+                <a class="pg-pill pg-pill-ghost" href="../paginas/contacto.html">Ir a contacto</a>
+            </div>
+        </section>
+    </main>
+
+    <!-- parcial:footer -->
     <footer>
         <div class="rowFooter">
             <div class="colFooter">
-                <img src="../img/A.png" alt="logo de antiparticula" class="logoFooter">
+                <img src="../img/A.png" alt="Antipartícula" class="logoFooter">
                 <p>Transformamos la economía de nuestros países impulsando empresas a la transformación digital.<br>
                     <br>Con <i class="fa-regular fa-heart"></i> para LATAM
                 </p>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/antiparticular" target="_blank" rel="noopener" class="fa-brands fa-facebook-f" aria-label="Facebook"></a>
+                    <a href="https://www.instagram.com/antiparticular/" target="_blank" rel="noopener" class="fa-brands fa-instagram" aria-label="Instagram"></a>
+                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" rel="noopener" class="fa-brands fa-tiktok" aria-label="TikTok"></a>
+                    <a href="https://wa.me/525584323945" target="_blank" rel="noopener" class="fa-brands fa-whatsapp" aria-label="WhatsApp"></a>
+                </div>
+            </div>
+            <div class="colFooter">
+                <h3>Punto de Venta</h3>
+                <ul>
+                    <li><a href="../paginas/puntodeventa.html">Conoce el sistema</a></li>
+                    <li><a href="../paginas/puntodeventa.html#pricing">Precios</a></li>
+                    <li><a href="../paginas/instrucciones-descarga.html">Cómo instalarlo</a></li>
+                    <li><a href="../paginas/puntodeventa.html#faq">Preguntas frecuentes</a></li>
+                    <li><a href="../paginas/versiones.html">Novedades</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Empresa</h3>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li><a href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li><a href="../paginas/contacto.html">Contacto</a></li>
+                </ul>
             </div>
             <div class="colFooter">
                 <h3>Oficina</h3>
                 <p>Tecámac, Estado de México</p>
                 <p class="email-id">contacto&commat;antiparticula.com</p>
                 <h4>+52 (55) 8432 3945</h4>
-            </div>
-            <div class="colFooter">
-                <h3>Menú</h3>
-                <ul>
-                    <li><a href="../paginas/queHacemos.html">¿Qué hacemos?</a></li>
-                    <li><a href="#">¿Quiénes somos?</a></li>
-                    <li><a href="../paginas/puntodeventa.html">Punto de Venta</a></li>
-                    <li><a href="../paginas/contacto.html">Contáctanos</a></li>
-                    <li><a href="../paginas/versiones.html">Historial de versiones</a></li>
-                </ul>
-            </div>
-            <div class="colFooter">
-                <h3>Solicita Información</h3>
+                <p class="footer-form-label">Solicita información</p>
                 <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST">
                     <i class="fa-regular fa-envelope"></i>
-                    <input type="email" placeholder="Ingresa tu email" required name="Correo">
-                    <button type="submit"><i class="fa-solid fa-arrow-right"></i></button>
+                    <input type="email" placeholder="Ingresa tu email" required name="Correo" aria-label="Tu email">
+                    <button type="submit" aria-label="Enviar"><i class="fa-solid fa-arrow-right"></i></button>
                     <input type="hidden" name="_next" value="https://antiparticula.com/paginas/quienes-somos.html?enviado=true">
                     <input type="hidden" name="_captcha" value="false">
                 </form>
-                <div class="social-icons">
-                    <a href="https://www.facebook.com/antiparticular" target="_blank" class="fa-brands fa-facebook-f"></a>
-                    <a href="https://www.instagram.com/antiparticular/" target="_blank" class="fa-brands fa-instagram"></a>
-                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" class="fa-brands fa-tiktok"></a>
-                    <a href="https://wa.me/5584323945" target="_blank" class="fa-brands fa-whatsapp"></a>
-                </div>
             </div>
         </div>
         <hr>
         <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
     </footer>
+    <!-- /parcial:footer -->
 
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.5/js/swiper.min.js"></script>
     <script src="../js/script.js"></script>
     <script src="../js/mensaje-exito.js"></script>
+    <script src="../js/nav.js"></script>
 </body>
 </html>

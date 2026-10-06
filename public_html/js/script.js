@@ -48,7 +48,7 @@ function cerrarModalLink() {
         }
 
 function enviarPorWhatsApp() {
-            const message = '🚀 Descarga gratis el Punto de Venta Antipartícula para Windows:\n\nhttps://antiparticula.com/puntodeventa\n\n✨ Gratis para siempre\n💻 Solo Windows\n📦 Control total de inventario';
+            const message = '🚀 Descarga gratis el Punto de Venta Antipartícula para Windows y Mac:\n\nhttps://antiparticula.com/puntodeventa\n\n✨ Gratis para siempre\n💻 Windows y Mac\n📦 Control total de inventario';
             const encodedMessage = encodeURIComponent(message);
             // Sin número de teléfono, el usuario elige a quién enviar (puede ser a sí mismo)
             const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
@@ -63,7 +63,7 @@ function enviarPorWhatsApp() {
 
 function enviarPorEmail() {
             const subject = encodeURIComponent('Punto de Venta Antipartícula - Link de Descarga');
-            const body = encodeURIComponent('🚀 Descarga gratis el Punto de Venta Antipartícula para Windows:\n\nhttps://antiparticula.com/puntodeventa\n\n✨ Gratis para siempre\n💻 Solo Windows\n📦 Control total de inventario\n🔄 Siempre actualizado');
+            const body = encodeURIComponent('🚀 Descarga gratis el Punto de Venta Antipartícula para Windows y Mac:\n\nhttps://antiparticula.com/puntodeventa\n\n✨ Gratis para siempre\n💻 Windows y Mac\n📦 Control total de inventario\n🔄 Siempre actualizado');
             // Abre el cliente de email del usuario
             window.location.href = `mailto:?subject=${subject}&body=${body}`;
 

@@ -99,8 +99,51 @@
             box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
         }
     </style>
+    <link rel="stylesheet" href="../css/nav.css">
 </head>
 <body>
+    <!-- parcial:menu solido actual="paginas/puntodeventa.html" -->
+    <nav class="site-nav site-nav--solid" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="../index.html">
+                <img src="../img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/puntodeventa.html" aria-current="page">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/contacto.html">Contacto</a></li>
+                </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="../paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
+            </div>
+            <a class="site-nav__cta site-nav__cta--bar" href="../paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+    <!-- /parcial:menu -->
+    <!-- parcial:subnav-pos -->
+    <nav class="pv-subnav" aria-label="Punto de Venta">
+        <div class="pv-subnav__inner">
+            <a class="pv-subnav__titulo" href="../paginas/puntodeventa.html">Punto de Venta</a>
+            <div class="pv-subnav__links">
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#features">Funciones</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#pricing">Precios</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#dashboard-web">Panel web</a>
+                <a class="pv-subnav__link" href="../paginas/puntodeventa.html#faq">Preguntas</a>
+                <a class="pv-subnav__link" href="../paginas/versiones.html">Novedades</a>
+                <a class="pv-subnav__link" href="../paginas/instrucciones-descarga.html" aria-current="page">Cómo instalarlo</a>
+            </div>
+        </div>
+    </nav>
+    <!-- /parcial:subnav-pos -->
+    <div class="site-nav-spacer"></div>
     <div class="instrucciones-container">
         <h1><i class="fas fa-shield-alt"></i> Instrucciones de Descarga Segura</h1>
         <p style="font-size: 18px; color: #666;">Guía paso a paso para descargar e instalar Antiparticula Punto de Venta</p>
@@ -283,5 +326,6 @@
             });
         });
     </script>
+    <script src="../js/nav.js"></script>
 </body>
 </html>

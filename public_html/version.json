@@ -1,10 +1,119 @@
 {
-  "version": "2.8.0",
+  "version": "3.2.0",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Movimientos de caja para registrar retiros e ingresos sin que descuadre el corte, resumen del negocio por periodo con exportación a Excel, venta por litro y por unidad, y un programa más fluido en computadoras sencillas",
+  "changelog": "Al cambiar un precio o importar desde Excel eliges si aplica solo a tu tienda o a todas, y en Inventario se ve qué productos cobran distinto aquí",
   "mandatory": false,
 
   "historial": [
+    {
+      "version": "3.2.0",
+      "fecha": "2026-10-04",
+      "titulo": "Tú eliges a qué tiendas llega un precio",
+      "cambios": [
+        "Al cambiar el precio de un producto en Inventario, con tus tiendas unidas, ahora te pregunta si el nuevo precio aplica solo en esta tienda o en todas. Antes, si la tienda no tenía un precio propio para ese producto, el cambio llegaba a todas tus sucursales sin avisarte. La opción «Solo en esta tienda» es la que aparece marcada, y si no cambiaste el precio (por ejemplo, solo corregiste el nombre) no pregunta nada",
+        "Importar desde Excel con «Copiar lo del Excel» te deja elegir lo mismo, una sola vez para todo el archivo: que los precios queden solo en esta tienda o que cambien en todas. Los productos nuevos siempre se agregan con el precio del archivo para todas las tiendas, y «Sumar al inventario» sigue sin tocar ningún precio",
+        "En Inventario, el precio que esta tienda cobra distinto de las demás se ve en color ámbar y en negritas; pasa el mouse encima para ver cuánto cobran las otras. Para dejar un producto otra vez con el precio de todas, usa Sucursales > Precios > Usar el precio común",
+        "En Sucursales > Tiendas y PCs, las PCs a las que ya les quitaste el acceso salen ocultas para que la lista no se llene de equipos viejos. Si necesitas verlas, la casilla «Mostrar sin acceso» las muestra",
+        "Al volver a unir una PC que ya trabajaba en una tienda, el sistema revisa el código antes de usarlo: si es de otra sucursal lo rechaza y te dice cómo seguir, para no mezclar las ventas y el inventario de una tienda con los de otra"
+      ]
+    },
+    {
+      "version": "3.1.0",
+      "fecha": "2026-10-04",
+      "titulo": "Tus tiendas a la vista, y ahora en Mac",
+      "cambios": [
+        "Antiparticula Punto de Venta ya funciona en Mac, con chip Apple y con Intel, con las mismas pantallas y funciones que en Windows. La ventana respeta la barra de menús y el Dock para que no te tapen nada",
+        "Los tickets de todas tus tiendas, desde la PC del administrador: en Sucursales, la pestaña Tickets te deja filtrar por día, tienda, estado, folio o cajero y abrir cualquier ticket con sus productos, sus formas de pago y su ganancia. Cada folio lleva la clave de su tienda (CEN-151, NOR-151), porque el #151 existe en todas; la clave la cambias en Tiendas y PCs > Nombre y clave",
+        "Cortes y turno abierto de cada tienda: ve quién está atendiendo ahora en cada sucursal, cuánto lleva vendido y cuánto debería haber en su caja, y revisa cada corte con su faltante o sobrante y de dónde sale el dinero esperado",
+        "Existencias de todas las tiendas en una sola tabla, con una columna por sucursal y el total: en rojo lo agotado y en ámbar lo que está bajo su mínimo, para decidir de un vistazo qué traspasar",
+        "Productos duplicados entre tiendas: si dos sucursales dieron de alta el mismo código de barras por separado, ahora lo resuelves en Configuración > Sucursales > Ver avisos. «Es el mismo producto» los une en todas las tiendas y suma sus existencias y su historial; «Son distintos» te deja cambiarle el código al de esa tienda",
+        "Traspasos: el detalle de un traspaso en tránsito ahora trae los botones Recibir y Cancelar traspaso, y la pantalla te dice qué puedes hacer con cada uno según tu tienda y tu usuario",
+        "Sucursales ya no te obliga a bajar con una barra para ver los botones: se ajusta a la ventana y solo se desplazan las tablas. En la PC de una tienda solo aparecen las pestañas que funcionan en ella",
+        "En Usuarios y permisos ahora ves en qué tiendas puede entrar cada cuenta",
+        "Las tiendas se ponen al día solas cada minuto y en cuanto regresa el internet; antes dependía de una venta o del botón Sincronizar ahora. Cuando el administrador te carga mercancía o te cambia un precio a distancia, el menú te avisa, y lo que otra tienda mandó y no se pudo aplicar queda en Ver avisos",
+        "Suscripción premium y recuperación de contraseña más seguras: ahora usan claves que solo funcionan en tu PC, y el sistema avisa si la fecha del equipo está mal. Si ya tenías suscripción premium, en la pantalla de activación verás cuándo vencía la anterior para que soporte te dé tu clave nueva",
+        "El identificador de tu equipo que usa soporte ya no cambia al pasar de Wi-Fi a cable ni al cambiar de adaptador de red, así tu suscripción no se pierde",
+        "Editar un precio en Inventario ya no deshace la mercancía que acababa de llegar de otra tienda mientras tenías la pantalla abierta, y una existencia negativa ya no se muestra como «Ilimitado»: sale en rojo y cuenta como agotada",
+        "Detalles: los avisos de confirmación y el selector de archivos aparecen en español; renombrar o borrar una categoría en una tienda ya no deja categorías vacías en las demás; al iniciar sesión te dice con claridad si tu cuenta está deshabilitada o no tiene acceso a esa tienda; y en Cancelar venta el botón ahora dice «No cancelar»"
+      ]
+    },
+    {
+      "version": "3.0.0",
+      "fecha": "2026-10-03",
+      "titulo": "Antiparticula Multisucursal",
+      "cambios": [
+        "Abre tu siguiente tienda sin miedo: con Antiparticula Multisucursal todas tus sucursales trabajan como un solo negocio. Cada una sigue vendiendo aunque se vaya el internet y se pone al día sola en cuanto regresa. Unir una PC es tan fácil como escribir un código en Configuración > Sucursales",
+        "Revisa el inventario de cualquier tienda sin salir de la tuya. Desde la PC del administrador registra la mercancía que llegó o corrige un conteo a distancia",
+        "Traspasos de mercancía entre tiendas: envía, recibe o cancela en segundos. Si llega menos de lo enviado, queda anotado. El menú te avisa cuando hay mercancía por recibir, y el cajero también puede recibirla",
+        "Todo tu negocio en un solo reporte: ventas, tickets, ganancia y ticket promedio por sucursal y por día, los días y horas en que más vendes, tus productos estrella y cómo te pagan tus clientes. Llévalo a Excel con un clic",
+        "Precios a la medida de cada tienda: cada sucursal puede cobrar su propio precio sin tocar el de las demás",
+        "Tu equipo, en todas tus tiendas: crea a tus usuarios una sola vez y entran con la misma contraseña en todas las sucursales, o solo en las que tú decidas",
+        "Tú tienes el control: agrega una sucursal, genera el código para unir una PC nueva o quítale el acceso a la que ya no usas, desde la pantalla Sucursales",
+        "Nada se pierde: si dos tiendas cambian el mismo producto sin internet (una el nombre y otra el precio), se conservan los dos cambios. Y desvincular una PC ya no borra lo que tenía pendiente de enviar",
+        "Devoluciones sin descuadres: cancelar un ticket o devolver un artículo regresa la mercancía al inventario automáticamente",
+        "Importar desde Excel, más claro y más seguro: elige entre «Copiar lo del Excel» (tus productos quedan como en el archivo y lo que no venga se respeta) o «Sumar al inventario» (solo suma lo que te llegó), con un ejemplo para no equivocarte. Si quieres que tu inventario quede igual que el archivo, marca «Quitar los productos que no vienen en el Excel»: te muestra cuáles son antes de borrar y, con Multisucursal, conserva los que todavía tienen existencias en otra tienda",
+        "Antiparticula Multisucursal reemplaza a la conexión en red local entre PCs (la pestaña Red de Configuración se retiró): ahora tus tiendas se conectan por internet, estén en la misma calle o en otra ciudad",
+        "Tu resumen en el celular siempre al día: si se va el internet al vender o al cerrar el turno, se envía solo en cuanto regresa la conexión, y ya no puede quedarse en ceros",
+        "Comentarios y sugerencias: si no hay internet, el aviso te lo dice claramente"
+      ]
+    },
+    {
+      "version": "2.10.1",
+      "fecha": "2026-10-01",
+      "titulo": "Corrección menor",
+      "cambios": [
+        "Pantallas pequeñas: las ventanas emergentes (por ejemplo Recuperar acceso) ya no se cortan. Si el contenido no cabe, se desplaza con la rueda del ratón o la barra lateral, y los botones de abajo siempre quedan a la vista",
+        "Apartados: se quitó la casilla de cada renglón. Ahora basta dar un clic sobre el apartado para seleccionarlo, y con doble clic se abre su detalle"
+      ]
+    },
+    {
+  "version": "2.10.0",
+  "fecha": "2026-10-01",
+  "titulo": "Formas de pago y Control de dinero",
+  "cambios": [
+    "Cobro: elige cómo pagó el cliente: efectivo, tarjeta, transferencia o mixto (una parte en efectivo y otra con tarjeta o transferencia). El cambio se calcula solo sobre el efectivo, y el campo del monto queda listo para escribir al abrir el cobro",
+    "Comisión de tarjeta: define el porcentaje en Configuración, en la pestaña Cobro, y si quieres sumarle IVA. Se calcula en cada venta y queda guardada en el ticket, así que cambiarla después no altera las ventas anteriores",
+    "Corte de caja: el efectivo esperado ahora cuenta solo el efectivo. Lo cobrado con tarjeta o transferencia se muestra aparte, con su comisión, y no mueve la diferencia del corte. Los cortes anteriores quedan igual",
+    "Control de dinero (nueva pantalla, debajo de Resumen del negocio, solo para el administrador): indica cuánto tienes en efectivo y en tu cuenta bancaria y verás tu dinero total. Cada venta, comisión, gasto y retiro lo suma o lo resta solo; lo cobrado con tarjeta entra al banco ya sin la comisión",
+    "Control de dinero también muestra lo que entró y salió en el periodo que elijas, con el detalle de cada concepto, y permite anular un gasto, un movimiento o un traspaso",
+    "Registrar movimiento: una sola ventana para anotar un gasto (con efectivo del cajón, efectivo guardado fuera del cajón, transferencia o tarjeta), un ingreso a caja o un traspaso entre efectivo y banco. Reemplaza a Movimientos de caja; en Nueva venta el botón ahora es «F9 | Gastos»",
+    "Los gastos pagados con efectivo del cajón siguen descontándose en el corte, y se conservan la autorización de administrador y el comprobante impreso con firma",
+    "Descuento: ahora se elige entre pesos ($) y porcentaje (%) con una pastilla de dos opciones; un clic en cualquier parte la cambia a la otra. Está en Nueva venta y en Presupuestos",
+    "El ticket termina con el logo de Antiparticula y la dirección antiparticula.com, en lugar de la leyenda en texto",
+    "Resumen del negocio: la gráfica de productos más vendidos ahora se actualiza al cambiar las fechas; antes la lista de productos cambiaba, pero el pastel seguía mostrando el periodo anterior",
+    "Se corrigen botones y campos que se veían cortados en varias pantallas",
+    "Al iniciar sesión con el usuario recordado, el cursor queda directo en la contraseña",
+    "Se corrige un error al imprimir el comprobante de un movimiento cuando el concepto o el detalle eran largos"
+  ]
+  },
+    {
+      "version": "2.9.1",
+      "fecha": "2026-09-18",
+      "titulo": "Corrección menor",
+      "cambios": [
+        "Se corrige la presentación del aviso de nueva versión que aparece al abrir el programa: ahora muestra la fecha y la lista de cambios de la versión disponible, con el mismo diseño que Novedades, y ya no aparece una notificación flotante repetida encima",
+        "Las correcciones menores como esta se marcan distinto de las versiones con novedades, tanto en ese aviso como en Novedades"
+      ]
+    },
+    {
+      "version": "2.9.0",
+      "fecha": "2026-09-18",
+      "titulo": "Presupuestos en PDF",
+      "cambios": [
+        "Presupuestos: arma una cotización para un cliente con productos del inventario o conceptos libres como instalación o flete, con descuento en porcentaje o en pesos, vigencia y notas",
+        "Cada presupuesto se guarda con su folio (P-0001) y se le da seguimiento: vigente, aceptado, rechazado o vencido",
+        "PDF del presupuesto listo para enviar, con los datos del negocio, el importe en letras y numeración de páginas; se abre en cuanto lo guardas",
+        "Envío del resumen del presupuesto por WhatsApp",
+        "Un presupuesto no descuenta inventario ni entra a la caja: es una promesa de precio, no una venta. Se puede editar mientras está vigente y duplicar con folio nuevo cuando ya se aceptó o rechazó",
+        "Resumen del negocio: las gráficas por día de la semana y por hora ahora incluyen los abonos de apartados, igual que la tarjeta de ventas, para que todo cuadre",
+        "El ticket promedio se calcula solo con lo cobrado en tickets; antes los abonos de apartados lo inflaban",
+        "La gráfica de ventas y ganancia por día muestra completo el periodo elegido, aunque sean muchos días",
+        "Las tarjetas de ventas por hora y las mensuales crecen con sus renglones, ya no se cortan los últimos",
+        "Cifras del resumen con separador de miles",
+        "En una instalación nueva el resumen del negocio funciona desde el primer inicio de sesión; antes salía en ceros hasta abrir Apartados",
+        "Nueva venta: los botones muestran su atajo de teclado — Ctrl+N agrega un ticket y Supr borra el artículo seleccionado"
+      ]
+    },
     {
       "version": "2.8.0",
       "fecha": "2026-09-09",
