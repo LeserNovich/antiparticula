@@ -134,37 +134,111 @@ The POS product page (`puntodeventa.html`) includes extensive Schema.org structu
 
 ### Dashboard PWA (`public_html/dashboard/`)
 
-Panel de ventas del POS, servido en `/dashboard/{hardware_id}`. La app Java del
-POS empuja datos a `sync_pos.php`; el navegador los lee de `get_dashboard_data.php`.
+Panel de ventas del POS, servido en `/dashboard/{hardware_id}`. La app Java del POS empuja una **foto**
+a `sync_pos.php`; el navegador la lee de `get_dashboard_data.php`. Pestañas: **Hoy · Caja · Inventario ·
+Historial** (Semana | Mes | Año). Versión actual del panel: **v3** (`sw.js` → `antiparticula-dashboard-v5`).
+El lado del POS (qué manda, cada cuánto, la bitácora de cancelaciones) está en el repo del POS:
+`docs/dashboard-movil.md`.
 
-**Migraciones SQL** — `sql/` (fuera del webroot). Ejecutar en orden sobre
-`u450756829_PaginaWeb`. Pendiente de aplicar: `001_ventas_por_hora.sql`.
+#### Contrato (todo lo de la 3.3.0 es opcional: un POS anterior no manda nada de esto)
 
-**Tablas**
-- `dashboard_pos` — snapshot actual, una fila por `hardware_id`.
-- `dashboard_pos_historico` — totales por día, base del histórico anual.
-- `dashboard_pos_ventas` — cada venta individual, base de la gráfica horaria.
-  El POS reenvía las mismas ventas en cada sync; la clave única
-  `(hardware_id, fecha, venta_key)` hace el INSERT idempotente. `venta_key` es
-  el folio del POS si lo manda, si no un hash de (hora, minuto, cajero, importe).
-  **Si el POS empieza a mandar `folio` (o `ticket`/`venta_id`) por venta, la
-  deduplicación deja de ser heurística** — hoy dos ventas del mismo cajero por
-  el mismo importe en el mismo minuto se cuentan como una.
+**POST `sync_pos.php`** (form-urlencoded) — lo de siempre más `extra`, `dias`, `meses`, `clave`, `pin`,
+`pin_actual`, `pin_clear`:
+- `extra` (JSON, ≤ 64 KB, centavos): `pagos_hoy {efectivo,tarjeta,transferencia,comision}`,
+  `caja {esperado,fondo,efectivo_ventas,ingresos,retiros,tarjeta,transferencia}` (**`null` = sin turno
+  abierto**, no ceros), `cancelaciones_hoy {…, por_usuario[]}`, `inventario {agotados,bajo_minimo,valor_costo,
+  urgentes[≤10]}` (existencias en milésimas). `efectivo` incluye los abonos de apartados; `comision` incluye su IVA.
+- `dias` (≤ 120) y `meses` (≤ 24): el POS los **recalcula** y se guardan con *upsert*: una cancelación de un
+  día pasado se corrige sola y el año sale completo. Se descartan fechas imposibles, futuras o de hace > ~14 meses.
+- Respuestas: 200 `{status, protegido, avisos[]}`, 403 `clave_invalida` / `pin_incorrecto`, 429 `bloqueado`, 400 `pin_invalido`.
+  `avisos` dice qué parte nueva se omitió (`extra_no_disponible`, `dias_descartado`…): el sync **no** falla por ellas.
+
+**GET `get_dashboard_data.php?id=`** (+ cabecera `X-Dash-Token`; `Authorization: Bearer` de respaldo): agrega
+`extra`, `historico_dias` (≤ 100 días, orden ascendente; las claves de desglose faltan en días anteriores a la 3.3.0:
+**NULL ≠ 0**), `protegido`. Con PIN y sin token válido: 401 `{status:'protegido'}` y **ni un dato**. Jamás sale
+`pin_hash`/`clave_hash`/`extra_json` (hay prueba). `historico_anual` sale de `dashboard_pos_meses` si hay filas del año.
+
+**POST `dashboard_auth.php`** (`id`, `pin`) → 200 `{token, expira}` | 401 `pin_incorrecto` + `restantes` | 429 `bloqueado` + `reintentar_en`.
+
+#### PIN opcional (sin PIN el panel sigue abierto por su ID, como siempre)
+
+- Al activarlo, el POS genera una **clave** (32 bytes) y manda `pin`+`clave`; el servidor guarda `pin_hash`
+  (`password_hash`) y `clave_hash` (sha256). Desde entonces **leer exige token** y **escribir exige la clave**
+  (nadie que solo conozca el ID puede ver ni falsear cifras). El PIN son 6–8 dígitos y **no se guarda en el POS**.
+- **Token** = `payload.firma` (HMAC-SHA256, 30 días, ligado a una huella del `pin_hash`: cambiar el PIN invalida
+  los anteriores). Secreto: `dash_secret` de `config_db.php` si existe; si no, derivado de la contraseña de la base.
+- **Bloqueo:** 8 PIN incorrectos seguidos → 15 min (`SELECT … FOR UPDATE` serializa los intentos del mismo panel).
+  Tras un bloqueo vencido, un fallo más vuelve a bloquear (el contador no se limpia solo). Un acierto lo reinicia.
+- **PC reinstalada** (perdió su clave): `sync_pos.php` con `pin_actual` + clave nueva la reemplaza si el PIN es correcto.
+- **Soporte** (PIN olvidado o ID «reclamado» por otro): `UPDATE dashboard_pos SET pin_hash=NULL, clave_hash=NULL,
+  pin_fallos=0, pin_bloqueo_hasta=NULL WHERE hardware_id='…'` (también en el encabezado de la migración).
+- **Límite conocido:** quien activa la protección primero «reclama» el ID; si fuera alguien que solo conoce el ID, el
+  dueño lo arregla con el `UPDATE` de arriba. Sin PIN, el panel sigue siendo tan abierto como antes.
+
+#### Migración y orden de despliegue
+
+`sql/2026-10-09_dashboard_extra_y_pin.sql` (idempotente; solo **agrega**): columnas `extra_json`, `pin_hash`,
+`clave_hash`, `pin_fallos`, `pin_bloqueo_hasta` en `dashboard_pos`; desglose (NULL en días viejos) en
+`dashboard_pos_historico`; tabla `dashboard_pos_meses`. **El PHP es a prueba de orden:** cada escritura nueva va en su
+propio `try/catch` *después* del `upsert` de siempre, y la lectura cae a la forma anterior si falta una columna; aun así
+conviene correr el SQL **antes** de subir el PHP (el accidente de 2026-09-01 fue al revés). Antes verifica que la
+migración 001 (`dashboard_pos_ventas`) esté aplicada (el encabezado trae la consulta).
+Orden: **1.** SQL · **2.** PHP (`sync_pos.php`, `get_dashboard_data.php`, `dashboard_auth.php`, `dashboard_comun.php`)
+y `dashboard/*` · **3.** publicar el POS 3.3.0. Volver atrás = re-subir los archivos anteriores (las columnas no estorban).
+`dashboard_comun.php` no es endpoint (responde 404 si se abre directo); es PHP 7.2-compatible (hosting compartido).
+
+`sql/000_base_dashboard_pos.sql` es una línea base **reconstruida** (la tabla original nunca se versionó): solo para pruebas.
+
+#### Pruebas
+
+```bash
+NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 267 comprobaciones del panel (jsdom)
+php tests/test_sync.php                                       # parseo de ultimas_ventas (29)
+tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 127 (migrado)
+tests/correr_api.sh sin-migrar     # lo viejo funciona y lo nuevo se omite con aviso: 29
+```
+`correr_api.sh` construye una imagen alpine con PHP 8.3 + `pdo_mysql` (la oficial `php:*-cli` es una descarga grande que
+en algunas redes se cuelga), levanta `mariadb:10.11`, aplica la migración **dos veces** y golpea los endpoints por HTTP;
+`PUBLIC_HTML=<copia>` prueba otra copia (así se hicieron las mutaciones). No toca `config_db.php` ni la base real.
+Todas las pruebas tienen **mutaciones comprobadas** (romper la regla hace fallar alguna).
+
+#### Aspecto (rediseño 2026-10-09)
+
+Mismo lenguaje que el sitio: cabecera con el degradado `#202936 → #2c6e95` y una hoja de esquinas redondeadas
+(28px) que sube sobre ella; rótulos en versalitas con espaciado (`.pg-kicker`), selector segmentado en píldora y colores
+de cifras iguales a los del Resumen del POS de escritorio (ventas naranja, ganancia verde, tickets azul, ticket promedio
+morado; pagos: efectivo azul acero, tarjeta morado, transferencia verde azulado). Claro y oscuro: sigue al sistema y el
+botón de la cabecera lo fija (`localStorage` `apdash:tema`; el script del `<head>` lo aplica antes de pintar). Los tokens
+de color están en `:root` de `dashboard.css`, uno por tema: **un color nuevo se define en los TRES bloques** (claro,
+oscuro por sistema, oscuro fijado a mano).
+- **Sin librerías:** las gráficas son HTML/CSS propio (`htmlColumnas`, filas con barra, barra apilada); ni Chart.js ni CDN:
+  se ven igual sin conexión y heredan el tema. No volver a meter un `<canvas>`.
+- **Lo que se calcula en el navegador** (`derivar()`): hoy contra ayer y contra el mismo día de la semana pasada, hora
+  pico, mejor día, semana contra la anterior, mes contra el mes anterior **al mismo día** (hoy sale de la foto en vivo,
+  no del renglón guardado), alertas de turno abierto > 14 h o desde un día anterior.
+- **«Hoy» es el de México** (`ahoraMX()`, `America/Mexico_City`, la zona del servidor), no el del teléfono.
+- **El POS manda `turno_inicio` como `dd-MM-yyyy HH:mm:ss`** (no ISO): `parseFechaPOS` entiende los dos. Antes el panel
+  mostraba la fecha cruda y las pruebas no lo veían porque usaban ISO.
+- **Último estado guardado** (`localStorage` `apdash:datos:<id>`): se muestra al abrir y sin internet, **solo si es de hoy**
+  y, en un panel con PIN, solo si hay sesión (`apdash:token:<id>`). 401 o «Cerrar sesión» borran token y datos.
+- `formatMXN` separa `$` de la cifra con U+202F, y los signos menos son U+2212: **escríbelos siempre como `\u202f` /
+  `\u2212`** (escritos como carácter parecen un espacio o un guion normal y se pierden al reescribir; hay prueba).
+- Con un POS anterior a la 3.3.0 faltan `extra` e `historico_dias`: Caja e Inventario dicen que hay que actualizar el POS
+  y «Cómo pagaron» no aparece; **nada se inventa en ceros**.
 
 **Reglas del frontend**
-- `dashboard.js` monta el DOM una sola vez (`montar`) y luego solo actualiza
-  textos y datasets (`pintar`). No reconstruir el `innerHTML` en cada refresco:
-  se pierde el scroll y parpadean las gráficas.
-- Todos los recursos se referencian con ruta **absoluta** (`/dashboard/...`).
-  El `.htaccess` acepta `/dashboard/ID` y `/dashboard/ID/`, y con la barra final
-  las rutas relativas resuelven a `/dashboard/ID/archivo` y dan 404.
-- **Subir `CACHE_NAME` en `sw.js` en cada cambio de html/css/js**, si no los
-  clientes instalados siguen sirviendo la versión vieja desde caché.
-- El manifest se genera en runtime (`instalarManifest`) para inyectar el
-  `hardware_id` en `start_url`; el `manifest.json` estático es solo respaldo.
-
-**Pendiente conocido:** el endpoint solo está protegido por conocer el
-`hardware_id`. No hay autenticación real ni en lectura ni en escritura.
+- `dashboard.js` monta el DOM una sola vez (`montar`) y luego solo actualiza textos y listas (`pintar`). No reconstruir el
+  `innerHTML` en cada refresco: se pierde el scroll. `setHtml` compara contra lo último que escribió (no contra `innerHTML`,
+  que el navegador normaliza) y no toca lo que no cambió. Los márgenes de la primera tarjeta se colapsan con el margen
+  negativo de la hoja: por eso `.sheet-in` lleva `padding-top: 1px`.
+- Todos los recursos se referencian con ruta **absoluta** (`/dashboard/...`). El `.htaccess` acepta `/dashboard/ID` y
+  `/dashboard/ID/`, y con la barra final las rutas relativas resuelven a `/dashboard/ID/archivo` y dan 404.
+- **Subir `CACHE_NAME` en `sw.js` en cada cambio de html/css/js**, si no los clientes instalados siguen sirviendo la versión
+  vieja desde caché (hoy `v5`). El SW precachea con `cache: 'reload'`, **nunca cachea** `get_dashboard_data.php`,
+  `sync_pos.php` ni `dashboard_auth.php`, y `dashboard.js` recarga una vez al cambiar de versión. **La primera vez tras un
+  despliegue la app instalada aún muestra la versión vieja** (la sirve el SW anterior); la nueva aparece en la siguiente apertura.
+- El manifest se genera en runtime (`instalarManifest`) para inyectar el `hardware_id` en `start_url`; el `manifest.json`
+  estático es solo respaldo.
 
 ### Menú principal, barra del Punto de Venta y footer
 - Barra fija `nav.site-nav` (css/nav.css + js/nav.js), sin desplegables:

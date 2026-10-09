@@ -2,23 +2,41 @@
 // Antiparticula Dashboard — PWA Frontend
 //
 // El refresco de 60s NO reconstruye el DOM. `montar()` arma la
-// estructura una sola vez y `pintar()` actualiza textos y datasets en
-// su lugar, de modo que no se pierde el scroll ni parpadean las
-// gráficas cada minuto.
+// estructura una sola vez y `pintar()` actualiza textos y listas en
+// su lugar, de modo que no se pierde el scroll ni parpadea nada cada
+// minuto. Las gráficas son HTML/CSS propio (sin librerías): se ven
+// igual sin conexión y heredan el tema claro u oscuro.
+//
+// Pestañas: Hoy · Caja · Inventario · Historial (Semana | Mes | Año).
+// Con el POS anterior a la 3.3.0 no llega `extra` (pagos, caja,
+// cancelaciones, inventario): esas partes dicen que hay que actualizar
+// el POS en vez de esconderse.
 // ────────────────────────────────────────────────────────────────
 
 const API_BASE   = '/get_dashboard_data.php';
+const API_AUTH   = '/dashboard_auth.php';
 const REFRESH_MS = 60 * 1000;
-const STALE_MIN  = 30;          // minutos sin sync del POS => badge rojo
+const STALE_MIN  = 30;            // minutos sin sync del POS => badge rojo
 const OFFLINE_MS = 3 * 60 * 1000; // sin respuesta del servidor => banner
+const TZ         = 'America/Mexico_City'; // la misma que usa el servidor para "hoy"
+const FIRMA_DOM  = 'v3';
+const TURNO_LARGO_H = 14;         // un turno abierto más de esto merece un aviso
 
-const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES   = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const UNIDADES = ['Pz', 'Kg', 'L', 'Ud'];   // PRODUCTOS.PZ_O_KG: 0 pieza, 1 kilogramo, 2 litro, 3 unidad
 
-let charts       = {};
 let refreshTimer = null;
 let bannerTimer  = null;
 let ultimoOk     = null;   // Date.now() del último fetch exitoso
 let estructura   = null;   // firma del DOM montado
+let ultimoD      = null;   // últimos datos derivados (para repintar al elegir una columna)
+let desdeCache   = null;   // { t } mientras se muestra lo guardado en el teléfono
+let cargando     = false;
+let hwIdActual   = null;
+
+// Estado de la interfaz (sobrevive a los refrescos porque el DOM no se reconstruye)
+const ui = { tab: 'hoy', sub: 'semana', sel: { horas: null, semana: null, mes: null }, masVentas: false };
+const htmlPrevio = {};     // último HTML escrito por clave: evita reescribir si no cambió
 
 // ── Extraer hardware_id de la URL ───────────────────────────────
 function getHardwareId() {
@@ -29,14 +47,73 @@ function getHardwareId() {
     return null;
 }
 
+// ── Fechas del negocio (hora de México, no la del teléfono) ─────
+function claveDe(y, m, d) {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function ahoraMX(fecha) {
+    const f = fecha || new Date();
+    try {
+        const p = {};
+        new Intl.DateTimeFormat('en-CA', {
+            timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).formatToParts(f).forEach(x => { p[x.type] = x.value; });
+        return { y: +p.year, m: +p.month, d: +p.day, h: (+p.hour) % 24, mi: +p.minute, clave: `${p.year}-${p.month}-${p.day}` };
+    } catch (e) {
+        return { y: f.getFullYear(), m: f.getMonth() + 1, d: f.getDate(), h: f.getHours(), mi: f.getMinutes(),
+                 clave: claveDe(f.getFullYear(), f.getMonth() + 1, f.getDate()) };
+    }
+}
+
+function sumarDias(clave, n) {
+    const [y, m, d] = clave.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + n));
+    return claveDe(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
+}
+
+function diasEnMes(y, m) {
+    return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+function etiquetaDia(clave) {
+    return new Date(clave + 'T12:00:00Z')
+        .toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+        .replace(/[.,]/g, '');
+}
+
+function nombreDiaSemana(clave) {
+    return new Date(clave + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', timeZone: 'UTC' });
+}
+
 // ── Formato de pesos ────────────────────────────────────────────
 // MEDIO-05 fix: maneja NaN, null y valores negativos
 function formatMXN(centavos) {
     const num = Number(centavos);
     const val = isNaN(num) ? 0 : num / 100;
     const abs = Math.abs(val);
-    const formatted = '$ ' + abs.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // U+202F (espacio fino sin salto): el signo no se separa de la cifra al partir renglón
+    const formatted = '$\u202f' + abs.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return val < 0 ? '-' + formatted : formatted;
+}
+
+// "$1.2k", "$12k", "$1.4M": para rótulos que no caben completos
+function compacto(centavos) {
+    const v = Math.max(0, Number(centavos) || 0) / 100;
+    // Los umbrales son los del valor YA redondeado: 9,999.67 es "$10k", no "$10.0k"
+    if (v >= 999500) return '$' + (v / 1e6).toFixed(1) + 'M';
+    if (v >= 9950)   return '$' + Math.round(v / 1000) + 'k';
+    if (v >= 1000)   return '$' + (v / 1e3).toFixed(1) + 'k';
+    return '$' + Math.round(v);
+}
+
+// Existencias: PRODUCTOS.CANTIDAD va en milésimas. Negativo = existencia real por debajo de cero
+function formatCantidad(milesimas, unidad) {
+    const n = (Number(milesimas) || 0) / 1000;
+    const abs = Math.abs(n);
+    const s = Number.isInteger(abs) ? String(abs) : abs.toFixed(3).replace(/\.?0+$/, '');
+    return (n < 0 ? '\u2212' : '') + s + ' ' + (UNIDADES[unidad] || UNIDADES[0]);
 }
 
 // ── Tiempo relativo ─────────────────────────────────────────────
@@ -50,36 +127,51 @@ function tiempoRelativo(minutos) {
     return r > 0 ? `hace ${h}h ${r}min` : `hace ${h}h`;
 }
 
-// ── Fecha/hora legible ──────────────────────────────────────────
-// BAJO-03 fix: el POS manda turno_inicio en formatos variados (ISO,
-// "YYYY-MM-DD HH:MM:SS", solo hora). Antes se mostraba el string crudo.
+// ── Fecha/hora que manda el POS ─────────────────────────────────
+// El POS manda "dd-MM-yyyy HH:mm:ss" (el formato de sus tablas); versiones anteriores del
+// panel solo entendían ISO y mostraban la fecha cruda. Se aceptan los dos.
+function parseFechaPOS(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
+    if (m) return { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5] };
+    m = s.match(/^(\d{2})-(\d{2})-(\d{4})[T ](\d{1,2}):(\d{2})/);
+    if (m) return { y: +m[3], mo: +m[2], d: +m[1], h: +m[4], mi: +m[5] };
+    return null;
+}
+
+function horaLegible(h, mi) {
+    return new Date(2000, 0, 1, h, mi).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
+// BAJO-03 fix: el POS manda turno_inicio en formatos variados. Antes se mostraba el string crudo.
 function formatFechaHora(raw) {
     if (!raw) return '—';
     const s = String(raw).trim();
 
-    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
-    if (iso) {
-        const d = new Date(+iso[1], +iso[2] - 1, +iso[3], +iso[4], +iso[5]);
-        if (!isNaN(d.getTime())) {
-            const hoy = new Date();
-            const mismoDia = d.getDate()  === hoy.getDate()
-                          && d.getMonth() === hoy.getMonth()
-                          && d.getFullYear() === hoy.getFullYear();
-            const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-            return mismoDia ? hora : `${d.getDate()} ${MESES[d.getMonth()]}, ${hora}`;
-        }
+    const p = parseFechaPOS(s);
+    if (p && p.mo >= 1 && p.mo <= 12 && p.d >= 1 && p.d <= 31 && p.h <= 23 && p.mi <= 59) {
+        const hoy = ahoraMX();
+        const mismoDia = p.y === hoy.y && p.mo === hoy.m && p.d === hoy.d;
+        const hora = horaLegible(p.h, p.mi);
+        return mismoDia ? hora : `${p.d} ${MESES[p.mo - 1]}, ${hora}`;
     }
 
     const soloHora = s.match(/^(\d{1,2}):(\d{2})/);
     if (soloHora) {
         const hh = +soloHora[1], mm = +soloHora[2];
-        if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
-            const d = new Date();
-            d.setHours(hh, mm, 0, 0);
-            return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        }
+        if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) return horaLegible(hh, mm);
     }
     return s;   // formato desconocido: mostrarlo tal cual
+}
+
+// Minutos que lleva abierto un turno (los dos relojes, en hora de México). null si no se puede saber.
+function minutosDesde(raw, ahora) {
+    const p = parseFechaPOS(raw);
+    if (!p) return null;
+    const ini = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+    const fin = Date.UTC(ahora.y, ahora.m - 1, ahora.d, ahora.h, ahora.mi || 0);
+    return Math.max(0, Math.round((fin - ini) / 60000));
 }
 
 // ── Seguridad ───────────────────────────────────────────────────
@@ -98,28 +190,42 @@ function escHtml(str) {
 // montar() y pintar() no dupliquen lógica y no se desincronicen.
 // ────────────────────────────────────────────────────────────────
 function derivar(data) {
-    const minutos = Math.max(0, data.hace_minutos || 0);
+    const ahora   = ahoraMX();
+    const minutos = Math.max(0, Number(data.hace_minutos) || 0);
 
-    const ventasHoy     = Number(data.ventas_hoy)   || 0;
-    const gananciaHoy   = Number(data.ganancia_hoy) || 0;
-    const ticketsHoy    = Number(data.tickets_hoy)  || 0;
-    const abonosHoy     = Number(data.abonos_hoy)   || 0;
-    const abonosTurno   = Number(data.abonos_turno) || 0;
-    const ventasTurno   = Number(data.ventas_turno) || 0;
+    const ventasHoy     = Number(data.ventas_hoy)    || 0;
+    const gananciaHoy   = Number(data.ganancia_hoy)  || 0;
+    const ticketsHoy    = Number(data.tickets_hoy)   || 0;
+    const abonosHoy     = Number(data.abonos_hoy)    || 0;
+    const abonosTurno   = Number(data.abonos_turno)  || 0;
+    const ventasTurno   = Number(data.ventas_turno)  || 0;
     const ticketsTurno  = Number(data.tickets_turno) || 0;
 
-    const margenPct = ventasHoy > 0 ? (gananciaHoy / ventasHoy) * 100 : 0;
-    const anual     = datosAnuales(data.historico_anual);
-    const margenAnualPct = anual.totalVentas > 0
-        ? (anual.totalGanancia / anual.totalVentas) * 100
-        : 0;
+    const ingresosHoy = ventasHoy + abonosHoy;
+    const margenPct   = ventasHoy > 0 ? (gananciaHoy / ventasHoy) * 100 : 0;
+    const semana      = datosSemana(data.historico_semana, ahora.clave);
+    const anual       = datosAnuales(data.historico_anual, ahora);
+    const margenAnualPct = anual.totalVentas > 0 ? (anual.totalGanancia / anual.totalVentas) * 100 : 0;
+
+    // Historial diario (hasta 100 días, lo manda el servidor). Si falta, solo se pierden las comparaciones.
+    const dias = mapaDias(data.historico_dias);
+    const extra = data.extra && typeof data.extra === 'object' ? data.extra : null;
+
+    const turnoAbierto = !!Number(data.turno_abierto);
+    const minAbierto   = turnoAbierto ? minutosDesde(data.turno_inicio, ahora) : null;
+    const pIni         = turnoAbierto ? parseFechaPOS(data.turno_inicio) : null;
+    const desdeAyer    = !!(pIni && claveDe(pIni.y, pIni.mo, pIni.d) !== ahora.clave);
+    // «desde ayer» solo si de verdad fue ayer; si lleva más días, se dice la fecha
+    const turnoDesde   = !pIni ? '' : (claveDe(pIni.y, pIni.mo, pIni.d) === sumarDias(ahora.clave, -1)
+        ? 'ayer' : `el ${pIni.d} ${MESES[pIni.mo - 1]}`);
 
     return {
         negocio:      data.negocio || 'Antiparticula POS',
         minutos,
         stale:        minutos > STALE_MIN,
+        protegido:    !!data.protegido,
 
-        ingresosHoy:  ventasHoy + abonosHoy,
+        ingresosHoy,
         ventasHoy, gananciaHoy, ticketsHoy, abonosHoy,
         ticketProm:   ticketsHoy > 0 ? Math.round(ventasHoy / ticketsHoy) : 0,
         margenPct,
@@ -127,15 +233,29 @@ function derivar(data) {
         margenGood:   margenPct >= 20,
         costoHoy:     Math.max(0, ventasHoy - gananciaHoy),
         costoPct:     (100 - margenPct).toFixed(1),
+        vsAyer:       comparativoAyer(ingresosHoy, semana, ahora.clave),
+        vsSemanaPasada: comparativoSemanaPasada(ingresosHoy, dias, ahora.clave),
 
         turnoUsuario: data.turno_usuario || '—',
         turnoInicio:  formatFechaHora(data.turno_inicio),
-        turnoAbierto: !!Number(data.turno_abierto),
+        turnoAbierto,
+        turnoAlerta:  turnoAbierto && minAbierto !== null && (desdeAyer || minAbierto >= TURNO_LARGO_H * 60),
+        turnoDesdeAyer: desdeAyer,
+        turnoDesde,
+        turnoMinutos: minAbierto,
         ingresosTurno: ventasTurno + abonosTurno,
         ticketsTurno, abonosTurno,
 
-        horas:        datosHoras(data),
-        semana:       datosSemana(data.historico_semana),
+        extra,
+        pagos:        datosPagos(extra),
+        caja:         datosCaja(extra),
+        cancel:       datosCancelaciones(extra),
+        inv:          datosInventario(extra),
+
+        horas:        datosHoras(data, ahora),
+        semana,
+        semanaAnterior: comparativoSemanaAnterior(semana, dias, ahora.clave),
+        mes:          datosMes(dias, ingresosHoy, gananciaHoy, ahora),
         ventas:       Array.isArray(data.ultimas_ventas) ? data.ultimas_ventas : [],
 
         anual,
@@ -145,12 +265,98 @@ function derivar(data) {
     };
 }
 
+function mapaDias(lista) {
+    const m = {};
+    (Array.isArray(lista) ? lista : []).forEach(r => {
+        if (r && r.fecha) m[r.fecha] = r;
+    });
+    return m;
+}
+
+// ── Hoy contra ayer ─────────────────────────────────────────────
+// Se compara lo de hoy HASTA AHORA con el total de ayer completo (el POS solo manda
+// totales por día): sirve para ver si hoy va a alcanzarlo.
+function comparativoAyer(ingresosHoy, semana, hoyClave) {
+    const ayer = semana.mapa[sumarDias(hoyClave, -1)] || 0;
+    if (ayer <= 0) return null;
+    const ratio = ingresosHoy / ayer;
+    return {
+        ayer, ratio,
+        supera: ingresosHoy >= ayer,
+        pct:    Math.round(ratio * 100),
+        extra:  Math.round((ratio - 1) * 100),
+    };
+}
+
+// El mismo día de la semana pasada (hace 7 días), completo. Necesita historico_dias.
+function comparativoSemanaPasada(ingresosHoy, dias, hoyClave) {
+    const clave = sumarDias(hoyClave, -7);
+    const r = dias[clave];
+    if (!r || !(Number(r.ventas) > 0)) return null;
+    const total = Number(r.ventas);
+    return { clave, total, dia: nombreDiaSemana(clave), supera: ingresosHoy >= total, pct: Math.round(ingresosHoy / total * 100) };
+}
+
+// ── Pagos de hoy (extra.pagos_hoy) ──────────────────────────────
+function datosPagos(extra) {
+    if (!extra) return { hay: false };
+    const p = extra.pagos_hoy;
+    if (!p) return { hay: false };
+    const efectivo = Math.max(0, Number(p.efectivo) || 0);
+    const tarjeta  = Math.max(0, Number(p.tarjeta) || 0);
+    const transf   = Math.max(0, Number(p.transferencia) || 0);
+    const total    = efectivo + tarjeta + transf;
+    const parte = (clave, label, v) => ({ clave, label, v, pct: total > 0 ? v / total * 100 : 0 });
+    return {
+        hay: true, total, comision: Math.max(0, Number(p.comision) || 0),
+        partes: [parte('efe', 'Efectivo', efectivo), parte('tar', 'Tarjeta', tarjeta), parte('tra', 'Transferencia', transf)],
+    };
+}
+
+// ── Caja del turno (extra.caja) ─────────────────────────────────
+// estado: 'sin-datos' (POS anterior) | 'cerrado' (no hay turno abierto) | 'abierto'
+function datosCaja(extra) {
+    if (!extra || !('caja' in extra)) return { estado: 'sin-datos' };
+    const c = extra.caja;
+    if (!c) return { estado: 'cerrado' };
+    const n = k => Number(c[k]) || 0;
+    return {
+        estado: 'abierto',
+        esperado: n('esperado'), fondo: n('fondo'), efectivoVentas: n('efectivo_ventas'),
+        ingresos: n('ingresos'), retiros: n('retiros'), tarjeta: n('tarjeta'), transferencia: n('transferencia'),
+    };
+}
+
+function datosCancelaciones(extra) {
+    if (!extra || !extra.cancelaciones_hoy) return { hay: false };
+    const c = extra.cancelaciones_hoy;
+    const canc = Number(c.cancelaciones) || 0, dev = Number(c.devoluciones) || 0;
+    return {
+        hay: true, canc, dev,
+        montoCanc: Number(c.monto_cancelado) || 0, montoDev: Number(c.monto_devuelto) || 0,
+        usuarios: (Array.isArray(c.por_usuario) ? c.por_usuario : []).map(u => ({
+            usuario: u.usuario || 'Sin usuario', canc: Number(u.cancelaciones) || 0, dev: Number(u.devoluciones) || 0 })),
+        total: canc + dev,
+    };
+}
+
+function datosInventario(extra) {
+    if (!extra || !extra.inventario) return { hay: false };
+    const i = extra.inventario;
+    return {
+        hay: true,
+        agotados: Number(i.agotados) || 0, bajo: Number(i.bajo_minimo) || 0, valor: Number(i.valor_costo) || 0,
+        urgentes: (Array.isArray(i.urgentes) ? i.urgentes : []).map(u => ({
+            nombre: u.nombre || '', cantidad: Number(u.cantidad) || 0, minimo: Number(u.minimo) || 0, unidad: Number(u.unidad) || 0 })),
+    };
+}
+
 // ── Ventas por hora ─────────────────────────────────────────────
 // Prefiere `ventas_por_hora`, que el servidor agrega desde el detalle
 // acumulado de todo el día (ver sql/001_ventas_por_hora.sql).
-// `ultimas_ventas` solo trae las últimas N ventas que mandó el POS, así
-// que usarla como fuente dejaba las horas tempranas en blanco.
-function datosHoras(data) {
+// `ultimas_ventas` solo trae lo que mandó el POS en el último envío, así
+// que es el respaldo mientras la migración no esté aplicada.
+function datosHoras(data, ahora) {
     const buckets = {};
     const vph = Array.isArray(data.ventas_por_hora) ? data.ventas_por_hora : [];
 
@@ -158,246 +364,357 @@ function datosHoras(data) {
         vph.forEach(h => {
             const hh = Number(h.hora);
             if (Number.isInteger(hh) && hh >= 0 && hh <= 23) {
-                buckets[hh] = (Number(h.total_centavos) || 0) / 100;
+                buckets[hh] = { total: Number(h.total_centavos) || 0, tickets: Number(h.tickets) || 0 };
             }
         });
     } else {
-        // Respaldo mientras la migración 001 no esté aplicada.
         (Array.isArray(data.ultimas_ventas) ? data.ultimas_ventas : []).forEach(v => {
             const hh = parseInt(String(v.hora || '').split(':')[0], 10);
             if (isNaN(hh) || hh < 0 || hh > 23) return;
-            buckets[hh] = (buckets[hh] || 0) + (Number(v.total_centavos) || 0) / 100;
+            const b = buckets[hh] || (buckets[hh] = { total: 0, tickets: 0 });
+            b.total += Number(v.total_centavos) || 0;
+            b.tickets += 1;
         });
     }
 
     const conVenta = Object.keys(buckets).map(Number).sort((a, b) => a - b);
-    if (conVenta.length === 0) return { labels: [], valores: [] };
+    if (conVenta.length === 0) return { items: [], pico: null };
 
-    // Rellenar el rango completo: si hubo ventas a las 9 y a las 14, las
-    // horas intermedias sin venta deben salir en cero y no desaparecer
-    // del eje, que hacía ver actividad continua donde no la hubo.
-    const labels = [], valores = [];
-    for (let h = conVenta[0]; h <= conVenta[conVenta.length - 1]; h++) {
-        labels.push(String(h).padStart(2, '0') + ':00');
-        valores.push(buckets[h] || 0);
+    // Rango completo, de la primera venta hasta la hora actual: las horas
+    // intermedias sin venta salen en cero y no desaparecen del eje.
+    const desde = conVenta[0];
+    const hasta = Math.max(conVenta[conVenta.length - 1], Math.min(23, ahora.h));
+    let pico = null;
+    const items = [];
+    for (let h = desde; h <= hasta; h++) {
+        const b = buckets[h] || { total: 0, tickets: 0 };
+        const it = { key: String(h), hora: h, label: String(h).padStart(2, '0'), valor: b.total, tickets: b.tickets };
+        if (b.total > 0 && (!pico || b.total > pico.valor)) pico = it;
+        items.push(it);
     }
-    return { labels, valores };
+    items.forEach(it => { it.destacado = (it === pico); });
+    return { items, pico };
 }
 
 // ── Últimos 7 días ──────────────────────────────────────────────
 // MEDIO-09 fix: siempre generar los 7 dias, rellenar con 0 los dias sin datos
-function datosSemana(historico) {
+function datosSemana(historico, hoyClave) {
     const mapa = {};
     (Array.isArray(historico) ? historico : []).forEach(d => {
-        if (d.fecha) mapa[d.fecha] = (Number(d.total_centavos) || 0) / 100;
+        if (d && d.fecha) mapa[d.fecha] = (mapa[d.fecha] || 0) + (Number(d.total_centavos) || 0);
     });
-    const labels = [], valores = [];
+    const dias = [];
     for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        labels.push(new Date(key + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }));
-        valores.push(mapa[key] !== undefined ? mapa[key] : 0);
+        const clave = sumarDias(hoyClave, -i);
+        dias.push({ clave, label: etiquetaDia(clave), total: mapa[clave] || 0, esHoy: i === 0 });
     }
-    return { labels, valores };
+    const conVenta = dias.filter(x => x.total > 0);
+    const total    = dias.reduce((s, x) => s + x.total, 0);
+    const mejor    = conVenta.reduce((m, x) => (!m || x.total > m.total ? x : m), null);
+    return {
+        dias, mapa, total, mejor,
+        promedio: conVenta.length ? Math.round(total / conVenta.length) : 0,
+        diasConVenta: conVenta.length,
+    };
+}
+
+// Los 7 días anteriores a esta semana (hace 7 a 13 días), de historico_dias. null si no hay.
+function comparativoSemanaAnterior(semana, dias, hoyClave) {
+    let total = 0, hay = 0;
+    for (let i = 7; i <= 13; i++) {
+        const r = dias[sumarDias(hoyClave, -i)];
+        if (r) { total += Number(r.ventas) || 0; hay++; }
+    }
+    if (hay === 0 || total <= 0) return null;
+    return { total, pct: Math.round((semana.total / total - 1) * 100) };
+}
+
+// ── Este mes contra el anterior (mismos días) ───────────────────
+// Necesita historico_dias. Hoy se toma de la foto en vivo, no del renglón guardado: es más fresca.
+function datosMes(dias, ingresosHoy, gananciaHoy, ahora) {
+    const pref = `${ahora.y}-${String(ahora.m).padStart(2, '0')}`;
+    const items = [];
+    let total = 0, ganancia = 0, conVenta = 0, hayFilas = false;
+    for (let d = 1; d <= ahora.d; d++) {
+        const clave = `${pref}-${String(d).padStart(2, '0')}`;
+        const r = dias[clave];
+        if (r) hayFilas = true;
+        const esHoy = d === ahora.d;
+        const v = esHoy ? ingresosHoy : (r ? Number(r.ventas) || 0 : 0);
+        const g = esHoy ? gananciaHoy : (r ? Number(r.ganancia) || 0 : 0);
+        total += v; ganancia += g;
+        if (v > 0) conVenta++;
+        items.push({ key: clave, label: String(d), valor: v, esHoy, destacado: esHoy, hoy: esHoy, aria: `${d}: ${formatMXN(v)}` });
+    }
+    // Mes anterior, solo hasta el mismo día del mes
+    const py = ahora.m === 1 ? ahora.y - 1 : ahora.y, pm = ahora.m === 1 ? 12 : ahora.m - 1;
+    const tope = Math.min(ahora.d, diasEnMes(py, pm));
+    let anterior = 0, hayAnterior = false;
+    for (let d = 1; d <= tope; d++) {
+        const r = dias[`${py}-${String(pm).padStart(2, '0')}-${String(d).padStart(2, '0')}`];
+        if (r) { anterior += Number(r.ventas) || 0; hayAnterior = true; }
+    }
+    return {
+        items, total, ganancia, conVenta, hayFilas: hayFilas || ingresosHoy > 0,
+        anterior: hayAnterior && anterior > 0 ? { total: anterior, pct: Math.round((total / anterior - 1) * 100), nombre: MESES[pm - 1] } : null,
+        nombre: MESES[ahora.m - 1],
+    };
 }
 
 // ── Datos anuales ───────────────────────────────────────────────
-function datosAnuales(historico) {
-    const year = new Date().getFullYear();
+// Solo se listan los meses hasta el actual: los futuros no aportan nada.
+function datosAnuales(historico, ahora) {
+    const year = ahora.y;
     const mapa = {};
     (Array.isArray(historico) ? historico : []).forEach(d => {
-        if (d.mes) mapa[d.mes] = { v: Number(d.ventas_centavos) || 0, g: Number(d.ganancia_centavos) || 0 };
+        if (d && d.mes) mapa[d.mes] = { v: Number(d.ventas_centavos) || 0, g: Number(d.ganancia_centavos) || 0 };
     });
     let totalVentas = 0, totalGanancia = 0;
-    const ventas = [], ganancias = [], meses = [];
+    const meses = [];
     for (let m = 1; m <= 12; m++) {
         const key = `${year}-${String(m).padStart(2, '0')}`;
         const v = mapa[key] ? mapa[key].v : 0;
         const g = mapa[key] ? mapa[key].g : 0;
-        ventas.push(v / 100);
-        ganancias.push(g / 100);
-        meses.push({ nombre: MESES[m - 1], v, g });
         totalVentas   += v;
         totalGanancia += g;
+        if (m <= ahora.m) meses.push({ nombre: MESES[m - 1], v, g, enCurso: m === ahora.m });
     }
-    return { year, ventas, ganancias, meses, totalVentas, totalGanancia };
+    const mejor = meses.reduce((b, x) => (x.v > 0 && (!b || x.v > b.v) ? x : b), null);
+    return { year, meses, totalVentas, totalGanancia, mejor };
 }
 
 // ────────────────────────────────────────────────────────────────
-// Montaje del DOM (una sola vez por firma de estructura)
+// Iconos
 // ────────────────────────────────────────────────────────────────
-function montar(d) {
+const SVG = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONO_SOL    = SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>');
+const ICONO_LUNA   = SVG('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
+const ICONO_ACTUAL = SVG('<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>');
+
+const MARCA = `<div class="brand"><img src="/dashboard/icon-192.png" alt="" width="32" height="32"><span>Antipartícula</span></div>`;
+
+const AVISO_POS_ANTERIOR = 'Esta parte necesita la versión 3.3.0 o más nueva del punto de venta. Actualiza el programa en la computadora de la tienda y aparecerá aquí.';
+
+// ────────────────────────────────────────────────────────────────
+// Montaje del DOM (una sola vez)
+// ────────────────────────────────────────────────────────────────
+function montar() {
     document.getElementById('app').innerHTML = `
-    <div class="header">
-        <div class="header-title">
-            <h1 data-k="negocio"></h1>
-            <span>Panel de ventas</span>
+    <header class="top"><div class="top-in">
+        <div class="bar">
+            ${MARCA}
+            <button type="button" class="icon-btn" data-act="tema" data-k="btnTema" aria-label="Cambiar entre tema claro y oscuro"></button>
+            <button type="button" class="icon-btn" data-act="refrescar" data-k="btnRefrescar" aria-label="Actualizar ahora">${ICONO_ACTUAL}</button>
         </div>
-        <div class="header-logo">A</div>
-    </div>
 
-    <div class="conn-banner" data-k="banner" hidden></div>
+        <span class="kicker">Panel de ventas</span>
+        <h1 data-k="negocio"></h1>
+        <button type="button" class="sync" data-k="syncBadge" data-act="refrescar" aria-live="polite">
+            <span class="dot"></span><span data-k="sync"></span>
+        </button>
 
-    <div class="sync-badge" data-k="syncBadge">
-        <span class="sync-dot"></span>
-        <span data-k="sync"></span>
-    </div>
-
-    <!-- KPI principales -->
-    <div class="cards-grid">
-        <div class="card card-green">
-            <div class="card-label">Ingresos hoy</div>
-            <div class="card-value" data-k="ingresosHoy"></div>
-            <div class="card-sub" data-k="ingresosSub"></div>
-        </div>
-        <div class="card card-blue">
-            <div class="card-label">Ganancia hoy</div>
-            <div class="card-value" data-k="gananciaHoy"></div>
-            <div class="card-sub">&nbsp;</div>
-        </div>
-    </div>
-
-    <!-- KPI secundarios -->
-    <div class="cards-grid cards-grid-3">
-        <div class="card">
-            <div class="card-label">Tickets</div>
-            <div class="card-value card-value-sm" data-k="ticketsHoy"></div>
-            <div class="card-sub">hoy</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Ticket prom.</div>
-            <div class="card-value card-value-sm" data-k="ticketProm"></div>
-            <div class="card-sub">&nbsp;</div>
-        </div>
-        <div class="card" data-k="cardMargen">
-            <div class="card-label">Margen</div>
-            <div class="card-value card-value-sm" data-k="margen"></div>
-            <div class="card-sub">ganancia</div>
-        </div>
-    </div>
-
-    <!-- Gráfica por hora -->
-    <div class="card section-card">
-        <div class="section-title">Ventas por hora — hoy</div>
-        <div class="chart-wrap" data-wrap="horas">
-            <canvas id="chartHoras"></canvas>
-            <p class="chart-empty" hidden>Sin ventas registradas hoy</p>
-        </div>
-    </div>
-
-    <!-- Turno actual -->
-    <div class="card section-card">
-        <div class="card-label" style="margin-bottom:12px">Turno actual</div>
-        <div class="turno-card">
-            <div class="turno-row">
-                <span>Cajero</span>
-                <span data-k="turnoUsuario"></span>
+        <section class="hero" aria-label="Ingresos de hoy">
+            <div class="hero-label">Ingresos de hoy</div>
+            <div class="hero-value" data-k="ingresosHoy"></div>
+            <div class="hero-sub" data-k="ingresosSub"></div>
+            <div class="vs" data-k="vs" hidden>
+                <div class="vs-line"><span data-k="vsTexto"></span><span data-k="vsAyer"></span></div>
+                <div class="vs-track"><div class="vs-fill" data-k="vsFill"></div></div>
             </div>
-            <div class="turno-row">
-                <span>Apertura</span>
-                <span data-k="turnoInicio"></span>
-            </div>
-            <div class="turno-row">
-                <span>Ingresos del turno</span>
-                <span data-k="ingresosTurno"></span>
-            </div>
-            <div class="turno-row">
-                <span>Estado</span>
-                <span data-k="turnoEstado"></span>
+            <div class="vs-semana" data-k="vsSemana" hidden></div>
+        </section>
+    </div></header>
+
+    <main class="sheet"><div class="sheet-in">
+        <div class="tabs">
+            <div class="seg" role="tablist" aria-label="Sección">
+                <button type="button" role="tab" id="tab-hoy"        data-tab="hoy"        aria-controls="panel-hoy"        aria-selected="true">Hoy</button>
+                <button type="button" role="tab" id="tab-caja"       data-tab="caja"       aria-controls="panel-caja"       aria-selected="false">Caja</button>
+                <button type="button" role="tab" id="tab-inventario" data-tab="inventario" aria-controls="panel-inventario" aria-selected="false">Inventario</button>
+                <button type="button" role="tab" id="tab-historial"  data-tab="historial"  aria-controls="panel-historial"  aria-selected="false">Historial</button>
             </div>
         </div>
-    </div>
+        <div class="banner" data-k="banner" role="status" hidden></div>
 
-    <!-- Gráfica 7 días -->
-    <div class="card section-card">
-        <div class="section-title">Ventas últimos 7 días</div>
-        <div class="chart-wrap">
-            <canvas id="chartSemana"></canvas>
-        </div>
-    </div>
-
-    <!-- Donut: composición de venta -->
-    <div class="card section-card">
-        <div class="section-title">Composición de venta hoy</div>
-        <div class="chart-donut-wrap" data-wrap="donut">
-            <canvas id="chartDonut"></canvas>
-            <div class="donut-legend">
-                <div class="donut-item">
-                    <span class="donut-dot dot-ganancia"></span>
-                    <div>
-                        <div class="donut-label">Ganancia</div>
-                        <div class="donut-val" data-k="donutGanancia"></div>
-                    </div>
+        <!-- ═════════ HOY ═════════ -->
+        <section class="panel" id="panel-hoy" role="tabpanel" aria-labelledby="tab-hoy" data-panel="hoy">
+            <div class="tile">
+                <div class="tile-head">
+                    <div class="tile-label">Ganancia de hoy</div>
+                    <span class="chip" data-k="margenChip" hidden></span>
                 </div>
-                <div class="donut-item">
-                    <span class="donut-dot dot-costo"></span>
-                    <div>
-                        <div class="donut-label">Costo</div>
-                        <div class="donut-val" data-k="donutCosto"></div>
-                    </div>
+                <div class="kpi-value c-ganancia" data-k="gananciaHoy"></div>
+                <div class="split" aria-hidden="true"><i data-k="splitGan"></i></div>
+                <div class="tile-note" data-k="splitTxt"></div>
+            </div>
+
+            <div class="grid2">
+                <div class="tile">
+                    <div class="tile-label">Tickets</div>
+                    <div class="kpi-value kpi-sm c-tickets" data-k="ticketsHoy"></div>
+                    <div class="kpi-sub">cobrados hoy</div>
+                </div>
+                <div class="tile">
+                    <div class="tile-label">Ticket promedio</div>
+                    <div class="kpi-value kpi-sm c-promedio" data-k="ticketProm"></div>
+                    <div class="kpi-sub">por venta</div>
                 </div>
             </div>
-            <p class="chart-empty" hidden>Sin ventas hoy</p>
-        </div>
-    </div>
 
-    <!-- Últimas ventas -->
-    <div class="card section-card">
-        <div class="section-title">Últimas ventas</div>
-        <div data-k="ultimasVentas"></div>
-    </div>
+            <div class="tile" data-k="pagosTile">
+                <div class="tile-label">Cómo pagaron hoy</div>
+                <div data-k="pagosCuerpo"></div>
+            </div>
 
-    <!-- Ventas y ganancias por mes del año -->
-    <div class="card section-card">
-        <div class="section-title">Ventas y ganancias &mdash; ${d.anual.year}</div>
-        ${d.hayAnual ? `
-        <div class="chart-wrap chart-wrap-anual"><canvas id="chartAnual"></canvas></div>
-        <div class="anual-legend">
-            <div class="anual-legend-item"><span class="anual-dot anual-dot-ventas"></span>Ventas</div>
-            <div class="anual-legend-item"><span class="anual-dot anual-dot-ganancia"></span>Ganancia</div>
-        </div>`
-        : '<p class="chart-empty">Sin datos anuales aún. Actualiza el POS a la última versión.</p>'}
-    </div>
+            <div class="tile">
+                <div class="tile-label">Ventas por hora</div>
+                <div data-k="horasGrafica"></div>
+                <div class="readout" data-k="horasLectura"></div>
+            </div>
 
-    ${d.hayAnual ? `
-    <div class="card section-card">
-        <div class="section-title">Detalle por mes</div>
-        <div class="anual-header-row">
-            <span>Mes</span><span>Ventas</span><span>Ganancia</span><span>Mrg</span>
-        </div>
-        <div data-k="tablaAnual"></div>
-    </div>
-    <div class="cards-grid">
-        <div class="card card-blue">
-            <div class="card-label">Total ventas ${d.anual.year}</div>
-            <div class="card-value" data-k="totalVentasAnual"></div>
-            <div class="card-sub">12 meses</div>
-        </div>
-        <div class="card card-green">
-            <div class="card-label">Total ganancia ${d.anual.year}</div>
-            <div class="card-value" data-k="totalGananciaAnual"></div>
-            <div class="card-sub">&nbsp;</div>
-        </div>
-    </div>
-    <div class="cards-grid">
-        <div class="card card-full" data-k="cardMargenAnual">
-            <div class="card-label">Margen anual ${d.anual.year}</div>
-            <div class="card-value card-value-sm" data-k="margenAnual"></div>
-            <div class="card-sub">ganancia sobre ventas totales del año</div>
-        </div>
-    </div>` : ''}
+            <div class="tile">
+                <div class="tile-head">
+                    <div class="tile-label">Turno actual</div>
+                    <span data-k="turnoEstado"></span>
+                </div>
+                <div class="kv"><span>Cajero</span><span data-k="turnoUsuario"></span></div>
+                <div class="kv"><span>Apertura</span><span data-k="turnoInicio"></span></div>
+                <div class="kv"><span>Ingresos del turno</span><span data-k="ingresosTurno"></span></div>
+            </div>
+
+            <div class="tile">
+                <div class="tile-label">Últimas ventas</div>
+                <div data-k="ultimasVentas"></div>
+            </div>
+        </section>
+
+        <!-- ═════════ CAJA ═════════ -->
+        <section class="panel" id="panel-caja" role="tabpanel" aria-labelledby="tab-caja" data-panel="caja" hidden>
+            <div class="tile alerta" data-k="turnoAlerta" role="alert" hidden></div>
+            <div data-k="cajaCuerpo" class="panel"></div>
+            <div class="tile" data-k="cancelTile">
+                <div class="tile-head">
+                    <div class="tile-label">Cancelaciones y devoluciones de hoy</div>
+                    <span data-k="cancelChip"></span>
+                </div>
+                <div data-k="cancelCuerpo"></div>
+            </div>
+        </section>
+
+        <!-- ═════════ INVENTARIO ═════════ -->
+        <section class="panel" id="panel-inventario" role="tabpanel" aria-labelledby="tab-inventario" data-panel="inventario" hidden>
+            <div data-k="invCuerpo" class="panel"></div>
+        </section>
+
+        <!-- ═════════ HISTORIAL ═════════ -->
+        <section class="panel" id="panel-historial" role="tabpanel" aria-labelledby="tab-historial" data-panel="historial" hidden>
+            <div class="seg seg-sm" role="tablist" aria-label="Periodo">
+                <button type="button" role="tab" data-sub="semana" aria-selected="true">Semana</button>
+                <button type="button" role="tab" data-sub="mes"    aria-selected="false">Mes</button>
+                <button type="button" role="tab" data-sub="anio"   aria-selected="false">Año</button>
+            </div>
+
+            <!-- Semana -->
+            <div class="panel" data-subpanel="semana">
+                <div class="tile">
+                    <div class="tile-label">Últimos 7 días</div>
+                    <div class="kpi-value c-ventas" data-k="semanaTotal"></div>
+                    <div class="kpi-sub" data-k="semanaSub"></div>
+                    <div class="tile-note" data-k="semanaVsAnterior"></div>
+                </div>
+
+                <div class="grid2">
+                    <div class="tile">
+                        <div class="tile-label">Promedio diario</div>
+                        <div class="kpi-value kpi-xs c-promedio" data-k="semanaPromedio"></div>
+                        <div class="kpi-sub" data-k="semanaPromSub"></div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile-label">Mejor día</div>
+                        <div class="kpi-value kpi-xs c-ganancia" data-k="semanaMejor"></div>
+                        <div class="kpi-sub" data-k="semanaMejorSub"></div>
+                    </div>
+                </div>
+
+                <div class="tile">
+                    <div class="tile-head">
+                        <div class="tile-label">Ventas por día</div>
+                        <span class="legend-avg" data-k="semanaLeyenda" hidden>promedio</span>
+                    </div>
+                    <div data-k="semanaGrafica"></div>
+                    <div class="readout" data-k="semanaLectura"></div>
+                </div>
+
+                <div class="tile">
+                    <div class="tile-label">Detalle por día</div>
+                    <div class="hlist" data-k="semanaLista"></div>
+                </div>
+            </div>
+
+            <!-- Mes -->
+            <div class="panel" data-subpanel="mes" hidden>
+                <div class="empty tile" data-k="mesVacio" hidden>Todavía no hay historial diario de este mes. Aparecerá conforme el punto de venta envíe sus ventas.</div>
+                <div data-k="mesContenido" class="panel">
+                    <div class="tile">
+                        <div class="tile-label" data-k="mesEtiqueta"></div>
+                        <div class="kpi-value c-ventas" data-k="mesTotal"></div>
+                        <div class="kpi-sub" data-k="mesSub"></div>
+                        <div class="tile-note" data-k="mesVsAnterior"></div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile-label">Ganancia del mes</div>
+                        <div class="kpi-value kpi-sm c-ganancia" data-k="mesGanancia"></div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile-label">Ventas por día del mes</div>
+                        <div data-k="mesGrafica"></div>
+                        <div class="readout" data-k="mesLectura"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Año -->
+            <div class="panel" data-subpanel="anio" hidden>
+                <div class="empty tile" data-k="anualVacio" hidden>Sin datos anuales aún. Aparecerán conforme el punto de venta envíe sus ventas.</div>
+
+                <div data-k="anualContenido" class="panel">
+                    <div class="tile">
+                        <div class="tile-label" data-k="anualEtiquetaVentas"></div>
+                        <div class="kpi-value c-ventas" data-k="totalVentasAnual"></div>
+                        <div class="kpi-sub">ventas y apartados cobrados</div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile-head">
+                            <div class="tile-label" data-k="anualEtiquetaGanancia"></div>
+                            <span class="chip" data-k="margenAnualChip"></span>
+                        </div>
+                        <div class="kpi-value c-ganancia" data-k="totalGananciaAnual"></div>
+                        <div class="kpi-sub">margen sobre ventas del año</div>
+                    </div>
+
+                    <div class="tile">
+                        <div class="tile-label">Ventas por mes</div>
+                        <div class="tile-note" data-k="mejorMes"></div>
+                        <div class="hlist" data-k="mesesVentas"></div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile-label">Ganancia por mes</div>
+                        <div class="hlist is-ganancia" data-k="mesesGanancia"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="foot">
+            <div data-k="pie"></div>
+            <div><a href="https://www.antiparticula.com/puntodeventa">Antipartícula · Punto de Venta</a></div>
+            <div><button type="button" class="foot-link" data-act="salir" data-k="salir" hidden>Cerrar sesión del panel</button></div>
+        </footer>
+    </div></main>
     `;
-    destruirCharts();   // los canvas anteriores ya no existen
-}
-
-// Al reemplazar el innerHTML los canvas viejos quedan huerfanos pero las
-// instancias de Chart.js siguen referenciandolos; hay que destruirlas.
-function destruirCharts() {
-    Object.keys(charts).forEach(k => {
-        try { charts[k].destroy(); } catch (e) { /* ya desmontado */ }
-    });
-    charts = {};
+    Object.keys(htmlPrevio).forEach(k => delete htmlPrevio[k]);
+    aplicarTab();
+    pintarTema();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -410,9 +727,13 @@ function setText(key, value) {
     if (n && n.textContent !== value) n.textContent = value;
 }
 
+// El HTML se compara contra lo último que escribimos, no contra innerHTML
+// (el navegador lo normaliza y nunca coincidiría): si no cambió, no se toca.
 function setHtml(key, value) {
     const n = el(key);
-    if (n && n.innerHTML !== value) n.innerHTML = value;
+    if (!n || htmlPrevio[key] === value) return;
+    htmlPrevio[key] = value;
+    n.innerHTML = value;
 }
 
 function setClass(key, cls, on) {
@@ -420,333 +741,557 @@ function setClass(key, cls, on) {
     if (n) n.classList.toggle(cls, on);
 }
 
+function setHidden(key, oculto) {
+    const n = el(key);
+    if (n) n.hidden = oculto;
+}
+
+function setVar(key, nombre, valor) {
+    const n = el(key);
+    if (n) n.style.setProperty(nombre, valor);
+}
+
+// Plural explícito: «cancelación» + «es» daría «cancelaciónes»
+function plural(n, uno, varios) { return n === 1 ? uno : varios; }
+
+function deltaTxt(pct) {
+    return pct > 0 ? `+${pct}%` : (pct < 0 ? `\u2212${Math.abs(pct)}%` : '0%');
+}
+
 function pintar(d) {
     setText('negocio', d.negocio);
 
-    setText('sync', `Última sync: ${tiempoRelativo(d.minutos)}`);
+    setText('sync', d.stale
+        ? `Sin datos del POS ${tiempoRelativo(d.minutos)}`
+        : `POS actualizado ${tiempoRelativo(d.minutos)}`);
     setClass('syncBadge', 'stale', d.stale);
+    setHidden('salir', !d.protegido);
 
+    // ── Hoy ──
     setText('ingresosHoy', formatMXN(d.ingresosHoy));
+    setClass('ingresosHoy', 'is-long', formatMXN(d.ingresosHoy).length > 13);
     setText('ingresosSub', d.abonosHoy > 0
-        ? `${formatMXN(d.ventasHoy)} ventas + ${formatMXN(d.abonosHoy)} apartados`
-        : `${d.ticketsHoy} ticket${d.ticketsHoy !== 1 ? 's' : ''}`);
+        ? `${formatMXN(d.ventasHoy)} en ventas + ${formatMXN(d.abonosHoy)} en apartados`
+        : (d.ticketsHoy > 0
+            ? `${d.ticketsHoy} ticket${d.ticketsHoy !== 1 ? 's' : ''} cobrado${d.ticketsHoy !== 1 ? 's' : ''}`
+            : 'Aún sin ventas hoy'));
+
+    const vs = d.vsAyer;
+    setHidden('vs', !vs);
+    if (vs) {
+        setText('vsTexto', vs.supera ? `Superas lo de ayer (+${vs.extra}%)` : `Llevas el ${vs.pct}% de lo de ayer`);
+        setText('vsAyer', `Ayer ${formatMXN(vs.ayer)}`);
+        setClass('vs', 'is-over', vs.supera);
+        setVar('vsFill', 'width', Math.min(100, Math.max(0, vs.ratio * 100)).toFixed(1) + '%');
+    }
+    const sp = d.vsSemanaPasada;
+    setHidden('vsSemana', !sp);
+    if (sp) {
+        setText('vsSemana', `${sp.dia.charAt(0).toUpperCase() + sp.dia.slice(1)} pasado cerró en ${formatMXN(sp.total)}`
+            + (sp.supera ? ' · ya lo superas' : ` · llevas el ${sp.pct}%`));
+    }
+
     setText('gananciaHoy', formatMXN(d.gananciaHoy));
+    setHidden('margenChip', d.ventasHoy <= 0);
+    setText('margenChip', `Margen ${d.margenTxt}`);
+    setClass('margenChip', 'is-good', d.margenGood);
+    setClass('margenChip', 'is-warn', !d.margenGood);
+    const pctGan = Math.min(100, Math.max(0, d.margenPct));
+    setVar('splitGan', 'width', pctGan.toFixed(1) + '%');
+    setText('splitTxt', d.ventasHoy > 0
+        ? `De cada $100 vendidos, $${pctGan.toFixed(2)} son ganancia y $${(100 - pctGan).toFixed(2)} costo`
+        : 'Sin ventas todavía');
+
     setText('ticketsHoy',  String(d.ticketsHoy));
     setText('ticketProm',  formatMXN(d.ticketProm));
 
-    setText('margen', d.margenTxt);
-    setClass('cardMargen', 'card-margin-good', d.margenGood);
-    setClass('cardMargen', 'card-margin-warn', !d.margenGood);
+    pintarPagos(d);
+    pintarHoras(d);
 
     setText('turnoUsuario', d.turnoUsuario);
     setText('turnoInicio',  d.turnoInicio);
-    setHtml('ingresosTurno', formatMXN(d.ingresosTurno) + (d.abonosTurno > 0
-        ? ` <span class="turno-nota">(${d.ticketsTurno} tickets + ${escHtml(formatMXN(d.abonosTurno))} aptos)</span>`
-        : ` (${d.ticketsTurno} tickets)`));
-    setHtml('turnoEstado', d.turnoAbierto
-        ? '<span class="badge-open">Abierto</span>'
-        : '<span class="badge-closed">Cerrado</span>');
+    setHtml('ingresosTurno', escHtml(formatMXN(d.ingresosTurno)) + `<small>${d.ticketsTurno} ticket${d.ticketsTurno !== 1 ? 's' : ''}`
+        + (d.abonosTurno > 0 ? ` + ${escHtml(formatMXN(d.abonosTurno))} en apartados` : '') + '</small>');
+    setHtml('turnoEstado', !d.turnoAbierto
+        ? '<span class="chip">Cerrado</span>'
+        : (d.turnoAlerta ? `<span class="chip is-warn">${d.turnoDesdeAyer ? 'Abierto desde ' + escHtml(d.turnoDesde) : 'Abierto hace ' + Math.round(d.turnoMinutos / 60) + ' h'}</span>`
+                         : '<span class="chip is-good">Abierto</span>'));
 
-    setText('donutGanancia', `${d.margenTxt} · ${formatMXN(d.gananciaHoy)}`);
-    setText('donutCosto',    `${d.costoPct}% · ${formatMXN(d.costoHoy)}`);
+    setHtml('ultimasVentas', htmlVentas(d.ventas, ui.masVentas));
 
-    setHtml('ultimasVentas', htmlVentas(d.ventas));
+    // ── Caja ──
+    pintarCaja(d);
 
-    if (d.hayAnual) {
-        setHtml('tablaAnual', htmlTablaAnual(d.anual));
-        setText('totalVentasAnual',   formatMXN(d.anual.totalVentas));
-        setText('totalGananciaAnual', formatMXN(d.anual.totalGanancia));
-        setText('margenAnual',        d.margenAnualTxt);
-        setClass('cardMargenAnual', 'card-margin-good',  d.margenAnualGood);
-        setClass('cardMargenAnual', 'card-margin-warn', !d.margenAnualGood);
+    // ── Inventario ──
+    pintarInventario(d);
+
+    // ── Historial ──
+    pintarSemana(d);
+    pintarMes(d);
+    pintarAnio(d);
+
+    setText('pie', 'Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
+}
+
+// ── Gráfica de columnas ─────────────────────────────────────────
+// items: [{ key, label, valor, destacado, aria, hoy }]; opts: { id, sel, valores, promedio }
+function htmlColumnas(items, opts) {
+    const max  = Math.max(1, ...items.map(i => i.valor));
+    const paso = items.length > 20 ? 5 : items.length > 14 ? 3 : items.length > 8 ? 2 : 1;
+    const cols = items.map(it => {
+        const p   = Math.round(it.valor / max * 100);
+        const cls = ['col'];
+        if (it.destacado) cls.push('is-peak');
+        if (opts.sel === it.key) cls.push('is-sel');
+        if (it.valor === 0) cls.push('is-zero');
+        return `<button type="button" class="${cls.join(' ')}" data-chart="${opts.id}" data-key="${escHtml(it.key)}" `
+             + `aria-label="${escHtml(it.aria)}" style="--p:${p}">`
+             + `<span class="col-bar"></span>`
+             + (opts.valores && it.valor > 0 ? `<span class="col-val">${compacto(it.valor)}</span>` : '')
+             + `</button>`;
+    }).join('');
+    const eje = items.map((it, i) =>
+        `<span${it.hoy ? ' class="is-today"' : ''}>${(i % paso === 0 || it.hoy) ? escHtml(it.label) : ''}</span>`).join('');
+    const avg = opts.promedio > 0
+        ? `<i class="avg" style="--p:${Math.min(100, Math.round(opts.promedio / max * 100))}"></i>` : '';
+    return `<div class="plot">${avg}${cols}</div><div class="axis">${eje}</div>`;
+}
+
+// ── Cómo pagaron hoy ────────────────────────────────────────────
+function pintarPagos(d) {
+    const p = d.pagos;
+    // Con un POS anterior no hay desglose: la tarjeta no aparece (no hace falta explicar nada en Hoy)
+    setHidden('pagosTile', !p.hay);
+    if (!p.hay) return;
+    if (p.total <= 0) {
+        setHtml('pagosCuerpo', '<p class="empty">Aún no hay cobros hoy</p>');
+        return;
+    }
+    const barra = p.partes.filter(x => x.v > 0)
+        .map(x => `<i class="s-${x.clave}" style="width:${x.pct.toFixed(2)}%"></i>`).join('');
+    const filas = p.partes.map(x => `<li class="leg">
+        <span class="leg-dot s-${x.clave}"></span><span class="leg-n">${x.label}</span>
+        <b>${escHtml(formatMXN(x.v))}</b><small>${Math.round(x.pct)}%</small></li>`).join('');
+    const comision = p.comision > 0
+        ? `<p class="tile-note">Comisión de tarjeta: <b>${escHtml(formatMXN(p.comision))}</b> (la paga el negocio)</p>` : '';
+    setHtml('pagosCuerpo', `<div class="stack" role="img" aria-label="Efectivo, tarjeta y transferencia">${barra}</div><ul class="legend">${filas}</ul>${comision}`);
+}
+
+// ── Caja del turno, aviso de turno largo y cancelaciones ────────
+function filaCaja(texto, centavos, signo, fuerte) {
+    const cls = signo < 0 ? ' class="neg"' : '';
+    return `<div class="kv${fuerte ? ' kv-fuerte' : ''}"><span>${texto}</span><span${cls}>${signo < 0 ? '\u2212' : ''}${escHtml(formatMXN(Math.abs(centavos)))}</span></div>`;
+}
+
+function pintarCaja(d) {
+    const c = d.caja;
+    if (c.estado === 'sin-datos') {
+        setHtml('cajaCuerpo', `<div class="tile"><p class="empty">${AVISO_POS_ANTERIOR}</p></div>`);
+    } else if (c.estado === 'cerrado') {
+        setHtml('cajaCuerpo', '<div class="tile"><div class="tile-label">Efectivo en el cajón</div>'
+            + '<p class="empty">No hay un turno abierto, así que no hay efectivo por contar. Al abrir turno aparecerá aquí.</p></div>');
+    } else {
+        setHtml('cajaCuerpo',
+            `<div class="tile"><div class="tile-label">Efectivo esperado en el cajón</div>
+              <div class="kpi-value c-ganancia">${escHtml(formatMXN(c.esperado))}</div>
+              <div class="kpi-sub">Turno de ${escHtml(d.turnoUsuario)} · ${d.turnoDesdeAyer ? 'abrió el ' : 'abrió a las '}${escHtml(d.turnoInicio)}</div>
+              <div class="hlist">`
+            + filaCaja('Fondo inicial', c.fondo, 1)
+            + filaCaja('+ Ventas en efectivo y abonos', c.efectivoVentas, 1)
+            + filaCaja('+ Ingresos al cajón', c.ingresos, 1)
+            + filaCaja('\u2212 Retiros y gastos del cajón', c.retiros, -1)
+            + filaCaja('Esperado', c.esperado, 1, true)
+            + `</div></div>
+            <div class="tile"><div class="tile-label">Fuera del cajón (turno actual)</div>
+              <p class="tile-note">Entró por banco: no cuenta para el corte de efectivo.</p>`
+            + filaCaja('Tarjeta', c.tarjeta, 1)
+            + filaCaja('Transferencia', c.transferencia, 1)
+            + `</div>`);
     }
 
-    graficaHoras(d);
-    graficaSemana(d);
-    graficaDonut(d);
-    if (d.hayAnual) graficaAnual(d);
+    // Turno que se quedó abierto: lo más común es que se olvidó cerrar
+    const mostrarAlerta = d.turnoAlerta;
+    setHidden('turnoAlerta', !mostrarAlerta);
+    if (mostrarAlerta) {
+        const horas = Math.round(d.turnoMinutos / 60);
+        setHtml('turnoAlerta', `<div class="alerta-t">${d.turnoDesdeAyer ? 'Turno abierto desde ' + escHtml(d.turnoDesde) : 'Turno abierto hace ' + horas + ' horas'}</div>
+            <p>¿Se olvidó de cerrarlo? El turno de ${escHtml(d.turnoUsuario)} ${d.turnoDesdeAyer ? 'abrió el ' : 'abrió a las '}${escHtml(d.turnoInicio)}; mientras siga abierto, el corte no refleja el día.</p>`);
+    }
+
+    // Cancelaciones y devoluciones
+    const x = d.cancel;
+    // Con un POS anterior el aviso ya sale arriba, en la tarjeta de caja: aquí no se repite
+    setHidden('cancelTile', !x.hay);
+    if (!x.hay) {
+        setHtml('cancelChip', '');
+        setHtml('cancelCuerpo', '');
+        return;
+    }
+    setHtml('cancelChip', x.total > 0 ? `<span class="chip is-warn">${x.total}</span>` : '<span class="chip is-good">Ninguna</span>');
+    let cuerpo = '';
+    if (x.total === 0) {
+        cuerpo = '<p class="tile-note">Hoy no se canceló ni se devolvió nada.</p>';
+    } else {
+        cuerpo += filaCaja(`Ventas canceladas (${x.canc})`, x.montoCanc, 1);
+        cuerpo += filaCaja(`Devoluciones de artículos (${x.dev})`, x.montoDev, 1);
+        if (x.usuarios.length) {
+            cuerpo += '<div class="tile-label sub">Quién lo hizo</div>' + x.usuarios.map(u =>
+                `<div class="kv"><span>${escHtml(u.usuario)}</span><span>${u.canc ? u.canc + ' ' + plural(u.canc, 'cancelación', 'cancelaciones') : ''}`
+                + `${u.canc && u.dev ? ' · ' : ''}${u.dev ? u.dev + ' ' + plural(u.dev, 'devolución', 'devoluciones') : ''}</span></div>`).join('');
+        }
+    }
+    cuerpo += '<p class="tile-note pie-nota">Se registra desde la versión 3.3.0 del punto de venta: antes no se guardaba quién ni cuándo.</p>';
+    setHtml('cancelCuerpo', cuerpo);
+}
+
+// ── Inventario ──────────────────────────────────────────────────
+function pintarInventario(d) {
+    const i = d.inv;
+    if (!i.hay) {
+        setHtml('invCuerpo', `<div class="tile"><p class="empty">${AVISO_POS_ANTERIOR}</p></div>`);
+        return;
+    }
+    const urg = i.urgentes.length === 0
+        ? '<p class="empty">Todo en orden: nada agotado ni bajo el mínimo.</p>'
+        : '<ul class="vlist">' + i.urgentes.map(u => {
+            const agotado = u.cantidad <= 0;
+            return `<li class="venta urg">
+                <span class="urg-n">${escHtml(u.nombre)}</span>
+                <span class="urg-c${agotado ? ' neg' : ''}">${escHtml(formatCantidad(u.cantidad, u.unidad))}${u.minimo > 0 ? `<small>mínimo ${u.minimo}</small>` : ''}</span>
+                <span class="chip ${agotado ? 'is-bad' : 'is-warn'}">${agotado ? 'Agotado' : 'Bajo'}</span></li>`;
+        }).join('') + '</ul>';
+    setHtml('invCuerpo',
+        `<div class="grid2">
+            <div class="tile"><div class="tile-label">Agotados</div><div class="kpi-value kpi-sm ${i.agotados > 0 ? 'c-alerta' : 'c-ganancia'}">${i.agotados}</div><div class="kpi-sub">productos sin existencia</div></div>
+            <div class="tile"><div class="tile-label">Bajo mínimo</div><div class="kpi-value kpi-sm ${i.bajo > 0 ? 'c-alerta' : 'c-ganancia'}">${i.bajo}</div><div class="kpi-sub">por reponer pronto</div></div>
+        </div>
+        <div class="tile"><div class="tile-label">Valor del inventario</div>
+            <div class="kpi-value c-promedio">${escHtml(formatMXN(i.valor))}</div>
+            <div class="kpi-sub">a precio de costo, solo lo que hay en existencia</div></div>
+        <div class="tile"><div class="tile-label">Reponer primero</div>${urg}</div>`);
+}
+
+// ── Ventas por hora ─────────────────────────────────────────────
+function pintarHoras(d) {
+    const { items, pico } = d.horas;
+    if (items.length === 0) {
+        setHtml('horasGrafica', '<p class="empty">Sin ventas registradas hoy</p>');
+        setHtml('horasLectura', '');
+        return;
+    }
+    const sel = items.some(i => i.key === ui.sel.horas) ? ui.sel.horas : null;
+    ui.sel.horas = sel;
+    setHtml('horasGrafica', htmlColumnas(items.map(it => ({
+        key: it.key, label: it.label, valor: it.valor, destacado: it.destacado,
+        aria: `${it.label}:00 — ${formatMXN(it.valor)}`,
+    })), { id: 'horas', sel, valores: items.length <= 10 }));
+
+    const it = items.find(i => i.key === sel) || pico;
+    if (!it) { setHtml('horasLectura', 'Todavía sin ventas por hora.'); return; }
+    const hh = String(it.hora).padStart(2, '0'), h2 = String((it.hora + 1) % 24).padStart(2, '0');
+    setHtml('horasLectura', `${sel ? '' : 'Hora pico: '}<b>${hh}:00 – ${h2}:00</b> · ${escHtml(formatMXN(it.valor))}`
+        + (it.tickets > 0 ? ` · ${it.tickets} ticket${it.tickets !== 1 ? 's' : ''}` : ''));
+}
+
+// ── Semana ──────────────────────────────────────────────────────
+function textoDelta(valor, promedio) {
+    if (!(promedio > 0)) return { txt: '', cls: '' };
+    const p = Math.round((valor / promedio - 1) * 100);
+    if (p === 0) return { txt: 'como el promedio', cls: '' };
+    return p > 0 ? { txt: `+${p}% vs prom.`, cls: 'up' } : { txt: `${p}% vs prom.`.replace('-', '\u2212'), cls: 'down' };
+}
+
+function pintarSemana(d) {
+    const s = d.semana;
+    setText('semanaTotal', formatMXN(s.total));
+    setText('semanaSub', s.diasConVenta > 0
+        ? `${s.diasConVenta} día${s.diasConVenta !== 1 ? 's' : ''} con ventas`
+        : 'Sin ventas en los últimos 7 días');
+    const a = d.semanaAnterior;
+    setHtml('semanaVsAnterior', a
+        ? `Semana anterior: <b>${escHtml(formatMXN(a.total))}</b> · <span class="${a.pct >= 0 ? 'up' : 'down'}">${deltaTxt(a.pct)}</span>` : '');
+    setText('semanaPromedio', s.promedio > 0 ? formatMXN(s.promedio) : '—');
+    setText('semanaPromSub', 'en días con ventas');
+    setText('semanaMejor', s.mejor ? formatMXN(s.mejor.total) : '—');
+    setText('semanaMejorSub', s.mejor ? s.mejor.label : '\u00a0');
+
+    const sel = s.dias.some(x => x.clave === ui.sel.semana) ? ui.sel.semana : null;
+    ui.sel.semana = sel;
+    setHtml('semanaGrafica', htmlColumnas(s.dias.map(x => ({
+        key: x.clave, label: x.label, valor: x.total, destacado: x.esHoy, hoy: x.esHoy,
+        aria: `${x.label}: ${formatMXN(x.total)}`,
+    })), { id: 'semana', sel, valores: true, promedio: s.promedio }));
+    setHidden('semanaLeyenda', !(s.promedio > 0));
+
+    const dia = s.dias.find(x => x.clave === sel) || s.dias[s.dias.length - 1];
+    const dl  = dia.esHoy ? { txt: 'en curso', cls: '' } : textoDelta(dia.total, s.promedio);
+    setHtml('semanaLectura', `<b>${escHtml(dia.label)}${dia.esHoy ? ' (hoy)' : ''}</b> · ${escHtml(formatMXN(dia.total))}`
+        + (dl.txt ? ` · ${escHtml(dl.txt)}` : ''));
+
+    const max = Math.max(1, ...s.dias.map(x => x.total));
+    setHtml('semanaLista', s.dias.slice().reverse().map(x => {
+        const dl2 = x.esHoy ? { txt: 'en curso', cls: '' } : textoDelta(x.total, s.promedio);
+        return `<div class="hrow hrow-dia${x.esHoy ? ' is-now' : ''}">
+            <span class="hl">${escHtml(x.label)}</span>
+            <span class="hbar"><i style="--w:${(x.total / max * 100).toFixed(1)}%"></i></span>
+            <span class="hr"><b>${x.total > 0 ? escHtml(formatMXN(x.total)) : '—'}</b>`
+            + (x.total > 0 && dl2.txt ? `<small class="${dl2.cls}">${escHtml(dl2.txt)}</small>` : '') + `</span>
+        </div>`;
+    }).join(''));
+}
+
+// ── Mes ─────────────────────────────────────────────────────────
+function pintarMes(d) {
+    const m = d.mes;
+    setHidden('mesVacio', m.hayFilas);
+    setHidden('mesContenido', !m.hayFilas);
+    if (!m.hayFilas) return;
+
+    setText('mesEtiqueta', `${m.nombre} hasta hoy`);
+    setText('mesTotal', formatMXN(m.total));
+    setText('mesSub', `${m.conVenta} día${m.conVenta !== 1 ? 's' : ''} con ventas`);
+    setHtml('mesVsAnterior', m.anterior
+        ? `${m.anterior.nombre} a esta misma fecha: <b>${escHtml(formatMXN(m.anterior.total))}</b> · `
+          + `<span class="${m.anterior.pct >= 0 ? 'up' : 'down'}">${deltaTxt(m.anterior.pct)}</span>` : '');
+    setText('mesGanancia', formatMXN(m.ganancia));
+
+    const sel = m.items.some(x => x.key === ui.sel.mes) ? ui.sel.mes : null;
+    ui.sel.mes = sel;
+    setHtml('mesGrafica', htmlColumnas(m.items, { id: 'mes', sel, valores: false }));
+    const dia = m.items.find(x => x.key === sel) || m.items[m.items.length - 1];
+    setHtml('mesLectura', `<b>${escHtml(etiquetaDia(dia.key))}${dia.esHoy ? ' (hoy)' : ''}</b> · ${escHtml(formatMXN(dia.valor))}`);
+}
+
+// ── Año ─────────────────────────────────────────────────────────
+function filasMeses(anual, campo) {
+    const max = Math.max(1, ...anual.meses.map(m => m[campo]));
+    return anual.meses.map(m => `<div class="hrow${m.enCurso ? ' is-now' : ''}">
+        <span class="hl">${m.nombre}</span>
+        <span class="hbar"><i style="--w:${(m[campo] / max * 100).toFixed(1)}%"></i></span>
+        <span class="hr"><b>${m[campo] ? escHtml(formatMXN(m[campo])) : '—'}</b>${m.enCurso ? '<small>en curso</small>' : ''}</span>
+    </div>`).join('');
+}
+
+function pintarAnio(d) {
+    setHidden('anualVacio', d.hayAnual);
+    setHidden('anualContenido', !d.hayAnual);
+    if (!d.hayAnual) return;
+    const a = d.anual;
+
+    setText('anualEtiquetaVentas', `Ventas ${a.year}`);
+    setText('anualEtiquetaGanancia', `Ganancia ${a.year}`);
+    setText('totalVentasAnual',   formatMXN(a.totalVentas));
+    setText('totalGananciaAnual', formatMXN(a.totalGanancia));
+    setText('margenAnualChip', `Margen ${d.margenAnualTxt}`);
+    setClass('margenAnualChip', 'is-good',  d.margenAnualGood);
+    setClass('margenAnualChip', 'is-warn', !d.margenAnualGood);
+
+    setHtml('mejorMes', a.mejor ? `Mejor mes: <b>${a.mejor.nombre}</b> · ${escHtml(formatMXN(a.mejor.v))}` : '');
+    setHtml('mesesVentas',   filasMeses(a, 'v'));
+    setHtml('mesesGanancia', filasMeses(a, 'g'));
 }
 
 // ── Últimas ventas ──────────────────────────────────────────────
-function htmlVentas(ventas) {
+const VENTAS_VISIBLES = 6;
+const VENTAS_MAXIMO   = 50;
+
+function htmlVentas(ventas, expandido) {
     if (!ventas || ventas.length === 0) {
-        return '<p class="chart-empty">Sin ventas registradas</p>';
+        return '<p class="empty">Sin ventas registradas hoy</p>';
     }
-    const items = ventas.slice(0, 10).map(v => `
-        <li class="venta-item">
-            <div class="venta-left">
-                <span class="venta-hora">${escHtml(v.hora || '')}</span>
-                <span class="venta-cajero">${escHtml(v.cajero || '')}</span>
-            </div>
-            <span class="venta-total">${formatMXN(v.total_centavos || 0)}</span>
-        </li>
-    `).join('');
-    return `<ul class="ventas-list">${items}</ul>`;
-}
-
-// ── Tabla mensual ───────────────────────────────────────────────
-function htmlTablaAnual(anual) {
-    const rows = anual.meses.map(m => {
-        const mrg = m.v > 0 ? ((m.g / m.v) * 100).toFixed(1) + '%' : '—';
-        return `<div class="anual-row${m.v === 0 ? ' anual-row-empty' : ''}">
-            <span class="anual-mes">${m.nombre}</span>
-            <span class="anual-ventas">${m.v ? formatMXN(m.v) : '—'}</span>
-            <span class="anual-ganancia">${m.g ? formatMXN(m.g) : '—'}</span>
-            <span class="anual-mrg">${mrg}</span>
-        </div>`;
-    }).join('');
-
-    const tMrgNum = anual.totalVentas > 0 ? (anual.totalGanancia / anual.totalVentas) * 100 : 0;
-    return rows + `
-    <div class="anual-row anual-totales">
-        <span class="anual-mes">Total</span>
-        <span class="anual-ventas">${formatMXN(anual.totalVentas)}</span>
-        <span class="anual-ganancia">${formatMXN(anual.totalGanancia)}</span>
-        <span class="anual-mrg ${tMrgNum >= 20 ? 'anual-mrg-good' : 'anual-mrg-warn'}">${tMrgNum.toFixed(1)}%</span>
-    </div>`;
+    const lim   = expandido ? VENTAS_MAXIMO : VENTAS_VISIBLES;
+    const items = ventas.slice(0, lim).map(v => `
+        <li class="venta">
+            <span class="venta-hora">${escHtml(v.hora || '')}</span>
+            <span class="venta-cajero">${escHtml(v.cajero || '')}</span>
+            <span class="venta-total">${escHtml(formatMXN(v.total_centavos || 0))}</span>
+        </li>`).join('');
+    const boton = ventas.length > VENTAS_VISIBLES
+        ? `<button type="button" class="btn-ghost" data-act="masVentas">${expandido ? 'Ver menos' : `Ver todas (${ventas.length})`}</button>`
+        : '';
+    const nota = expandido && ventas.length > VENTAS_MAXIMO
+        ? `<p class="empty">Se muestran las ${VENTAS_MAXIMO} más recientes de ${ventas.length}</p>` : '';
+    return `<ul class="vlist">${items}</ul>${nota}${boton}`;
 }
 
 // ────────────────────────────────────────────────────────────────
-// Gráficas — crean el Chart la primera vez y luego solo actualizan
+// Interacción
 // ────────────────────────────────────────────────────────────────
-
-// ALTO-04 fix: reintento con limite de intentos en vez de setTimeout unico
-function waitForChart(callback, retries) {
-    const intentos = (retries === undefined) ? 20 : retries;
-    if (typeof Chart !== 'undefined') { callback(); return; }
-    if (intentos <= 0) { console.warn('Chart.js no cargo despues de multiples intentos'); return; }
-    setTimeout(() => waitForChart(callback, intentos - 1), 300);
+function aplicarTab() {
+    document.querySelectorAll('[data-tab]').forEach(b => {
+        b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === ui.tab));
+    });
+    document.querySelectorAll('[data-panel]').forEach(p => {
+        p.hidden = p.getAttribute('data-panel') !== ui.tab;
+    });
+    document.querySelectorAll('[data-sub]').forEach(b => {
+        b.setAttribute('aria-selected', String(b.getAttribute('data-sub') === ui.sub));
+    });
+    document.querySelectorAll('[data-subpanel]').forEach(p => {
+        p.hidden = p.getAttribute('data-subpanel') !== ui.sub;
+    });
 }
 
-// Alterna canvas / mensaje vacío sin destruir el canvas: antes se
-// reemplazaba el innerHTML del wrap, así que una vez vacío la gráfica
-// ya no podía volver a dibujarse sin recargar la página.
-function toggleVacio(wrap, vacio) {
-    const w = document.querySelector(`[data-wrap="${wrap}"]`);
-    if (!w) return;
-    const canvas = w.querySelector('canvas');
-    const msg    = w.querySelector('.chart-empty');
-    const legend = w.querySelector('.donut-legend');
-    if (canvas) canvas.hidden = vacio;
-    if (msg)    msg.hidden    = !vacio;
-    if (legend) legend.hidden = vacio;
+function volverAlInicioDeLaHoja() {
+    // Si se estaba leyendo más abajo de la cabecera, volver al inicio de la hoja
+    const hoja = document.querySelector('.sheet');
+    if (hoja && window.scrollY > hoja.offsetTop) window.scrollTo(0, hoja.offsetTop);
 }
 
-function barOptions() {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 300 },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#202936',
-                borderColor: '#2c3e55',
-                borderWidth: 1,
-                titleColor: '#7ab8d9',
-                bodyColor: '#e2e8f0',
-                callbacks: {
-                    label: ctx => '$ ' + ctx.parsed.y.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                }
-            }
-        },
-        scales: {
-            x: {
-                ticks: { color: '#4a6278', font: { size: 10 } },
-                grid:  { color: 'rgba(44,110,149,0.08)' }
-            },
-            y: {
-                ticks: {
-                    color: '#4a6278',
-                    font: { size: 10 },
-                    callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
-                },
-                grid: { color: 'rgba(44,110,149,0.08)' }
-            }
+function activarTab(nombre) {
+    if (ui.tab === nombre) return;
+    ui.tab = nombre;
+    aplicarTab();
+    volverAlInicioDeLaHoja();
+}
+
+function activarSub(nombre) {
+    if (ui.sub === nombre) return;
+    ui.sub = nombre;
+    aplicarTab();
+}
+
+function seleccionarColumna(grafica, key) {
+    ui.sel[grafica] = (ui.sel[grafica] === key) ? null : key;
+    if (ultimoD) {
+        if (grafica === 'horas') pintarHoras(ultimoD);
+        else if (grafica === 'semana') pintarSemana(ultimoD);
+        else if (grafica === 'mes') pintarMes(ultimoD);
+    }
+}
+
+function temaGuardado() {
+    try { return localStorage.getItem('apdash:tema'); } catch (e) { return null; }
+}
+
+function temaEfectivo() {
+    const fijo = document.documentElement.getAttribute('data-theme');
+    if (fijo === 'light' || fijo === 'dark') return fijo;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+
+function pintarTema() {
+    const b = el('btnTema');
+    if (!b) return;
+    // El botón muestra a qué tema se pasa al tocarlo
+    const oscuro = temaEfectivo() === 'dark';
+    const html = oscuro ? ICONO_SOL : ICONO_LUNA;
+    if (htmlPrevio.btnTema !== html) { htmlPrevio.btnTema = html; b.innerHTML = html; }
+    b.setAttribute('aria-label', oscuro ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+}
+
+function alternarTema() {
+    const nuevo = temaEfectivo() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nuevo);
+    try { localStorage.setItem('apdash:tema', nuevo); } catch (e) { /* solo no se recuerda */ }
+    pintarTema();
+}
+
+function alClic(ev) {
+    const t = ev.target.closest('[data-tab],[data-sub],[data-chart],[data-act]');
+    if (!t) return;
+    if (t.hasAttribute('data-tab'))   { activarTab(t.getAttribute('data-tab')); return; }
+    if (t.hasAttribute('data-sub'))   { activarSub(t.getAttribute('data-sub')); return; }
+    if (t.hasAttribute('data-chart')) { seleccionarColumna(t.getAttribute('data-chart'), t.getAttribute('data-key')); return; }
+    const act = t.getAttribute('data-act');
+    if (act === 'tema') alternarTema();
+    else if (act === 'refrescar') { if (hwIdActual) fetchData(hwIdActual, false); }
+    else if (act === 'salir') cerrarSesion();
+    else if (act === 'masVentas') {
+        ui.masVentas = !ui.masVentas;
+        if (ultimoD) setHtml('ultimasVentas', htmlVentas(ultimoD.ventas, ui.masVentas));
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// PIN: sesión del panel protegido
+// ────────────────────────────────────────────────────────────────
+function claveToken(hwId) { return 'apdash:token:' + hwId; }
+
+function tokenGuardado() {
+    try { return localStorage.getItem(claveToken(hwIdActual)); } catch (e) { return null; }
+}
+function guardarToken(t) {
+    try { localStorage.setItem(claveToken(hwIdActual), t); } catch (e) { /* sin almacenamiento: se pedirá el PIN cada vez */ }
+}
+function borrarToken() {
+    try { localStorage.removeItem(claveToken(hwIdActual)); } catch (e) { /* nada que borrar */ }
+}
+function borrarCache(hwId) {
+    try { localStorage.removeItem('apdash:datos:' + hwId); } catch (e) { /* nada que borrar */ }
+}
+
+function cerrarSesion() {
+    borrarToken();
+    borrarCache(hwIdActual);
+    desdeCache = null;
+    ultimoOk = null;
+    showPin('Sesión cerrada.');
+}
+
+function showPin(msg, bloqueado) {
+    document.getElementById('app').innerHTML = `
+    <header class="top"><div class="top-in">
+        <div class="bar">${MARCA}</div>
+        <span class="kicker">Panel de ventas</span>
+        <h1>Panel protegido</h1>
+    </div></header>
+    <main class="sheet"><div class="sheet-in">
+        <form class="pin-box" data-k="pinForm" autocomplete="off" novalidate>
+            <p class="pin-ayuda">Escribe el PIN de 6 a 8 dígitos que creaste en el programa de tu tienda.</p>
+            <label class="pin-lab" for="pin-campo">PIN</label>
+            <input id="pin-campo" class="pin-input" data-k="pinCampo" type="password" inputmode="numeric" pattern="[0-9]*"
+                   maxlength="8" autocomplete="current-password" ${bloqueado ? 'disabled' : ''}>
+            <p class="pin-msg" data-k="pinMsg" role="alert">${escHtml(msg || '')}</p>
+            <button type="submit" class="btn-solid" data-k="pinBoton" ${bloqueado ? 'disabled' : ''}>Entrar</button>
+        </form>
+    </div></main>`;
+    estructura = null;
+    ultimoD = null;
+    const c = el('pinCampo');
+    if (c && !bloqueado) c.focus();
+}
+
+async function enviarPin(ev) {
+    ev.preventDefault();
+    const campo = el('pinCampo'), boton = el('pinBoton');
+    if (!campo || !hwIdActual) return;
+    const pin = campo.value.trim();
+    if (!/^\d{6,8}$/.test(pin)) { setText('pinMsg', 'El PIN tiene de 6 a 8 dígitos.'); return; }
+    boton.disabled = true;
+    setText('pinMsg', 'Comprobando…');
+    try {
+        const res = await fetch(API_AUTH, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ id: hwIdActual, pin }).toString(),
+        });
+        let j = null;
+        try { j = await res.json(); } catch (e) { /* respuesta sin cuerpo */ }
+        if (res.status === 200 && j && j.status === 'exitoso') {
+            if (j.token) guardarToken(j.token);
+            fetchData(hwIdActual, true);
+            return;
         }
-    };
-}
-
-function graficaHoras(d) {
-    const canvas = document.getElementById('chartHoras');
-    if (!canvas) return;
-    if (typeof Chart === 'undefined') { waitForChart(() => graficaHoras(d)); return; }
-
-    const vacio = d.horas.labels.length === 0;
-    toggleVacio('horas', vacio);
-    if (vacio) return;
-
-    if (charts.horas) {
-        charts.horas.data.labels = d.horas.labels;
-        charts.horas.data.datasets[0].data = d.horas.valores;
-        charts.horas.update();
-        return;
-    }
-    charts.horas = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: d.horas.labels,
-            datasets: [{
-                data: d.horas.valores,
-                backgroundColor: 'rgba(44,110,149,0.3)',
-                borderColor: '#2c6e95',
-                borderWidth: 1.5,
-                borderRadius: 5
-            }]
-        },
-        options: barOptions()
-    });
-}
-
-function graficaSemana(d) {
-    const canvas = document.getElementById('chartSemana');
-    if (!canvas) return;
-    if (typeof Chart === 'undefined') { waitForChart(() => graficaSemana(d)); return; }
-
-    if (charts.semana) {
-        charts.semana.data.labels = d.semana.labels;
-        charts.semana.data.datasets[0].data = d.semana.valores;
-        charts.semana.update();
-        return;
-    }
-    charts.semana = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: d.semana.labels,
-            datasets: [{
-                data: d.semana.valores,
-                backgroundColor: 'rgba(44,110,149,0.25)',
-                borderColor: '#2c6e95',
-                borderWidth: 1.5,
-                borderRadius: 6
-            }]
-        },
-        options: barOptions()
-    });
-}
-
-function graficaDonut(d) {
-    const canvas = document.getElementById('chartDonut');
-    if (!canvas) return;
-    if (typeof Chart === 'undefined') { waitForChart(() => graficaDonut(d)); return; }
-
-    const vacio = d.ventasHoy <= 0;
-    toggleVacio('donut', vacio);
-    if (vacio) return;
-
-    // BAJO-02 fix: clamp a 0 para evitar segmentos negativos si ganancia > ventas
-    const valores = [Math.max(0, d.gananciaHoy / 100), Math.max(0, d.costoHoy / 100)];
-
-    if (charts.donut) {
-        charts.donut.data.datasets[0].data = valores;
-        charts.donut.update();
-        return;
-    }
-    charts.donut = new Chart(canvas.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Ganancia', 'Costo'],
-            datasets: [{
-                data: valores,
-                backgroundColor: ['rgba(52,211,153,0.75)', 'rgba(44,110,149,0.45)'],
-                borderColor:     ['#34d399', '#2c6e95'],
-                borderWidth: 1.5,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 300 },
-            cutout: '68%',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#202936',
-                    borderColor: '#2c3e55',
-                    borderWidth: 1,
-                    titleColor: '#7ab8d9',
-                    bodyColor: '#e2e8f0',
-                    callbacks: {
-                        // MEDIO-07 fix: agregar maximumFractionDigits para consistencia
-                        label: ctx => ctx.label + ': $ ' + ctx.parsed.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    }
-                }
-            }
+        if (res.status === 429) {
+            const min = Math.max(1, Math.ceil(((j && j.reintentar_en) || 900) / 60));
+            showPin(`Demasiados intentos. Prueba otra vez en ${min} minuto${min !== 1 ? 's' : ''}.`, true);
+            return;
         }
-    });
-}
-
-function graficaAnual(d) {
-    const canvas = document.getElementById('chartAnual');
-    if (!canvas) return;
-    if (typeof Chart === 'undefined') { waitForChart(() => graficaAnual(d)); return; }
-
-    if (charts.anual) {
-        charts.anual.data.datasets[0].data = d.anual.ventas;
-        charts.anual.data.datasets[1].data = d.anual.ganancias;
-        charts.anual.update();
-        return;
-    }
-    charts.anual = new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: MESES,
-            datasets: [
-                {
-                    label: 'Ventas',
-                    data: d.anual.ventas,
-                    borderColor: '#2c6e95',
-                    backgroundColor: 'rgba(44,110,149,0.15)',
-                    borderWidth: 2, fill: true, tension: 0.35,
-                    pointRadius: 3, pointHoverRadius: 5,
-                    pointBackgroundColor: '#2c6e95'
-                },
-                {
-                    label: 'Ganancia',
-                    data: d.anual.ganancias,
-                    borderColor: '#34d399',
-                    backgroundColor: 'rgba(52,211,153,0.10)',
-                    borderWidth: 2, fill: true, tension: 0.35,
-                    pointRadius: 3, pointHoverRadius: 5,
-                    pointBackgroundColor: '#34d399'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 300 },
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#202936',
-                    borderColor: '#2c3e55',
-                    borderWidth: 1,
-                    titleColor: '#7ab8d9',
-                    bodyColor: '#e2e8f0',
-                    callbacks: {
-                        label: ctx => ctx.dataset.label + ': $ ' + ctx.parsed.y.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: { color: '#4a6278', font: { size: 10 } },
-                    grid:  { color: 'rgba(44,110,149,0.08)' }
-                },
-                y: {
-                    ticks: {
-                        color: '#4a6278',
-                        font: { size: 10 },
-                        callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v)
-                    },
-                    grid: { color: 'rgba(44,110,149,0.08)' }
-                }
-            }
+        if (res.status === 401) {
+            const r = j && Number.isFinite(j.restantes) ? j.restantes : null;
+            campo.value = '';
+            boton.disabled = false;
+            setText('pinMsg', r !== null ? `PIN incorrecto. Quedan ${r} intento${r !== 1 ? 's' : ''}.` : 'PIN incorrecto.');
+            campo.focus();
+            return;
         }
-    });
+        boton.disabled = false;
+        setText('pinMsg', 'No se pudo comprobar el PIN. Inténtalo de nuevo.');
+    } catch (e) {
+        boton.disabled = false;
+        setText('pinMsg', 'Sin conexión. Revisa tu internet e inténtalo de nuevo.');
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -754,24 +1299,39 @@ function graficaAnual(d) {
 // ────────────────────────────────────────────────────────────────
 function showLoading() {
     document.getElementById('app').innerHTML = `
-    <div class="loading-spinner">
-        <div class="spinner"></div>
-        <span>Cargando datos...</span>
-    </div>`;
+    <header class="top"><div class="top-in">
+        <div class="bar">${MARCA}</div>
+        <span class="kicker">Panel de ventas</span>
+        <div class="skel skel-hero"></div>
+    </div></header>
+    <main class="sheet"><div class="sheet-in">
+        <div class="tabs"><div class="seg" aria-hidden="true"><button type="button" tabindex="-1">Hoy</button><button type="button" tabindex="-1">Caja</button><button type="button" tabindex="-1">Inventario</button><button type="button" tabindex="-1">Historial</button></div></div>
+        <div class="panel">
+            <div class="skel" style="height:132px"></div>
+            <div class="grid2"><div class="skel" style="height:96px"></div><div class="skel" style="height:96px"></div></div>
+            <div class="skel" style="height:220px"></div>
+        </div>
+    </div></main>`;
     estructura = null;
-    destruirCharts();
+    ultimoD = null;
 }
 
 function showError(msg) {
     document.getElementById('app').innerHTML = `
-    <div style="padding:24px">
+    <header class="top"><div class="top-in">
+        <div class="bar">${MARCA}</div>
+        <span class="kicker">Panel de ventas</span>
+        <h1>Sin conexión</h1>
+    </div></header>
+    <main class="sheet"><div class="sheet-in">
         <div class="error-box">
-            <strong>Sin conexión</strong>
+            <strong>No se pudo mostrar el panel</strong>
             <p>${escHtml(msg)}</p>
+            <button type="button" class="btn-ghost" data-act="refrescar">Reintentar</button>
         </div>
-    </div>`;
+    </div></main>`;
     estructura = null;
-    destruirCharts();
+    ultimoD = null;
 }
 
 // Los refrescos de fondo fallaban en silencio (solo console.error), así
@@ -779,6 +1339,13 @@ function showError(msg) {
 function actualizarBanner() {
     const n = el('banner');
     if (!n) return;
+
+    if (desdeCache) {
+        const min = Math.floor((Date.now() - desdeCache.t) / 60000);
+        n.textContent = `Mostrando lo último guardado en este teléfono (${tiempoRelativo(min)}). Actualizando…`;
+        n.hidden = false;
+        return;
+    }
     if (ultimoOk === null) { n.hidden = true; return; }
 
     const transcurrido = Date.now() - ultimoOk;
@@ -792,44 +1359,91 @@ function actualizarBanner() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Último estado guardado en el teléfono: abre al instante y sirve sin
+// internet. Solo se usa si es de HOY (las cifras de ayer no son las de hoy)
+// y, en un panel con PIN, solo si esta sesión ya entró con él.
+// ────────────────────────────────────────────────────────────────
+function leerCache(hwId) {
+    try {
+        const o = JSON.parse(localStorage.getItem('apdash:datos:' + hwId));
+        if (!o || !o.t || !o.data) return null;
+        if (ahoraMX(new Date(o.t)).clave !== ahoraMX().clave) return null;
+        if (o.data.protegido && !tokenGuardado()) return null;
+        return o;
+    } catch (e) { return null; }
+}
+
+function guardarCache(hwId, data) {
+    try { localStorage.setItem('apdash:datos:' + hwId, JSON.stringify({ t: Date.now(), data })); }
+    catch (e) { /* sin almacenamiento o lleno: solo no se guarda */ }
+}
+
+// ────────────────────────────────────────────────────────────────
 // Render
 // ────────────────────────────────────────────────────────────────
 function render(data) {
     const d = derivar(data);
-    // Solo el bloque anual cambia la forma del DOM; lo demás se pinta
-    // sobre la estructura ya montada.
-    const firma = `${d.anual.year}|${d.hayAnual}`;
-    if (estructura !== firma) {
-        montar(d);
-        estructura = firma;
+    if (estructura !== FIRMA_DOM) {
+        montar();
+        estructura = FIRMA_DOM;
     }
+    ultimoD = d;
     pintar(d);
     actualizarBanner();
 }
 
+function marcarCargando(on) {
+    cargando = on;
+    const b = el('btnRefrescar');
+    if (b) b.classList.toggle('is-loading', on);
+}
+
 async function fetchData(hwId, isFirstLoad) {
+    if (cargando) return;
     if (isFirstLoad) showLoading();
+    marcarCargando(true);
     try {
         const controller = new AbortController();
         const timeoutId  = setTimeout(() => controller.abort(), 12000);
-        const res = await fetch(`${API_BASE}?id=${encodeURIComponent(hwId)}&_t=${Date.now()}`, { signal: controller.signal });
+        const tk = tokenGuardado();
+        const res = await fetch(`${API_BASE}?id=${encodeURIComponent(hwId)}&_t=${Date.now()}`,
+            { signal: controller.signal, headers: tk ? { 'X-Dash-Token': tk } : {} });
         clearTimeout(timeoutId);
         if (res.status === 404) {
+            desdeCache = null;
             showError('Este POS aún no ha sincronizado datos. Realiza una venta primero.');
             return;
+        }
+        if (res.status === 401) {
+            // Panel con PIN: sin token (o vencido) no se entrega nada
+            let j = null;
+            try { j = await res.json(); } catch (e) { /* sin cuerpo */ }
+            if (j && j.status === 'protegido') {
+                const teniaSesion = !!tk;
+                borrarToken();
+                borrarCache(hwId);
+                desdeCache = null;
+                ultimoOk = null;
+                showPin(teniaSesion ? 'Tu sesión venció. Escribe el PIN otra vez.' : '');
+                return;
+            }
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'exitoso') throw new Error(data.message || 'Error desconocido');
-        ultimoOk = Date.now();
+        ultimoOk   = Date.now();
+        desdeCache = null;
+        guardarCache(hwId, data);
         render(data);
     } catch (err) {
         console.error('Dashboard fetch error:', err);
-        if (isFirstLoad || ultimoOk === null) {
+        if (ultimoOk === null && !desdeCache) {
             showError('No se pudo conectar al servidor. ' + err.message);
         } else {
             actualizarBanner();   // se conserva la vista con aviso de datos viejos
         }
+    } finally {
+        marcarCargando(false);
     }
 }
 
@@ -864,6 +1478,21 @@ function instalarManifest(hwId) {
     }
 }
 
+// ── Service worker ──────────────────────────────────────────────
+// Cuando sube una versión nueva del panel, la app instalada la recoge sola
+// (una vez): antes seguía sirviendo la copia vieja hasta cerrarla dos veces.
+function registrarServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    const habiaControlador = !!navigator.serviceWorker.controller;
+    let recargado = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!habiaControlador || recargado) return;   // primera instalación: nada que recargar
+        recargado = true;
+        window.location.reload();
+    });
+    navigator.serviceWorker.register('/dashboard/sw.js', { scope: '/dashboard/' }).catch(() => {});
+}
+
 // ── Init ────────────────────────────────────────────────────────
 (function init() {
     // BAJO-01 fix: limpiar timer previo de forma defensiva antes de asignar uno nuevo
@@ -875,14 +1504,30 @@ function instalarManifest(hwId) {
         showError('URL inválida. Usa: antiparticula.com/dashboard/TU_HARDWARE_ID');
         return;
     }
+    hwIdActual = hwId;
 
-    instalarManifest(hwId);
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/dashboard/sw.js', { scope: '/dashboard/' }).catch(() => {});
+    const app = document.getElementById('app');
+    app.addEventListener('click', alClic);
+    app.addEventListener('submit', ev => { if (ev.target && ev.target.matches('[data-k="pinForm"]')) enviarPin(ev); });
+    if (window.matchMedia) {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const cambio = () => { if (!temaGuardado()) pintarTema(); };
+        if (mq.addEventListener) mq.addEventListener('change', cambio);
     }
 
-    fetchData(hwId, true);
+    instalarManifest(hwId);
+    registrarServiceWorker();
+
+    // Lo guardado de hoy se muestra de inmediato mientras llega lo nuevo
+    const guardado = leerCache(hwId);
+    if (guardado) {
+        desdeCache = { t: guardado.t };
+        const data = Object.assign({}, guardado.data);
+        data.hace_minutos = (Number(data.hace_minutos) || 0) + Math.floor((Date.now() - guardado.t) / 60000);
+        render(data);
+    }
+
+    fetchData(hwId, !guardado);
     refreshTimer = setInterval(() => fetchData(hwId, false), REFRESH_MS);
     bannerTimer  = setInterval(actualizarBanner, 30000);
 

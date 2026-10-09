@@ -1,6 +1,6 @@
 // Subir esta versión en CADA cambio del shell (html/css/js), si no los
 // clientes instalados siguen sirviendo la copia vieja desde caché.
-const CACHE_NAME = 'antiparticula-dashboard-v3';
+const CACHE_NAME = 'antiparticula-dashboard-v5';
 
 const SHELL_FILES = [
     '/dashboard/index.html',
@@ -9,17 +9,17 @@ const SHELL_FILES = [
     '/dashboard/manifest.json',
     '/dashboard/icon-192.png',
     '/dashboard/icon-512.png',
-    '/dashboard/icon-maskable-512.png',
-    // MEDIO-04 fix: cachear Chart.js para que la PWA funcione offline
-    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
+    '/dashboard/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache =>
             // addAll aborta todo el install si un solo recurso falla; con
-            // add() individual el shell se cachea aunque el CDN no responda.
-            Promise.all(SHELL_FILES.map(f => cache.add(f).catch(err =>
+            // add() individual el shell se cachea aunque uno no responda.
+            // cache:'reload' salta la caché HTTP del navegador: sin eso, la
+            // versión nueva podía precachear los archivos viejos.
+            Promise.all(SHELL_FILES.map(f => cache.add(new Request(f, { cache: 'reload' })).catch(err =>
                 console.warn('SW: no se pudo cachear', f, err)
             )))
         )
@@ -39,13 +39,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Solo interceptar peticiones de nuestro origen o CDN conocido
-    const isOurOrigin = url.origin === self.location.origin;
-    const isKnownCDN  = url.href.startsWith('https://cdn.jsdelivr.net/');
-    if (!isOurOrigin && !isKnownCDN) return;
+    // Solo interceptar peticiones de nuestro origen (el panel ya no usa CDN:
+    // las gráficas son propias)
+    if (url.origin !== self.location.origin) return;
 
     // Las llamadas a la API siempre van a red (no cachear datos dinámicos)
-    if (url.pathname.includes('get_dashboard_data.php') || url.pathname.includes('sync_pos.php')) {
+    if (url.pathname.includes('get_dashboard_data.php') || url.pathname.includes('sync_pos.php')
+        || url.pathname.includes('dashboard_auth.php')) {
         event.respondWith(fetch(event.request));
         return;
     }

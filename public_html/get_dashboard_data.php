@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     if ($origin_permitido) {
         header("Access-Control-Allow-Origin: $origin");
         header('Access-Control-Allow-Methods: GET, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type');
+        header('Access-Control-Allow-Headers: Content-Type, X-Dash-Token, Authorization');
     }
     header('Vary: Origin');
     http_response_code(204);
@@ -31,6 +31,12 @@ if ($origin_permitido) {
 header('Vary: Origin');
 
 header('Content-Type: application/json; charset=UTF-8');
+// Cifras de ventas: nunca deben quedar en una caché intermedia
+header('Cache-Control: no-store');
+
+// Funciones del panel v2 (token, saneado). Ver dashboard_comun.php
+define('DASH_COMUN_OK', true);
+require_once __DIR__ . '/dashboard_comun.php';
 
 // Solo acepta GET
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -85,12 +91,48 @@ try {
         exit;
     }
 
+    // ── Puerta de lectura: con PIN activo solo se entrega con un token vigente ──
+    // (sin PIN el panel sigue abierto por ID, como siempre). Nada de datos antes de esto.
+    $pin_hash  = (isset($row['pin_hash']) && $row['pin_hash'] !== '') ? $row['pin_hash'] : null;
+    $protegido = $pin_hash !== null;
+    if ($protegido && !dash_token_valido(dash_token_de_la_peticion(), $hardware_id, $pin_hash, dash_secreto($cfg))) {
+        dash_responder(401, ['status' => 'protegido', 'message' => 'Este panel está protegido con PIN']);
+    }
+    // Lo interno (hash del PIN, clave, contador de fallos) NUNCA sale
+    unset($row['pin_hash'], $row['clave_hash'], $row['pin_fallos'], $row['pin_bloqueo_hasta']);
+    $row['protegido'] = $protegido;
+
+    // Pagos, caja, cancelaciones e inventario (null con un POS anterior a la 3.3.0)
+    $extra_decodificado = isset($row['extra_json']) && $row['extra_json'] !== null && $row['extra_json'] !== ''
+        ? json_decode($row['extra_json'], true) : null;
+    $row['extra'] = is_array($extra_decodificado) ? $extra_decodificado : null;
+    unset($row['extra_json']);
+
     // Decodificar los JSON guardados
     $row['ultimas_ventas']   = json_decode($row['ultimas_ventas'],   true) ?: [];
     $row['historico_semana'] = json_decode($row['historico_semana'], true) ?: [];
 
     // Historial mensual del año en curso — calculado desde dashboard_pos_historico
     $anio   = (int) date('Y');
+
+    // Con el POS 3.3.0 los 12 meses los recalcula el POS (completos y corregidos).
+    // Antes salían de sumar los snapshots diarios desde que empezó a sincronizar.
+    $anual_del_pos = [];
+    try {
+        $stm = $conn->prepare(
+            "SELECT mes, ventas_centavos, ganancia_centavos FROM dashboard_pos_meses
+             WHERE hardware_id = :id AND mes LIKE :anio ORDER BY mes");
+        $stm->execute([':id' => $hardware_id, ':anio' => $anio . '-%']);
+        foreach ($stm->fetchAll(PDO::FETCH_ASSOC) as $m) {
+            $anual_del_pos[] = ['mes' => $m['mes'],
+                                'ventas_centavos' => (int) $m['ventas_centavos'],
+                                'ganancia_centavos' => (int) $m['ganancia_centavos']];
+        }
+    } catch (PDOException $e) {
+        // migración 2026-10-09 sin correr: se usa el cálculo de siempre
+        error_log('get_dashboard_data.php meses: ' . $e->getMessage());
+    }
+
     $stmt2  = $conn->prepare(
         "SELECT DATE_FORMAT(fecha, '%Y-%m') AS mes,
                 SUM(ventas_centavos)        AS ventas_centavos,
@@ -110,7 +152,41 @@ try {
         $m['ganancia_centavos'] = (int) $m['ganancia_centavos'];
     }
     unset($m);
-    $row['historico_anual'] = $anual;
+    $row['historico_anual'] = $anual_del_pos ? $anual_del_pos : $anual;
+
+    // Días recientes (hasta 100) para comparar: semana pasada, mes anterior, pagos por día.
+    // Con la migración sin correr se piden solo las columnas de siempre.
+    $row['historico_dias'] = [];
+    try {
+        $std = $conn->prepare(
+            "SELECT fecha, ventas_centavos, ganancia_centavos, tickets,
+                    efectivo_centavos, tarjeta_centavos, transferencia_centavos, comision_centavos,
+                    cancelaciones, cancelado_centavos
+             FROM dashboard_pos_historico
+             WHERE hardware_id = :id AND fecha >= (CURRENT_DATE - INTERVAL 100 DAY)
+             ORDER BY fecha");
+        $std->execute([':id' => $hardware_id]);
+    } catch (PDOException $e) {
+        $std = $conn->prepare(
+            "SELECT fecha, ventas_centavos, ganancia_centavos, tickets
+             FROM dashboard_pos_historico
+             WHERE hardware_id = :id AND fecha >= (CURRENT_DATE - INTERVAL 100 DAY)
+             ORDER BY fecha");
+        $std->execute([':id' => $hardware_id]);
+    }
+    foreach ($std->fetchAll(PDO::FETCH_ASSOC) as $d) {
+        $fila = ['fecha' => $d['fecha'],
+                 'ventas' => (int) $d['ventas_centavos'],
+                 'ganancia' => (int) $d['ganancia_centavos'],
+                 'tickets' => (int) $d['tickets']];
+        // NULL = día anterior a la 3.3.0 (sin desglose): se omite la clave, no se inventa un 0
+        foreach (['efectivo_centavos' => 'efectivo', 'tarjeta_centavos' => 'tarjeta',
+                  'transferencia_centavos' => 'transferencia', 'comision_centavos' => 'comision',
+                  'cancelaciones' => 'cancelaciones', 'cancelado_centavos' => 'cancelado'] as $col => $clave) {
+            if (isset($d[$col]) && $d[$col] !== null) $fila[$clave] = (int) $d[$col];
+        }
+        $row['historico_dias'][] = $fila;
+    }
 
     // Gráfica horaria del día completo. Se construye desde el detalle acumulado
     // en dashboard_pos_ventas, NO desde ultimas_ventas: ese JSON solo trae las

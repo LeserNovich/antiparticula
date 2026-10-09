@@ -61,6 +61,22 @@ $ultimas_ventas  = isset($_POST['ultimas_ventas'])  ? $_POST['ultimas_ventas']  
 $historico_semana= isset($_POST['historico_semana'])? $_POST['historico_semana']                : '[]';
 $historico_anual = isset($_POST['historico_anual']) ? $_POST['historico_anual']                 : '[]';
 
+// ── Panel móvil v2 (todo opcional: un POS anterior no manda nada de esto) ──
+// Pagos/caja/cancelaciones/inventario (extra), historial recalculado (dias, meses)
+// y la protección con PIN (pin, pin_actual, pin_clear, clave). Ver dashboard_comun.php.
+if (!defined('DASH_COMUN_OK')) define('DASH_COMUN_OK', true);
+require_once __DIR__ . '/dashboard_comun.php';
+$param_clave      = isset($_POST['clave'])      && is_string($_POST['clave'])      ? $_POST['clave']      : '';
+$param_pin        = isset($_POST['pin'])        && is_string($_POST['pin'])        ? $_POST['pin']        : '';
+$param_pin_actual = isset($_POST['pin_actual']) && is_string($_POST['pin_actual']) ? $_POST['pin_actual'] : '';
+$param_pin_clear  = isset($_POST['pin_clear'])  && $_POST['pin_clear'] === '1';
+$avisos = [];
+if ($param_pin !== '' && !dash_pin_valido($param_pin)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'codigo' => 'pin_invalido', 'message' => 'El PIN debe tener de 6 a 8 dígitos']);
+    exit;
+}
+
 // BAJO-08 fix: validacion de coherencia — ganancia no puede superar ingresos totales del día
 // (ventas_hoy son solo tickets normales; los abonos de apartados son ingresos adicionales)
 if ($ganancia_hoy > ($ventas_hoy + $abonos_hoy))  $ganancia_hoy = $ventas_hoy + $abonos_hoy;
@@ -175,6 +191,28 @@ try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->exec("SET time_zone = '-06:00'");
 
+    // ── Puerta de escritura: un POS con PIN solo acepta datos firmados con su clave ──
+    // (un POS sin PIN sigue abierto, como siempre). Va ANTES de cualquier escritura.
+    $prot = dash_proteccion($conn, $hardware_id);
+    $reconectar = false;
+    if ($prot['clave_hash'] !== null && !dash_clave_coincide($prot, $param_clave)) {
+        if ($param_pin_actual !== '' && dash_clave_valida($param_clave)) {
+            // PC reinstalada: perdió su clave y el PIN actual prueba que es el dueño
+            $v = dash_verificar_pin($conn, $hardware_id, $param_pin_actual);
+            if (!$v['ok']) {
+                dash_responder($v['codigo'] === 'bloqueado' ? 429 : 403, [
+                    'status' => 'error',
+                    'codigo' => $v['codigo'] === 'bloqueado' ? 'bloqueado'
+                              : ($v['codigo'] === 'pin_incorrecto' ? 'pin_incorrecto' : 'clave_invalida'),
+                    'restantes' => $v['restantes'], 'reintentar_en' => $v['reintentar_en'],
+                ]);
+            }
+            $reconectar = true;
+        } else {
+            dash_responder(403, ['status' => 'error', 'codigo' => 'clave_invalida']);
+        }
+    }
+
     $sql = "INSERT INTO dashboard_pos
                 (hardware_id, negocio, ventas_hoy, tickets_hoy, ganancia_hoy,
                  abonos_hoy, turno_usuario, turno_inicio, turno_abierto,
@@ -273,7 +311,86 @@ try {
                      WHERE fecha < (CURRENT_DATE - INTERVAL 120 DAY) LIMIT 5000");
     }
 
-    echo json_encode(['status' => 'exitoso']);
+    // ── Panel móvil v2: cada bloque es independiente ─────────────────────────
+    // Si la migración 2026-10-09 todavía no se corrió, el bloque cae al catch, se
+    // avisa en la respuesta y todo lo anterior (ya guardado arriba) sigue igual.
+    $protegido_ahora = $prot['clave_hash'] !== null;
+
+    // (a) PIN y clave. Aquí ya está autorizado: sin PIN es abierto; con PIN la
+    //     clave coincidió (o se reconectó con el PIN actual).
+    try {
+        if ($reconectar) {
+            $conn->prepare('UPDATE dashboard_pos SET clave_hash = :c WHERE hardware_id = :id')
+                 ->execute([':c' => hash('sha256', $param_clave), ':id' => $hardware_id]);
+        }
+        if ($param_pin_clear && $protegido_ahora) {
+            $conn->prepare('UPDATE dashboard_pos SET pin_hash = NULL, clave_hash = NULL, pin_fallos = 0,
+                                   pin_bloqueo_hasta = NULL WHERE hardware_id = :id')
+                 ->execute([':id' => $hardware_id]);
+            $protegido_ahora = false;
+        } elseif ($param_pin !== '') {
+            $hash_pin = password_hash($param_pin, PASSWORD_DEFAULT);
+            if (!$protegido_ahora) {
+                if (dash_clave_valida($param_clave)) {   // activar protección por primera vez
+                    $conn->prepare('UPDATE dashboard_pos SET pin_hash = :p, clave_hash = :c, pin_fallos = 0,
+                                           pin_bloqueo_hasta = NULL WHERE hardware_id = :id')
+                         ->execute([':p' => $hash_pin, ':c' => hash('sha256', $param_clave), ':id' => $hardware_id]);
+                    $protegido_ahora = true;
+                } else {
+                    $avisos[] = 'pin_sin_clave';
+                }
+            } else {                                      // cambiar el PIN
+                $conn->prepare('UPDATE dashboard_pos SET pin_hash = :p, pin_fallos = 0,
+                                       pin_bloqueo_hasta = NULL WHERE hardware_id = :id')
+                     ->execute([':p' => $hash_pin, ':id' => $hardware_id]);
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('sync_pos.php pin: ' . $e->getMessage());
+        $avisos[] = 'pin_no_disponible';
+    }
+
+    // (b) pagos, caja, cancelaciones e inventario
+    $extra_in = dash_json_param('extra', DASH_MAX_EXTRA_BYTES);
+    if ($extra_in === false) {
+        $avisos[] = 'extra_descartado';
+    } elseif ($extra_in !== null) {
+        try {
+            $extra_limpio = dash_sanear_extra($extra_in);
+            if ($extra_limpio) dash_guardar_extra($conn, $hardware_id, $extra_limpio);
+        } catch (PDOException $e) {
+            error_log('sync_pos.php extra: ' . $e->getMessage());
+            $avisos[] = 'extra_no_disponible';
+        }
+    }
+
+    // (c) días recalculados por el POS: corrige días pasados (idempotente)
+    $dias_in = dash_json_param('dias', 131072);
+    if ($dias_in === false) {
+        $avisos[] = 'dias_descartado';
+    } elseif ($dias_in !== null) {
+        try {
+            dash_guardar_dias($conn, $hardware_id, dash_sanear_dias($dias_in, $hoy));
+        } catch (PDOException $e) {
+            error_log('sync_pos.php dias: ' . $e->getMessage());
+            $avisos[] = 'dias_no_disponible';
+        }
+    }
+
+    // (d) meses del año recalculados por el POS
+    $meses_in = dash_json_param('meses', 16384);
+    if ($meses_in === false) {
+        $avisos[] = 'meses_descartado';
+    } elseif ($meses_in !== null) {
+        try {
+            dash_guardar_meses($conn, $hardware_id, dash_sanear_meses($meses_in));
+        } catch (PDOException $e) {
+            error_log('sync_pos.php meses: ' . $e->getMessage());
+            $avisos[] = 'meses_no_disponible';
+        }
+    }
+
+    echo json_encode(['status' => 'exitoso', 'protegido' => $protegido_ahora, 'avisos' => $avisos]);
 
 } catch (PDOException $e) {
     if (isset($conn) && $conn->inTransaction()) $conn->rollBack();

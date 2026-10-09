@@ -1,10 +1,24 @@
 {
-  "version": "3.2.0",
+  "version": "3.3.0",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Al cambiar un precio o importar desde Excel eliges si aplica solo a tu tienda o a todas, y en Inventario se ve qué productos cobran distinto aquí",
+  "changelog": "Panel Móvil Renovado",
   "mandatory": false,
 
   "historial": [
+    {
+  "version": "3.3.0",
+  "fecha": "2026-10-09",
+  "titulo": "Panel móvil completo y protegido",
+  "cambios": [
+    "Panel móvil renovado: caja del turno, cómo pagaron tus clientes, cancelaciones y devoluciones del día e inventario por reponer, además de las ventas.",
+    "Compara el día contra ayer y contra la semana pasada, y el mes contra el anterior.",
+    "Si cancelas o devuelves una venta de otro día, las cifras del celular se corrigen solas.",
+    "El año completo aparece desde el primer día, no solo desde que se activó el panel.",
+    "Protege tu panel con un PIN de 6 a 8 dígitos en Configuración > Panel móvil, y copia o manda por WhatsApp tu enlace desde ahí.",
+    "El panel ya no se pone en rojo cuando la tienda está tranquila.",
+    "Las cancelaciones y devoluciones ahora guardan quién las hizo y cuándo."
+  ]
+    },
     {
       "version": "3.2.0",
       "fecha": "2026-10-04",
