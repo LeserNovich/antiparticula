@@ -15,11 +15,12 @@
 
 const API_BASE   = '/get_dashboard_data.php';
 const API_AUTH   = '/dashboard_auth.php';
+const WHATSAPP_VENTAS = '525584323945';   // el mismo WhatsApp de ventas del sitio
 const REFRESH_MS = 60 * 1000;
 const STALE_MIN  = 30;            // minutos sin sync del POS => badge rojo
 const OFFLINE_MS = 3 * 60 * 1000; // sin respuesta del servidor => banner
 const TZ         = 'America/Mexico_City'; // la misma que usa el servidor para "hoy"
-const FIRMA_DOM  = 'v3';
+const FIRMA_DOM  = 'v5';
 const TURNO_LARGO_H = 14;         // un turno abierto más de esto merece un aviso
 
 const MESES   = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -35,7 +36,7 @@ let cargando     = false;
 let hwIdActual   = null;
 
 // Estado de la interfaz (sobrevive a los refrescos porque el DOM no se reconstruye)
-const ui = { tab: 'hoy', sub: 'semana', sel: { horas: null, semana: null, mes: null }, masVentas: false };
+const ui = { tab: 'hoy', sub: 'semana', sel: { horas: null, semana: null, mes: null }, masVentas: false, top: 'hoy' };
 const htmlPrevio = {};     // último HTML escrito por clave: evita reescribir si no cambió
 
 // ── Extraer hardware_id de la URL ───────────────────────────────
@@ -219,11 +220,15 @@ function derivar(data) {
     const turnoDesde   = !pIni ? '' : (claveDe(pIni.y, pIni.mo, pIni.d) === sumarDias(ahora.clave, -1)
         ? 'ayer' : `el ${pIni.d} ${MESES[pIni.mo - 1]}`);
 
+    const mes    = datosMes(dias, ingresosHoy, gananciaHoy, ahora);
+    const gastos = datosGastos(extra);
+
     return {
         negocio:      data.negocio || 'Antiparticula POS',
         minutos,
         stale:        minutos > STALE_MIN,
         protegido:    !!data.protegido,
+        aviso:        avisoPremium(data.acceso, ahora.clave, data.negocio),
 
         ingresosHoy,
         ventasHoy, gananciaHoy, ticketsHoy, abonosHoy,
@@ -251,11 +256,19 @@ function derivar(data) {
         caja:         datosCaja(extra),
         cancel:       datosCancelaciones(extra),
         inv:          datosInventario(extra),
+        sesion:       datosSesion(extra, turnoAbierto),
+        top:          datosTop(extra),
+        cajeros:      datosCajeros(extra),
+        apartados:    datosApartados(extra),
+        presupuestos: datosPresupuestos(extra),
+        gastos,
+        meta:         datosMeta(extra, ingresosHoy),
 
         horas:        datosHoras(data, ahora),
         semana,
         semanaAnterior: comparativoSemanaAnterior(semana, dias, ahora.clave),
-        mes:          datosMes(dias, ingresosHoy, gananciaHoy, ahora),
+        mes,
+        utilidad:     datosUtilidad(mes, gastos),
         ventas:       Array.isArray(data.ultimas_ventas) ? data.ultimas_ventas : [],
 
         anual,
@@ -349,6 +362,90 @@ function datosInventario(extra) {
         urgentes: (Array.isArray(i.urgentes) ? i.urgentes : []).map(u => ({
             nombre: u.nombre || '', cantidad: Number(u.cantidad) || 0, minimo: Number(u.minimo) || 0, unidad: Number(u.unidad) || 0 })),
     };
+}
+
+// ── Etapa 2: sesión, más vendidos, cajeros, por cobrar, gastos y meta ──
+// Cada bloque es opcional: un POS que no manda la clave deja la tarjeta oculta, sin avisos ni ceros inventados.
+
+// «a las 6:05 p. m.» · «ayer a las …» · «el 14 Oct a las …». Vacío si la fecha no se entiende.
+function textoMomento(raw) {
+    const p = parseFechaPOS(raw);
+    if (!p || p.mo < 1 || p.mo > 12 || p.d < 1 || p.d > 31 || p.h > 23 || p.mi > 59) return '';
+    const hoy = ahoraMX();
+    const clave = claveDe(p.y, p.mo, p.d);
+    const hora = horaLegible(p.h, p.mi);
+    if (clave === hoy.clave) return `a las ${hora}`;
+    if (clave === sumarDias(hoy.clave, -1)) return `ayer a las ${hora}`;
+    return `el ${p.d} ${MESES[p.mo - 1]} a las ${hora}`;
+}
+
+// El POS salió a la pantalla de inicio de sesión dejando el turno abierto (extra.sesion)
+function datosSesion(extra, turnoAbierto) {
+    const s = extra && extra.sesion;
+    if (!turnoAbierto || !s || s.cerrada !== true) return { hay: false };
+    return { hay: true, cuando: textoMomento(s.desde) };
+}
+
+// Lo más vendido por importe: { hoy, semana, mes }, cada uno con hasta 5 renglones
+const TOP_VENTANAS = [['hoy', 'Hoy'], ['semana', '7 días'], ['mes', 'Mes']];
+
+function datosTop(extra) {
+    const t = extra && extra.top_productos;
+    if (!t || typeof t !== 'object') return { hay: false };
+    const lista = k => (Array.isArray(t[k]) ? t[k] : []).map(p => ({
+        nombre:   String((p && p.nombre) || '').trim() || 'Sin nombre',
+        importe:  Math.max(0, Number(p && p.importe)  || 0),
+        cantidad: Math.max(0, Number(p && p.cantidad) || 0),
+        unidad:   Number(p && p.unidad) || 0,
+    }));
+    return { hay: true, hoy: lista('hoy'), semana: lista('semana'), mes: lista('mes') };
+}
+
+// Ventas de hoy por cajero. Con un solo cajero no dice nada que el total no diga: no se muestra.
+function datosCajeros(extra) {
+    if (!extra || !Array.isArray(extra.por_cajero)) return { hay: false };
+    const items = extra.por_cajero.map(c => ({
+        cajero:  String((c && c.cajero) || '').trim() || 'Sin cajero',
+        tickets: Math.max(0, Number(c && c.tickets) || 0),
+        ventas:  Math.max(0, Number(c && c.ventas)  || 0),
+    }));
+    return { hay: items.length >= 2, items };
+}
+
+// Apartados sin entregar y lo que falta por cobrarles. Sin ninguno, la tarjeta no aparece.
+function datosApartados(extra) {
+    const a = extra && extra.apartados;
+    if (!a || typeof a !== 'object') return { hay: false };
+    const activos = Math.max(0, Number(a.activos) || 0), porCobrar = Math.max(0, Number(a.por_cobrar) || 0);
+    return { hay: activos > 0 || porCobrar > 0, activos, porCobrar, vencidos: Math.max(0, Number(a.vencidos) || 0) };
+}
+
+function datosPresupuestos(extra) {
+    const p = extra && extra.presupuestos;
+    if (!p || typeof p !== 'object') return { hay: false };
+    const vigentes = Math.max(0, Number(p.vigentes) || 0);
+    return { hay: vigentes > 0, vigentes, monto: Math.max(0, Number(p.monto) || 0),
+             porVencer: Math.max(0, Number(p.por_vencer) || 0), vencidos: Math.max(0, Number(p.vencidos) || 0) };
+}
+
+function datosGastos(extra) {
+    const g = extra && extra.gastos;
+    if (!g || typeof g !== 'object') return { hay: false };
+    return { hay: true, hoy: Math.max(0, Number(g.hoy) || 0), mes: Math.max(0, Number(g.mes) || 0) };
+}
+
+// Ganancia del mes menos los gastos registrados en el POS. No se llama «neta»: lo que no se registre allá no se descuenta.
+function datosUtilidad(mes, gastos) {
+    if (!gastos.hay || !mes.hayFilas) return { hay: false };
+    return { hay: true, ganancia: mes.ganancia, gastos: gastos.mes, valor: mes.ganancia - gastos.mes };
+}
+
+// Meta diaria (la define el dueño en el POS). Se compara con los ingresos de hoy: ventas y abonos.
+function datosMeta(extra, ingresosHoy) {
+    const meta = Math.max(0, Number(extra && extra.meta_diaria) || 0);
+    if (!(meta > 0)) return { hay: false };
+    const ratio = ingresosHoy / meta;
+    return { hay: true, meta, ratio, pct: Math.floor(ratio * 100), cumplida: ratio >= 1 };
 }
 
 // ── Ventas por hora ─────────────────────────────────────────────
@@ -522,6 +619,10 @@ function montar() {
                 <div class="vs-track"><div class="vs-fill" data-k="vsFill"></div></div>
             </div>
             <div class="vs-semana" data-k="vsSemana" hidden></div>
+            <div class="vs vs-meta" data-k="meta" hidden>
+                <div class="vs-line"><span data-k="metaTexto"></span><span data-k="metaValor"></span></div>
+                <div class="vs-track"><div class="vs-fill" data-k="metaFill"></div></div>
+            </div>
         </section>
     </div></header>
 
@@ -535,6 +636,8 @@ function montar() {
             </div>
         </div>
         <div class="banner" data-k="banner" role="status" hidden></div>
+        <div class="aviso-premium" data-k="avisoPremium" hidden><span data-k="avisoPremiumTexto"></span>
+            <a data-k="avisoPremiumLink" href="#" target="_blank" rel="noopener">Contratar Premium</a></div>
 
         <!-- ═════════ HOY ═════════ -->
         <section class="panel" id="panel-hoy" role="tabpanel" aria-labelledby="tab-hoy" data-panel="hoy">
@@ -566,6 +669,22 @@ function montar() {
                 <div data-k="pagosCuerpo"></div>
             </div>
 
+            <div class="tile" data-k="topTile" hidden>
+                <div class="tile-label">Lo más vendido</div>
+                <div class="seg seg-sm" role="tablist" aria-label="Periodo de lo más vendido">
+                    <button type="button" role="tab" data-top="hoy"    aria-selected="true">Hoy</button>
+                    <button type="button" role="tab" data-top="semana" aria-selected="false">7 días</button>
+                    <button type="button" role="tab" data-top="mes"    aria-selected="false">Mes</button>
+                </div>
+                <div class="hlist" data-k="topLista"></div>
+                <p class="tile-note pie-nota">Importe de cada producto antes de los descuentos que se aplican a todo el ticket.</p>
+            </div>
+
+            <div class="tile" data-k="cajerosTile" hidden>
+                <div class="tile-label">Ventas por cajero hoy</div>
+                <div class="hlist" data-k="cajerosLista"></div>
+            </div>
+
             <div class="tile">
                 <div class="tile-label">Ventas por hora</div>
                 <div data-k="horasGrafica"></div>
@@ -579,8 +698,11 @@ function montar() {
                 </div>
                 <div class="kv"><span>Cajero</span><span data-k="turnoUsuario"></span></div>
                 <div class="kv"><span>Apertura</span><span data-k="turnoInicio"></span></div>
+                <div class="kv" data-k="sesionFila" hidden><span>Sesión</span><span data-k="sesionTexto"></span></div>
                 <div class="kv"><span>Ingresos del turno</span><span data-k="ingresosTurno"></span></div>
             </div>
+
+            <button type="button" class="btn-ghost btn-compartir" data-act="compartir">Compartir resumen del día</button>
 
             <div class="tile">
                 <div class="tile-label">Últimas ventas</div>
@@ -590,8 +712,10 @@ function montar() {
 
         <!-- ═════════ CAJA ═════════ -->
         <section class="panel" id="panel-caja" role="tabpanel" aria-labelledby="tab-caja" data-panel="caja" hidden>
+            <div class="tile info" data-k="sesionAviso" role="status" hidden></div>
             <div class="tile alerta" data-k="turnoAlerta" role="alert" hidden></div>
             <div data-k="cajaCuerpo" class="panel"></div>
+            <div data-k="cobrarCuerpo" class="panel" hidden></div>
             <div class="tile" data-k="cancelTile">
                 <div class="tile-head">
                     <div class="tile-label">Cancelaciones y devoluciones de hoy</div>
@@ -664,6 +788,12 @@ function montar() {
                     <div class="tile">
                         <div class="tile-label">Ganancia del mes</div>
                         <div class="kpi-value kpi-sm c-ganancia" data-k="mesGanancia"></div>
+                    </div>
+                    <div class="tile" data-k="utilidadTile" hidden>
+                        <div class="tile-label">Utilidad del mes</div>
+                        <div class="kpi-value kpi-sm" data-k="utilidadValor"></div>
+                        <div class="kpi-sub" data-k="utilidadSub"></div>
+                        <p class="tile-note pie-nota">Ganancia menos los gastos registrados en el punto de venta; lo que no se registre allá no se descuenta.</p>
                     </div>
                     <div class="tile">
                         <div class="tile-label">Ventas por día del mes</div>
@@ -766,6 +896,12 @@ function pintar(d) {
         : `POS actualizado ${tiempoRelativo(d.minutos)}`);
     setClass('syncBadge', 'stale', d.stale);
     setHidden('salir', !d.protegido);
+    setHidden('avisoPremium', !d.aviso);
+    if (d.aviso) {
+        setText('avisoPremiumTexto', d.aviso.texto);
+        const a = el('avisoPremiumLink');
+        if (a && a.getAttribute('href') !== d.aviso.url) a.setAttribute('href', d.aviso.url);
+    }
 
     // ── Hoy ──
     setText('ingresosHoy', formatMXN(d.ingresosHoy));
@@ -791,6 +927,15 @@ function pintar(d) {
             + (sp.supera ? ' · ya lo superas' : ` · llevas el ${sp.pct}%`));
     }
 
+    const mt = d.meta;
+    setHidden('meta', !mt.hay);
+    if (mt.hay) {
+        setText('metaTexto', mt.cumplida ? 'Meta del día cumplida' : `Meta del día: llevas el ${mt.pct}%`);
+        setText('metaValor', formatMXN(mt.meta));
+        setClass('meta', 'is-over', mt.cumplida);
+        setVar('metaFill', 'width', Math.min(100, Math.max(0, mt.ratio * 100)).toFixed(1) + '%');
+    }
+
     setText('gananciaHoy', formatMXN(d.gananciaHoy));
     setHidden('margenChip', d.ventasHoy <= 0);
     setText('margenChip', `Margen ${d.margenTxt}`);
@@ -806,16 +951,21 @@ function pintar(d) {
     setText('ticketProm',  formatMXN(d.ticketProm));
 
     pintarPagos(d);
+    pintarTop(d);
+    pintarCajeros(d);
     pintarHoras(d);
 
     setText('turnoUsuario', d.turnoUsuario);
     setText('turnoInicio',  d.turnoInicio);
     setHtml('ingresosTurno', escHtml(formatMXN(d.ingresosTurno)) + `<small>${d.ticketsTurno} ticket${d.ticketsTurno !== 1 ? 's' : ''}`
         + (d.abonosTurno > 0 ? ` + ${escHtml(formatMXN(d.abonosTurno))} en apartados` : '') + '</small>');
-    setHtml('turnoEstado', !d.turnoAbierto
+    const chipTurno = !d.turnoAbierto
         ? '<span class="chip">Cerrado</span>'
         : (d.turnoAlerta ? `<span class="chip is-warn">${d.turnoDesdeAyer ? 'Abierto desde ' + escHtml(d.turnoDesde) : 'Abierto hace ' + Math.round(d.turnoMinutos / 60) + ' h'}</span>`
-                         : '<span class="chip is-good">Abierto</span>'));
+                         : '<span class="chip is-good">Abierto</span>');
+    setHtml('turnoEstado', `<span class="chips">${chipTurno}${d.sesion.hay ? '<span class="chip">Sesión cerrada</span>' : ''}</span>`);
+    setHidden('sesionFila', !d.sesion.hay);
+    if (d.sesion.hay) setText('sesionTexto', d.sesion.cuando ? 'Cerrada ' + d.sesion.cuando : 'Cerrada');
 
     setHtml('ultimasVentas', htmlVentas(d.ventas, ui.masVentas));
 
@@ -831,6 +981,106 @@ function pintar(d) {
     pintarAnio(d);
 
     setText('pie', 'Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
+}
+
+// ── Lo más vendido ──────────────────────────────────────────────
+function pintarTop(d) {
+    const t = d.top;
+    setHidden('topTile', !t.hay);
+    if (!t.hay) return;
+    document.querySelectorAll('[data-top]').forEach(b =>
+        b.setAttribute('aria-selected', String(b.getAttribute('data-top') === ui.top)));
+    const lista = t[ui.top] || [];
+    if (lista.length === 0) {
+        setHtml('topLista', `<p class="empty">${ui.top === 'hoy' ? 'Aún no hay ventas hoy' : 'Sin ventas en este periodo'}</p>`);
+        return;
+    }
+    const max = Math.max(1, ...lista.map(x => x.importe));
+    setHtml('topLista', lista.map((x, i) => `<div class="hrow hrow-top">
+        <span class="hn">${i + 1}. ${escHtml(x.nombre)}</span>
+        <span class="hr"><b>${escHtml(formatMXN(x.importe))}</b><small>${escHtml(formatCantidad(x.cantidad, x.unidad))}</small></span>
+        <span class="hbar"><i style="--w:${(x.importe / max * 100).toFixed(1)}%"></i></span></div>`).join(''));
+}
+
+// ── Ventas por cajero ───────────────────────────────────────────
+function pintarCajeros(d) {
+    const c = d.cajeros;
+    setHidden('cajerosTile', !c.hay);
+    if (!c.hay) return;
+    const max = Math.max(1, ...c.items.map(x => x.ventas));
+    setHtml('cajerosLista', c.items.map(x => `<div class="hrow hrow-top">
+        <span class="hn">${escHtml(x.cajero)}</span>
+        <span class="hr"><b>${escHtml(formatMXN(x.ventas))}</b><small>${x.tickets} ${plural(x.tickets, 'ticket', 'tickets')}</small></span>
+        <span class="hbar"><i style="--w:${(x.ventas / max * 100).toFixed(1)}%"></i></span></div>`).join(''));
+}
+
+// ── Por cobrar, presupuestos y gastos (Caja) ────────────────────
+function pintarPorCobrar(d) {
+    const partes = [];
+    const a = d.apartados;
+    if (a.hay) {
+        partes.push(`<div class="tile"><div class="tile-head"><div class="tile-label">Apartados por cobrar</div>`
+            + (a.vencidos > 0 ? `<span class="chip is-bad">${a.vencidos} ${plural(a.vencidos, 'vencido', 'vencidos')}</span>` : '') + `</div>
+            <div class="kpi-value kpi-sm c-promedio">${escHtml(formatMXN(a.porCobrar))}</div>
+            <div class="kpi-sub">${a.activos} ${plural(a.activos, 'apartado sin entregar', 'apartados sin entregar')}</div></div>`);
+    }
+    const p = d.presupuestos;
+    if (p.hay) {
+        partes.push(`<div class="tile"><div class="tile-head"><div class="tile-label">Presupuestos pendientes</div><span class="chips">`
+            + (p.porVencer > 0 ? `<span class="chip is-warn">${p.porVencer} por vencer</span>` : '')
+            + (p.vencidos > 0 ? `<span class="chip is-bad">${p.vencidos} ${plural(p.vencidos, 'vencido', 'vencidos')}</span>` : '') + `</span></div>
+            <div class="kpi-value kpi-sm c-tickets">${escHtml(formatMXN(p.monto))}</div>
+            <div class="kpi-sub">${p.vigentes} ${plural(p.vigentes, 'presupuesto sin respuesta', 'presupuestos sin respuesta')}</div></div>`);
+    }
+    const g = d.gastos;
+    if (g.hay) {
+        partes.push(`<div class="tile"><div class="tile-label">Gastos del negocio</div><div class="grid2 gastos">
+            <div><div class="kpi-value kpi-sm c-ventas">${escHtml(formatMXN(g.hoy))}</div><div class="kpi-sub">hoy</div></div>
+            <div><div class="kpi-value kpi-sm c-ventas">${escHtml(formatMXN(g.mes))}</div><div class="kpi-sub">este mes</div></div></div>
+            <p class="tile-note pie-nota">${g.hoy === 0 && g.mes === 0 ? 'Sin gastos registrados este mes. ' : ''}Incluye los gastos pagados con el cajón; lo que no se registre en el punto de venta no aparece.</p></div>`);
+    }
+    setHtml('cobrarCuerpo', partes.join(''));
+    setHidden('cobrarCuerpo', partes.length === 0);
+}
+
+// ── Compartir el resumen del día ────────────────────────────────
+// WhatsApp no deja adjuntar nada desde un enlace: se comparte texto. «$ 1,200.00» con espacio normal
+// (el fino sin salto del panel puede verse raro en otras aplicaciones).
+function dineroPlano(c) { return formatMXN(c).replace(/\u202f/g, ' '); }
+
+function textoResumen(d) {
+    const hoy = ahoraMX();
+    const fecha = new Date(hoy.clave + 'T12:00:00Z')
+        .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const L = [`*${d.negocio}*`, `Resumen del ${fecha}`, ''];
+    L.push(`Ingresos: ${dineroPlano(d.ingresosHoy)}`
+        + (d.abonosHoy > 0 ? ` (ventas ${dineroPlano(d.ventasHoy)} + apartados ${dineroPlano(d.abonosHoy)})` : ''));
+    L.push(`Ganancia: ${dineroPlano(d.gananciaHoy)}` + (d.ventasHoy > 0 ? ` (margen ${d.margenTxt})` : ''));
+    L.push(`Tickets: ${d.ticketsHoy}` + (d.ticketsHoy > 0 ? ` · promedio ${dineroPlano(d.ticketProm)}` : ''));
+    if (d.pagos.hay && d.pagos.total > 0) {
+        L.push('Cobros: ' + d.pagos.partes.filter(x => x.v > 0).map(x => `${x.label.toLowerCase()} ${dineroPlano(x.v)}`).join(' · '));
+    }
+    if (d.meta.hay) {
+        L.push(d.meta.cumplida ? `Meta del día: cumplida (${dineroPlano(d.meta.meta)})`
+                               : `Meta del día: ${d.meta.pct}% de ${dineroPlano(d.meta.meta)}`);
+    }
+    const top = d.top.hay ? d.top.hoy.slice(0, 3) : [];
+    if (top.length) {
+        L.push('', 'Lo más vendido:');
+        top.forEach((x, i) => L.push(`${i + 1}. ${x.nombre} · ${dineroPlano(x.importe)}`));
+    }
+    if (d.caja.estado === 'abierto') L.push('', `Efectivo esperado en caja: ${dineroPlano(d.caja.esperado)}`);
+    return L.join('\n');
+}
+
+async function compartirResumen() {
+    if (!ultimoD) return;
+    const texto = textoResumen(ultimoD);
+    if (navigator.share) {
+        try { await navigator.share({ text: texto }); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; /* el sistema no pudo: se cae a WhatsApp */ }
+    }
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
 }
 
 // ── Gráfica de columnas ─────────────────────────────────────────
@@ -908,6 +1158,14 @@ function pintarCaja(d) {
             + filaCaja('Transferencia', c.transferencia, 1)
             + `</div>`);
     }
+
+    // Sesión cerrada con el turno abierto: informativo, convive con el aviso de turno largo
+    setHidden('sesionAviso', !d.sesion.hay);
+    if (d.sesion.hay) {
+        setHtml('sesionAviso', `<div class="info-t">Sesión cerrada con el turno abierto</div>
+            <p>La sesión se cerró${d.sesion.cuando ? ' ' + escHtml(d.sesion.cuando) : ''} y el turno de ${escHtml(d.turnoUsuario)} sigue abierto; mientras no se vuelva a iniciar sesión, nadie atiende el punto de venta.</p>`);
+    }
+    pintarPorCobrar(d);
 
     // Turno que se quedó abierto: lo más común es que se olvidó cerrar
     const mostrarAlerta = d.turnoAlerta;
@@ -1054,6 +1312,14 @@ function pintarMes(d) {
         ? `${m.anterior.nombre} a esta misma fecha: <b>${escHtml(formatMXN(m.anterior.total))}</b> · `
           + `<span class="${m.anterior.pct >= 0 ? 'up' : 'down'}">${deltaTxt(m.anterior.pct)}</span>` : '');
     setText('mesGanancia', formatMXN(m.ganancia));
+    const u = d.utilidad;
+    setHidden('utilidadTile', !u.hay);
+    if (u.hay) {
+        setText('utilidadValor', (u.valor < 0 ? '\u2212' : '') + formatMXN(Math.abs(u.valor)));
+        setClass('utilidadValor', 'c-ganancia', u.valor >= 0);
+        setClass('utilidadValor', 'c-alerta', u.valor < 0);
+        setText('utilidadSub', `Ganancia ${formatMXN(u.ganancia)} \u2212 gastos ${formatMXN(u.gastos)}`);
+    }
 
     const sel = m.items.some(x => x.key === ui.sel.mes) ? ui.sel.mes : null;
     ui.sel.mes = sel;
@@ -1188,15 +1454,17 @@ function alternarTema() {
 }
 
 function alClic(ev) {
-    const t = ev.target.closest('[data-tab],[data-sub],[data-chart],[data-act]');
+    const t = ev.target.closest('[data-tab],[data-sub],[data-top],[data-chart],[data-act]');
     if (!t) return;
     if (t.hasAttribute('data-tab'))   { activarTab(t.getAttribute('data-tab')); return; }
     if (t.hasAttribute('data-sub'))   { activarSub(t.getAttribute('data-sub')); return; }
+    if (t.hasAttribute('data-top'))   { ui.top = t.getAttribute('data-top'); if (ultimoD) pintarTop(ultimoD); return; }
     if (t.hasAttribute('data-chart')) { seleccionarColumna(t.getAttribute('data-chart'), t.getAttribute('data-key')); return; }
     const act = t.getAttribute('data-act');
     if (act === 'tema') alternarTema();
     else if (act === 'refrescar') { if (hwIdActual) fetchData(hwIdActual, false); }
     else if (act === 'salir') cerrarSesion();
+    else if (act === 'compartir') compartirResumen();
     else if (act === 'masVentas') {
         ui.masVentas = !ui.masVentas;
         if (ultimoD) setHtml('ultimasVentas', htmlVentas(ultimoD.ventas, ui.masVentas));
@@ -1292,6 +1560,61 @@ async function enviarPin(ev) {
         boton.disabled = false;
         setText('pinMsg', 'Sin conexión. Revisa tu internet e inténtalo de nuevo.');
     }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Premium: el panel es parte de la suscripción
+// ────────────────────────────────────────────────────────────────
+function urlContratar(negocio) {
+    const texto = `Hola, quiero contratar Premium para el panel móvil de ${negocio || 'mi negocio'} (panel ${hwIdActual}).`;
+    return `https://wa.me/${WHATSAPP_VENTAS}?text=${encodeURIComponent(texto)}`;
+}
+
+function diasHasta(desdeClave, hastaClave) {
+    const ms = k => { const [y, m, d] = k.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+    return Math.round((ms(hastaClave) - ms(desdeClave)) / 86400000);
+}
+
+// Los días gratis (prueba de un panel nuevo, o el aviso a los paneles de antes). Con Premium, o con un servidor
+// sin la migración (estado «abierto»), no se dice nada.
+function avisoPremium(acceso, hoyClave, negocio) {
+    if (!acceso || acceso.estado !== 'prueba' || !/^\d{4}-\d{2}-\d{2}$/.test(acceso.hasta || '')) return null;
+    const quedan = diasHasta(hoyClave, acceso.hasta);
+    if (quedan < 0) return null;
+    const [, m, d] = acceso.hasta.split('-').map(Number);
+    const cuando = quedan === 0 ? 'Hoy es el último día gratis de tu panel.'
+        : quedan === 1 ? 'Tu panel es gratis hasta mañana.'
+        : `Tu panel es gratis hasta el ${d} ${MESES[m - 1]} (quedan ${quedan} días).`;
+    return { texto: cuando + ' Después necesitarás Premium.', url: urlContratar(negocio) };
+}
+
+// Sin Premium ni días gratis: se explica qué pasó y se ofrece contratarlo.
+function showPremium(j) {
+    const firma = 'premium:' + (j.desde || '');
+    if (estructura === firma) return;   // el refresco de cada minuto no vuelve a montar lo mismo
+    const negocio = j.negocio || 'Tu negocio';
+    let termino = '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(j.desde || '')) {
+        const [y, m, d] = j.desde.split('-').map(Number);
+        termino = `Tus días gratis terminaron el ${d} ${MESES[m - 1]} ${y}. `;
+    }
+    document.getElementById('app').innerHTML = `
+    <header class="top"><div class="top-in">
+        <div class="bar">${MARCA}</div>
+        <span class="kicker">Panel de ventas</span>
+        <h1>${escHtml(negocio)}</h1>
+    </div></header>
+    <main class="sheet"><div class="sheet-in">
+        <div class="premium-box" data-k="premiumBox">
+            <h2>El panel móvil es parte de Premium</h2>
+            <p data-k="premiumTexto">${escHtml(termino)}Con Premium vuelves a ver desde el celular las ventas, la caja y el inventario de tu tienda.</p>
+            <a class="btn-solid" data-k="premiumContratar" href="${escHtml(urlContratar(negocio))}" target="_blank" rel="noopener">Contratar Premium por WhatsApp</a>
+            <button type="button" class="btn-ghost" data-act="refrescar">Ya lo activé: volver a revisar</button>
+            <p class="nota">¿Ya tienes Premium? Actualiza el programa de tu tienda a la versión más reciente y abre el panel otra vez.</p>
+        </div>
+    </div></main>`;
+    estructura = firma;
+    ultimoD = null;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1428,6 +1751,18 @@ async function fetchData(hwId, isFirstLoad) {
                 return;
             }
         }
+        if (res.status === 403) {
+            // Sin Premium ni días gratis el servidor no entrega datos (y lo guardado en el teléfono tampoco se muestra)
+            let j = null;
+            try { j = await res.json(); } catch (e) { /* sin cuerpo */ }
+            if (j && j.status === 'premium_requerido') {
+                borrarCache(hwId);
+                desdeCache = null;
+                ultimoOk = null;
+                showPremium(j);
+                return;
+            }
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'exitoso') throw new Error(data.message || 'Error desconocido');
@@ -1504,6 +1839,8 @@ function registrarServiceWorker() {
         showError('URL inválida. Usa: antiparticula.com/dashboard/TU_HARDWARE_ID');
         return;
     }
+    // /dashboard/T-<código> es el panel de todas las tiendas: lo atiende tiendas.js (se carga después de este archivo)
+    if (/^T-/.test(hwId)) return;
     hwIdActual = hwId;
 
     const app = document.getElementById('app');

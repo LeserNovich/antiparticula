@@ -390,7 +390,34 @@ try {
         }
     }
 
-    echo json_encode(['status' => 'exitoso', 'protegido' => $protegido_ahora, 'avisos' => $avisos]);
+    // (e) Premium: la clave firmada que manda el POS (3.4.0+) y los días gratis del panel. Ver
+    //     sql/2026-10-20_panel_premium.sql. Un POS anterior no manda clave: cuando terminen sus días
+    //     gratis, el panel le pide actualizar. Sin la migración, acceso = null y el panel sigue abierto.
+    $acceso = null;
+    $param_licencia = isset($_POST['licencia']) && is_string($_POST['licencia']) ? $_POST['licencia'] : '';
+    $param_equipo   = isset($_POST['equipo'])   && is_string($_POST['equipo'])   ? strtoupper(trim($_POST['equipo'])) : '';
+    $equipo = dash_equipo_valido($param_equipo) ? $param_equipo : null;
+    try {
+        if ($equipo !== null) dash_registrar_equipo($conn, $equipo);   // antes de fijar los días: cuentan desde la 1.ª vez de la PC
+        dash_fijar_gratis($conn, $hardware_id, $equipo);
+        if ($param_licencia !== '') {
+            $lic = dash_licencia($cfg, $param_licencia);
+            if ($lic === null) {
+                $avisos[] = 'licencia_invalida';
+            } elseif (!dash_registrar_licencia($conn, $hardware_id, $lic)) {
+                $avisos[] = 'licencia_en_otros_paneles';
+            }
+        }
+        $acceso = dash_acceso_de($conn, $hardware_id);
+    } catch (PDOException $e) {
+        // Como las demás partes nuevas: solo se avisa (y se anota) si el POS mandó algo de esto
+        if ($param_licencia !== '' || $equipo !== null) {
+            error_log('sync_pos.php acceso: ' . $e->getMessage());
+            $avisos[] = 'acceso_no_disponible';
+        }
+    }
+
+    echo json_encode(['status' => 'exitoso', 'protegido' => $protegido_ahora, 'avisos' => $avisos, 'acceso' => $acceso]);
 
 } catch (PDOException $e) {
     if (isset($conn) && $conn->inTransaction()) $conn->rollBack();

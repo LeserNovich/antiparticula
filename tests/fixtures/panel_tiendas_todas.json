@@ -1,0 +1,279 @@
+{
+  "negocio" : "Negocio 9f7e66",
+  "hoy" : "2026-10-11",
+  "generado" : "2026-10-11T06:43:45.485879170Z",
+  "sucursales" : [ {
+    "id" : "beca7938-25ed-4072-a215-799978f50b69",
+    "nombre" : "Centro",
+    "clave" : "CEN",
+    "ultimoContacto" : "2026-10-11T06:43:45.067379Z",
+    "turno" : {
+      "id" : 5,
+      "usuario" : "ANA",
+      "inicio" : "11-10-2026 08:00:00",
+      "vigente" : true,
+      "dineroInicio" : 50000,
+      "tickets" : 2,
+      "vendido" : 30000,
+      "efectivoVentas" : 10000,
+      "abonos" : 0,
+      "ingresos" : 0,
+      "retiros" : 3000,
+      "esperado" : 57000,
+      "tarjeta" : 20000,
+      "transferencia" : 0
+    },
+    "inventario" : {
+      "agotados" : 1,
+      "bajoMinimo" : 0
+    },
+    "cancelaciones" : {
+      "cantidad" : 0,
+      "monto" : 0
+    },
+    "traspasosPorRecibir" : 0
+  }, {
+    "id" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+    "nombre" : "Norte",
+    "clave" : "NOR",
+    "ultimoContacto" : "2026-10-11T06:43:45.179105Z",
+    "turno" : null,
+    "inventario" : {
+      "agotados" : 1,
+      "bajoMinimo" : 1
+    },
+    "cancelaciones" : {
+      "cantidad" : 1,
+      "monto" : 7000
+    },
+    "traspasosPorRecibir" : 1
+  } ],
+  "urgentes" : [ {
+    "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+    "sucursal" : "Centro",
+    "nombre" : "Azúcar",
+    "cantidad" : 0,
+    "minimo" : 0,
+    "unidad" : 0
+  }, {
+    "sucursalId" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+    "sucursal" : "Norte",
+    "nombre" : "Azúcar",
+    "cantidad" : 0,
+    "minimo" : 0,
+    "unidad" : 0
+  }, {
+    "sucursalId" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+    "sucursal" : "Norte",
+    "nombre" : "Aceite",
+    "cantidad" : 2000,
+    "minimo" : 5,
+    "unidad" : 0
+  } ],
+  "traspasosEnTransito" : 1,
+  "periodos" : {
+    "hoy" : {
+      "desde" : "2026-10-11",
+      "hasta" : "2026-10-11",
+      "sucursales" : [ {
+        "id" : "beca7938-25ed-4072-a215-799978f50b69",
+        "nombre" : "Centro",
+        "clave" : "CEN",
+        "ventas" : 30000,
+        "ventasTickets" : 30000,
+        "abonos" : 0,
+        "tickets" : 2,
+        "ganancia" : 2000,
+        "ultimoContacto" : "2026-10-11T06:43:45.067379Z"
+      }, {
+        "id" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "nombre" : "Norte",
+        "clave" : "NOR",
+        "ventas" : 5000,
+        "ventasTickets" : 5000,
+        "abonos" : 0,
+        "tickets" : 1,
+        "ganancia" : 1000,
+        "ultimoContacto" : "2026-10-11T06:43:45.179105Z"
+      } ],
+      "total" : {
+        "ventas" : 35000,
+        "ventasTickets" : 35000,
+        "tickets" : 3,
+        "ganancia" : 3000,
+        "ticketPromedio" : 11667
+      },
+      "porDia" : [ {
+        "dia" : "2026-10-11",
+        "sucursalId" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "ventas" : 5000
+      }, {
+        "dia" : "2026-10-11",
+        "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+        "ventas" : 30000
+      } ],
+      "porHora" : [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 5000, 10000, 20000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "formasPago" : {
+        "efectivo" : 15000,
+        "tarjeta" : 20000,
+        "transferencia" : 0,
+        "comision" : 580,
+        "ivaComision" : 93
+      },
+      "productos" : [ {
+        "nombre" : "Coca 600ml",
+        "codigoBarras" : "7501",
+        "pzKg" : 0,
+        "cantidad" : 3000,
+        "importe" : 35000
+      } ]
+    },
+    "ayer" : {
+      "desde" : "2026-10-10",
+      "hasta" : "2026-10-10",
+      "total" : {
+        "ventas" : 8000,
+        "ventasTickets" : 8000,
+        "tickets" : 1,
+        "ganancia" : 1000,
+        "ticketPromedio" : 8000
+      },
+      "sucursales" : [ {
+        "id" : "beca7938-25ed-4072-a215-799978f50b69",
+        "nombre" : "Centro",
+        "clave" : "CEN",
+        "ventas" : 8000,
+        "ventasTickets" : 8000,
+        "abonos" : 0,
+        "tickets" : 1,
+        "ganancia" : 1000,
+        "ultimoContacto" : "2026-10-11T06:43:45.067379Z"
+      }, {
+        "id" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "nombre" : "Norte",
+        "clave" : "NOR",
+        "ventas" : 0,
+        "ventasTickets" : 0,
+        "abonos" : 0,
+        "tickets" : 0,
+        "ganancia" : 0,
+        "ultimoContacto" : "2026-10-11T06:43:45.179105Z"
+      } ]
+    },
+    "semana" : {
+      "desde" : "2026-10-05",
+      "hasta" : "2026-10-11",
+      "total" : {
+        "ventas" : 43000,
+        "ventasTickets" : 43000,
+        "tickets" : 4,
+        "ganancia" : 4000,
+        "ticketPromedio" : 10750
+      },
+      "sucursales" : [ {
+        "id" : "beca7938-25ed-4072-a215-799978f50b69",
+        "nombre" : "Centro",
+        "clave" : "CEN",
+        "ventas" : 38000,
+        "ventasTickets" : 38000,
+        "abonos" : 0,
+        "tickets" : 3,
+        "ganancia" : 3000,
+        "ultimoContacto" : "2026-10-11T06:43:45.067379Z"
+      }, {
+        "id" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "nombre" : "Norte",
+        "clave" : "NOR",
+        "ventas" : 5000,
+        "ventasTickets" : 5000,
+        "abonos" : 0,
+        "tickets" : 1,
+        "ganancia" : 1000,
+        "ultimoContacto" : "2026-10-11T06:43:45.179105Z"
+      } ],
+      "porDia" : [ {
+        "dia" : "2026-10-10",
+        "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+        "ventas" : 8000
+      }, {
+        "dia" : "2026-10-11",
+        "sucursalId" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "ventas" : 5000
+      }, {
+        "dia" : "2026-10-11",
+        "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+        "ventas" : 30000
+      } ],
+      "productos" : [ {
+        "nombre" : "Coca 600ml",
+        "codigoBarras" : "7501",
+        "pzKg" : 0,
+        "cantidad" : 4000,
+        "importe" : 43000
+      } ]
+    },
+    "mes" : {
+      "desde" : "2026-10-01",
+      "hasta" : "2026-10-11",
+      "total" : {
+        "ventas" : 43000,
+        "ventasTickets" : 43000,
+        "tickets" : 4,
+        "ganancia" : 4000,
+        "ticketPromedio" : 10750
+      },
+      "sucursales" : [ {
+        "id" : "beca7938-25ed-4072-a215-799978f50b69",
+        "nombre" : "Centro",
+        "clave" : "CEN",
+        "ventas" : 38000,
+        "ventasTickets" : 38000,
+        "abonos" : 0,
+        "tickets" : 3,
+        "ganancia" : 3000,
+        "ultimoContacto" : "2026-10-11T06:43:45.067379Z"
+      }, {
+        "id" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "nombre" : "Norte",
+        "clave" : "NOR",
+        "ventas" : 5000,
+        "ventasTickets" : 5000,
+        "abonos" : 0,
+        "tickets" : 1,
+        "ganancia" : 1000,
+        "ultimoContacto" : "2026-10-11T06:43:45.179105Z"
+      } ],
+      "porDia" : [ {
+        "dia" : "2026-10-10",
+        "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+        "ventas" : 8000
+      }, {
+        "dia" : "2026-10-11",
+        "sucursalId" : "098262d3-f8c6-49ff-90cb-5072722ca8ba",
+        "ventas" : 5000
+      }, {
+        "dia" : "2026-10-11",
+        "sucursalId" : "beca7938-25ed-4072-a215-799978f50b69",
+        "ventas" : 30000
+      } ],
+      "productos" : [ {
+        "nombre" : "Coca 600ml",
+        "codigoBarras" : "7501",
+        "pzKg" : 0,
+        "cantidad" : 4000,
+        "importe" : 43000
+      } ]
+    },
+    "mesAnterior" : {
+      "desde" : "2026-09-01",
+      "hasta" : "2026-09-11",
+      "total" : {
+        "ventas" : 0,
+        "ventasTickets" : 0,
+        "tickets" : 0,
+        "ganancia" : 0,
+        "ticketPromedio" : 0
+      }
+    }
+  }
+}

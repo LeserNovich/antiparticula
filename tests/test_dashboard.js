@@ -81,8 +81,8 @@ function datosBase(over = {}) {
 const dia = (fecha, ventas, extra = {}) => Object.assign({ fecha, ventas, ganancia: Math.round(ventas / 4), tickets: 5 }, extra);
 
 // ── Entorno: una pagina real con la API simulada ────────────────
-function crearEntorno({ almacen = {}, red = true, body = datosBase(), ahora = AHORA, requiereToken = null } = {}) {
-    const estado = { ok: red, status: 200, body, requiereToken, llamadas: [],
+function crearEntorno({ almacen = {}, red = true, body = datosBase(), ahora = AHORA, requiereToken = null, status = 200 } = {}) {
+    const estado = { ok: red, status, body, requiereToken, llamadas: [],
                      auth: { status: 200, body: { status: 'exitoso', protegido: true, token: 'tok-1' } } };
     const dom = new JSDOM(HTML, {
         url: 'https://antiparticula.com/dashboard/TEST123',
@@ -473,6 +473,228 @@ ok(q('turnoAlerta').hidden, '…ni hay un aviso de turno falso');
 eq(q('ingresosHoy').textContent, money('4,520.50'), 'lo de siempre sigue funcionando');
 ok(q('vsSemana').hidden, 'sin historial diario no hay comparativo semanal');
 
+console.log('\n\x1b[1m19b. Etapa 2: lo más vendido, cajeros, por cobrar, gastos, meta, sesión y compartir\x1b[0m');
+const e2 = (mod) => {
+    const b = datosBase();
+    Object.assign(b.extra, {
+        sesion: null,
+        top_productos: {
+            hoy: [
+                { nombre: 'Pila AA',     importe: 20000, cantidad: 3000, unidad: 0 },
+                { nombre: 'Jamón',       importe:  9000, cantidad: 1500, unidad: 1 },
+                { nombre: 'Coca 600ml',  importe:  7500, cantidad: 5000, unidad: 0 },
+                { nombre: 'Aceite',      importe:  2500, cantidad: 1000, unidad: 2 },
+                { nombre: 'Chicle',      importe:   500, cantidad: 1000, unidad: 3 },
+            ],
+            semana: [{ nombre: 'Jamón', importe: 21000, cantidad: 3500, unidad: 1 }, { nombre: 'Pila AA', importe: 20000, cantidad: 3000, unidad: 0 }],
+            mes:    [{ nombre: 'Aceite', importe: 12500, cantidad: 5000, unidad: 2 }],
+        },
+        por_cajero: [{ cajero: 'ANA', tickets: 7, ventas: 300000 }, { cajero: 'LUIS', tickets: 1, ventas: 100000 }, { cajero: '', tickets: 4, ventas: 5000 }],
+        apartados: { activos: 3, por_cobrar: 125050, vencidos: 1 },
+        presupuestos: { vigentes: 4, monto: 8000000, por_vencer: 2, vencidos: 1 },
+        gastos: { hoy: 25000, mes: 120000 },
+        meta_diaria: 600000,
+    });
+    if (mod) mod(b);
+    return b;
+};
+const cargar = async (mod) => { estado.body = e2(mod); await refrescar(); };
+const abierta = (url) => decodeURIComponent(url.replace('https://wa.me/?text=', ''));
+
+// ── Meta diaria ──
+await cargar();
+ok(!q('meta').hidden, 'con meta aparece la barra en la cabecera');
+eq(q('metaTexto').textContent, 'Meta del día: llevas el 75%', 'cuánto lleva (4,520.50 de 6,000 = 75%)');
+eq(q('metaValor').textContent, money('6,000.00'), 'la meta, a la derecha');
+eq(q('metaFill').style.getPropertyValue('width'), '75.3%', 'la barra llena lo que lleva');
+ok(!q('meta').classList.contains('is-over'), 'sin cumplir no está en verde');
+await cargar(b => { b.extra.meta_diaria = 400000; });
+eq(q('metaTexto').textContent, 'Meta del día cumplida', 'al pasar la meta, «cumplida»');
+eq(q('metaFill').style.getPropertyValue('width'), '100%', 'la barra no se sale de su caja');
+ok(q('meta').classList.contains('is-over'), 'y se pinta en verde');
+await cargar(b => { b.extra.meta_diaria = 452050; });
+eq(q('metaTexto').textContent, 'Meta del día cumplida', 'justo la meta ya está cumplida');
+await cargar(b => { b.extra.meta_diaria = 452051; });
+eq(q('metaTexto').textContent, 'Meta del día: llevas el 99%', 'a un centavo de la meta NO dice 100%');
+await cargar(b => { b.extra.meta_diaria = 0; });
+ok(q('meta').hidden, 'meta 0 = sin meta: no hay barra');
+await cargar(b => { delete b.extra.meta_diaria; });
+ok(q('meta').hidden, 'un POS sin ese dato: no hay barra');
+await cargar(b => { b.extra.meta_diaria = -5; });
+ok(q('meta').hidden, 'una meta negativa no se muestra');
+
+// ── Lo más vendido ──
+await cargar();
+ok(!q('topTile').hidden, 'aparece «Lo más vendido»');
+let tp = leer(q('topLista'));
+eq(q('topLista').querySelectorAll('.hrow').length, 5, 'cinco renglones');
+ok(/^1\. Pila AA \$ 200\.00 3 Pz 2\. Jamón \$ 90\.00 1\.5 Kg 3\. Coca 600ml \$ 75\.00 5 Pz 4\. Aceite \$ 25\.00 1 L 5\. Chicle \$ 5\.00 1 Ud$/.test(tp),
+   'ordenados como los manda el POS, con importe y cantidad en su unidad (Pz, Kg, L, Ud)', tp);
+const barras = Array.from(q('topLista').querySelectorAll('.hbar i')).map(i => i.style.getPropertyValue('--w'));
+eq(barras[0] + ' ' + barras[1], '100.0% 45.0%', 'las barras son relativas al primero');
+ok(doc.querySelector('[data-top="hoy"]').getAttribute('aria-selected') === 'true', 'Hoy está elegido al empezar');
+clic(doc.querySelector('[data-top="semana"]'));
+tp = leer(q('topLista'));
+ok(/^1\. Jamón \$ 210\.00 3\.5 Kg 2\. Pila AA \$ 200\.00 3 Pz$/.test(tp), 'el selector pasa a 7 días', tp);
+ok(doc.querySelector('[data-top="semana"]').getAttribute('aria-selected') === 'true'
+   && doc.querySelector('[data-top="hoy"]').getAttribute('aria-selected') === 'false', 'y marca cuál está elegido');
+await refrescar();
+ok(/^1\. Jamón/.test(leer(q('topLista'))), 'el periodo elegido sobrevive al refresco automático');
+clic(doc.querySelector('[data-top="mes"]'));
+ok(/^1\. Aceite \$ 125\.00 5 L$/.test(leer(q('topLista'))), 'Mes');
+await cargar(b => { b.extra.top_productos.mes = []; });
+ok(/Sin ventas en este periodo/.test(q('topLista').textContent), 'un periodo sin ventas lo dice');
+clic(doc.querySelector('[data-top="hoy"]'));
+await cargar(b => { b.extra.top_productos.hoy = []; });
+ok(/Aún no hay ventas hoy/.test(q('topLista').textContent), 'hoy sin ventas: «Aún no hay ventas hoy»');
+await cargar(b => { b.extra.top_productos.hoy = [{ nombre: '<img src=x onerror=alert(1)>', importe: 100, cantidad: 1000, unidad: 0 }, { nombre: '', importe: 50, cantidad: 0, unidad: 0 }]; });
+eq(q('topLista').querySelectorAll('img').length, 0, 'un nombre con HTML no inyecta nada');
+ok(/&lt;img|<img/.test(q('topLista').textContent) || /<img/.test(q('topLista').textContent), 'se muestra como texto');
+ok(/2\. Sin nombre/.test(leer(q('topLista'))), 'un producto sin nombre no deja el renglón vacío');
+await cargar(b => { delete b.extra.top_productos; });
+ok(q('topTile').hidden, 'un POS sin ese dato: la tarjeta no aparece');
+await cargar(b => { b.extra.top_productos = 'basura'; });
+ok(q('topTile').hidden, 'un dato malformado tampoco la muestra (ni rompe)');
+
+// ── Ventas por cajero ──
+await cargar();
+ok(!q('cajerosTile').hidden, 'aparece «Ventas por cajero»');
+const cj2 = leer(q('cajerosLista'));
+ok(/^ANA \$ 3,000\.00 7 tickets LUIS \$ 1,000\.00 1 ticket Sin cajero \$ 50\.00 4 tickets$/.test(cj2),
+   'importe y tickets por cajero, con singular/plural y «Sin cajero» si el nombre viene vacío', cj2);
+await cargar(b => { b.extra.por_cajero = [{ cajero: 'ANA', tickets: 7, ventas: 300000 }]; });
+ok(q('cajerosTile').hidden, 'con un solo cajero no se muestra (diría lo mismo que el total)');
+await cargar(b => { delete b.extra.por_cajero; });
+ok(q('cajerosTile').hidden, 'sin el dato tampoco');
+await cargar(b => { b.extra.por_cajero = [{ cajero: '<b>x</b>', tickets: 1, ventas: 100 }, { cajero: 'B', tickets: 1, ventas: 50 }]; });
+eq(q('cajerosLista').querySelectorAll('b').length, 2, 'el nombre del cajero va escapado (solo quedan los <b> de los dos importes)');
+ok(q('cajerosLista').textContent.indexOf('<b>x</b>') >= 0, 'y se ve como texto');
+
+// ── Sesión cerrada con el turno abierto ──
+await cargar();
+ok(q('sesionAviso').hidden && q('sesionFila').hidden, 'sin sesión cerrada no hay aviso ni fila');
+ok(!/Sesión cerrada/.test(q('turnoEstado').textContent), '…ni chip');
+await cargar(b => { b.extra.sesion = { cerrada: true, desde: '03-09-2026 14:05:00' }; });
+ok(/Abierto/.test(q('turnoEstado').textContent) && /Sesión cerrada/.test(q('turnoEstado').textContent), 'el turno sigue «Abierto» y además dice «Sesión cerrada»');
+ok(!q('sesionFila').hidden && /^Cerrada a las 0?2:05/.test(norm(q('sesionTexto').textContent)), 'la fila Sesión dice a qué hora', q('sesionTexto').textContent);
+ok(!q('sesionAviso').hidden, 'Caja muestra el aviso informativo');
+const sa = leer(q('sesionAviso'));
+ok(/Sesión cerrada con el turno abierto/.test(sa) && /a las 0?2:05/.test(sa) && /turno de Maria sigue abierto/.test(sa), 'dice quién tiene el turno y desde cuándo', sa);
+ok(!/\.\./.test(sa), 'sin doble punto («p.m..»)', sa);
+ok(q('turnoAlerta').hidden, 'no se confunde con el aviso de turno largo');
+await cargar(b => { b.turno_inicio = '02-09-2026 18:30:00'; b.extra.sesion = { cerrada: true, desde: '03-09-2026 14:05:00' }; });
+ok(!q('sesionAviso').hidden && !q('turnoAlerta').hidden, 'conviven: turno desde ayer Y sesión cerrada');
+await cargar(b => { b.extra.sesion = { cerrada: true, desde: '02-09-2026 21:00:00' }; });
+ok(/ayer a las 0?9:00/.test(q('sesionTexto').textContent), 'si fue ayer, lo dice', q('sesionTexto').textContent);
+await cargar(b => { b.extra.sesion = { cerrada: true, desde: '01-09-2026 21:00:00' }; });
+ok(/el 1 Sep a las 0?9:00/.test(q('sesionTexto').textContent), 'si fue antes, dice la fecha', q('sesionTexto').textContent);
+await cargar(b => { b.extra.sesion = { cerrada: true, desde: '' }; });
+ok(!q('sesionAviso').hidden && norm(q('sesionTexto').textContent) === 'Cerrada' && /La sesión se cerró y el turno/.test(q('sesionAviso').textContent) && !/ a las /.test(q('sesionAviso').textContent),
+   'sin hora legible no inventa una', q('sesionAviso').textContent);
+await cargar(b => { b.turno_abierto = 0; b.extra.caja = null; b.extra.sesion = { cerrada: true, desde: '03-09-2026 14:05:00' }; });
+ok(q('sesionAviso').hidden && q('sesionFila').hidden && !/Sesión cerrada/.test(q('turnoEstado').textContent), 'con el turno CERRADO la marca vieja no cuenta');
+await cargar(b => { b.extra.sesion = { cerrada: false, desde: '03-09-2026 14:05:00' }; });
+ok(q('sesionAviso').hidden, '«cerrada: false» no es sesión cerrada');
+await cargar(b => { b.extra.sesion = { cerrada: 'true', desde: '03-09-2026 14:05:00' }; });
+ok(q('sesionAviso').hidden, 'solo un true de verdad cuenta (no el texto «true»)');
+await cargar(b => { b.extra.sesion = { cerrada: true, desde: '<img src=x>' }; });
+eq(q('sesionAviso').querySelectorAll('img').length, 0, 'nada del servidor se inyecta como HTML');
+
+// ── Por cobrar, presupuestos y gastos (Caja) ──
+await cargar();
+ok(!q('cobrarCuerpo').hidden, 'Caja muestra la sección de lo pendiente');
+const cb = leer(q('cobrarCuerpo'));
+ok(/Apartados por cobrar 1 vencido \$ 1,250\.50 3 apartados sin entregar/.test(cb), 'apartados: saldo, cuántos y cuántos vencidos', cb);
+ok(/Presupuestos pendientes 2 por vencer 1 vencido \$ 80,000\.00 4 presupuestos sin respuesta/.test(cb), 'presupuestos: monto, cuántos, por vencer y vencidos', cb);
+ok(/Gastos del negocio \$ 250\.00 hoy \$ 1,200\.00 este mes/.test(cb), 'gastos de hoy y del mes', cb);
+await cargar(b => { b.extra.apartados = { activos: 1, por_cobrar: 5000, vencidos: 0 }; b.extra.presupuestos = { vigentes: 1, monto: 1000, por_vencer: 0, vencidos: 0 }; });
+const cb1 = leer(q('cobrarCuerpo'));
+ok(/1 apartado sin entregar/.test(cb1) && !/apartados sin entregar/.test(cb1) && !/vencid/.test(cb1.split('Gastos')[0]), 'singular y sin chips cuando no hay vencidos', cb1);
+ok(/1 presupuesto sin respuesta/.test(cb1) && !/por vencer/.test(cb1), 'presupuesto singular, sin chips', cb1);
+await cargar(b => { b.extra.apartados = { activos: 0, por_cobrar: 0, vencidos: 0 }; b.extra.presupuestos = { vigentes: 0, monto: 0, por_vencer: 0, vencidos: 0 }; });
+const cb0 = leer(q('cobrarCuerpo'));
+ok(!/Apartados por cobrar/.test(cb0) && !/Presupuestos pendientes/.test(cb0), 'sin apartados ni presupuestos esas tarjetas no aparecen (no estorban a quien no los usa)', cb0);
+ok(/Gastos del negocio/.test(cb0), '…pero gastos sí');
+await cargar(b => { b.extra.gastos = { hoy: 0, mes: 0 }; });
+ok(/Sin gastos registrados este mes/.test(q('cobrarCuerpo').textContent), 'sin gastos lo dice');
+await cargar(b => { delete b.extra.apartados; delete b.extra.presupuestos; delete b.extra.gastos; });
+ok(q('cobrarCuerpo').hidden, 'un POS sin esos datos: la sección no aparece');
+ok(!/versión/.test(q('cobrarCuerpo').textContent), '…ni cita una versión del programa');
+await cargar(b => { b.extra.apartados = { activos: -3, por_cobrar: 'x', vencidos: null }; delete b.extra.presupuestos; delete b.extra.gastos; });
+ok(q('cobrarCuerpo').hidden, 'cifras absurdas se vuelven cero y la tarjeta no aparece');
+
+// ── Utilidad del mes (Historial → Mes) ──
+await cargar();
+ok(!q('utilidadTile').hidden, 'con gastos aparece «Utilidad del mes»');
+eq(q('utilidadValor').textContent, money('150.00'), 'ganancia del mes (1,350.00) menos gastos del mes (1,200.00)');
+ok(q('utilidadValor').classList.contains('c-ganancia') && !q('utilidadValor').classList.contains('c-alerta'), 'en verde si es positiva');
+ok(/Ganancia \$ 1,350\.00 . gastos \$ 1,200\.00/.test(norm(q('utilidadSub').textContent)), 'muestra la resta', q('utilidadSub').textContent);
+await cargar(b => { b.extra.gastos.mes = 200000; });
+eq(q('utilidadValor').textContent, '−' + money('650.00'), 'si los gastos superan la ganancia, negativa con signo menos');
+ok(q('utilidadValor').classList.contains('c-alerta') && !q('utilidadValor').classList.contains('c-ganancia'), '…y en alerta');
+await cargar(b => { b.extra.gastos.mes = 135000; });
+eq(q('utilidadValor').textContent, money('0.00'), 'justo en cero: $ 0.00, sin signo');
+await cargar(b => { delete b.extra.gastos; });
+ok(q('utilidadTile').hidden, 'sin el dato de gastos no se calcula una utilidad falsa');
+
+// ── Compartir el resumen ──
+await cargar();
+const texto = G('textoResumen(ultimoD)');
+ok(!/ /.test(texto), 'el texto usa espacios normales (no el fino del panel)');
+const lineas = texto.split('\n');
+eq(lineas[0], '*Abarrotes La Esquina*', 'el negocio en negritas de WhatsApp');
+ok(/^Resumen del jueves,? 3 de septiembre$/.test(lineas[1]), 'la fecha del negocio', lineas[1]);
+ok(lineas.includes('Ingresos: $ 4,520.50'), 'ingresos', texto);
+ok(lineas.includes('Ganancia: $ 1,350.00 (margen 29.9%)'), 'ganancia y margen', texto);
+ok(lineas.includes('Tickets: 23 · promedio $ 196.54'), 'tickets y promedio', texto);
+ok(lineas.includes('Cobros: efectivo $ 250.00 · tarjeta $ 320.00 · transferencia $ 100.00'), 'cómo pagaron', texto);
+ok(lineas.includes('Meta del día: 75% de $ 6,000.00'), 'la meta', texto);
+const iTop = lineas.indexOf('Lo más vendido:');
+ok(iTop > 0 && lineas[iTop + 1] === '1. Pila AA · $ 200.00' && lineas[iTop + 3] === '3. Coca 600ml · $ 75.00' && lineas[iTop + 4] === '', 'los 3 más vendidos de hoy (no 5)', texto);
+ok(lineas.includes('Efectivo esperado en caja: $ 730.00'), 'la caja esperada, con turno abierto', texto);
+await cargar(b => { b.abonos_hoy = 5000; b.extra.caja = null; b.turno_abierto = 0; delete b.extra.top_productos; b.extra.meta_diaria = 400000; });
+const texto2 = G('textoResumen(ultimoD)');
+ok(/Ingresos: \$ 4,570\.50 \(ventas \$ 4,520\.50 \+ apartados \$ 50\.00\)/.test(texto2), 'con apartados los separa', texto2);
+ok(!/Efectivo esperado/.test(texto2) && !/Lo más vendido/.test(texto2), 'sin turno abierto ni tops, esas líneas no van', texto2);
+ok(/Meta del día: cumplida \(\$ 4,000\.00\)/.test(texto2), 'meta cumplida', texto2);
+const sinNada = datosBase(); delete sinNada.extra;
+estado.body = sinNada; await refrescar();
+let tSin = ''; try { tSin = G('textoResumen(ultimoD)'); } catch (e) { tSin = 'ERROR ' + e.message; }
+ok(/^\*Abarrotes La Esquina\*/.test(tSin) && !/ERROR/.test(tSin), 'con un POS anterior el resumen igual se arma', tSin);
+
+await cargar();
+const abiertas = [];
+win.open = (url, destino, rasgos) => { abiertas.push({ url, destino, rasgos }); return null; };
+const boton = doc.querySelector('[data-act="compartir"]');
+ok(!!boton && /Compartir resumen del día/.test(boton.textContent), 'el botón existe en Hoy');
+clic(boton); await tick(); await tick();
+eq(abiertas.length, 1, 'sin «compartir» del sistema se abre WhatsApp');
+ok(abiertas[0] && abiertas[0].url.indexOf('https://wa.me/?text=') === 0 && abierta(abiertas[0].url) === G('textoResumen(ultimoD)'), 'con el texto del resumen, codificado', abiertas[0] && abiertas[0].url);
+eq(abiertas[0] && abiertas[0].rasgos, 'noopener', 'la ventana nueva no recibe acceso al panel');
+
+abiertas.length = 0;
+const compartidos = [];
+Object.defineProperty(win.navigator, 'share', { configurable: true, value: async (datos) => { compartidos.push(datos); } });
+clic(boton); await tick(); await tick();
+eq(compartidos.length, 1, 'con «compartir» del sistema se usa');
+eq(compartidos[0] && compartidos[0].text, G('textoResumen(ultimoD)'), 'con el texto del resumen');
+eq(abiertas.length, 0, '…y no abre WhatsApp aparte');
+
+compartidos.length = 0;
+Object.defineProperty(win.navigator, 'share', { configurable: true, value: async () => { const e = new Error('cancelado'); e.name = 'AbortError'; throw e; } });
+clic(boton); await tick(); await tick();
+eq(abiertas.length, 0, 'si la persona cierra la hoja de compartir, no se abre nada más');
+
+Object.defineProperty(win.navigator, 'share', { configurable: true, value: async () => { const e = new Error('no soportado'); e.name = 'NotAllowedError'; throw e; } });
+clic(boton); await tick(); await tick();
+eq(abiertas.length, 1, 'si «compartir» falla por otra causa, se cae a WhatsApp');
+delete win.navigator.share;
+
+// Se deja el estado como lo esperan las secciones que siguen
+clic(doc.querySelector('[data-top="hoy"]'));
+estado.body = sinExtra;
+await refrescar();
+
 console.log('\n\x1b[1m20. Pestañas y subpestañas\x1b[0m');
 estado.body = datosBase();
 await refrescar();
@@ -685,11 +907,75 @@ const shell = [...SW.matchAll(/'(\/dashboard\/[^']+)'/g)].map(m => m[1]);
 ok(shell.length >= 5, 'el service worker lista su shell', shell.join(', '));
 shell.forEach(f => ok(fs.existsSync(PUB + f), 'existe ' + f));
 ok(/cache:\s*'reload'/.test(SW), 'el SW precachea saltando la caché HTTP');
-eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v5', 'versión del caché subida');
+eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v8', 'versión del caché subida');
 ok(!/\/img\/|\/css\//.test(HTML.replace(/<!--[\s\S]*?-->/g, '')) , 'el shell no depende de archivos fuera de /dashboard/');
 ok(/dashboard_auth\.php|get_dashboard_data\.php/.test(SW), 'el SW conoce las rutas de la API (nunca se cachean)');
 
-console.log('\n\x1b[1m29. Sin errores JS capturados por window.onerror\x1b[0m');
+console.log('\n\x1b[1m29. Premium: días gratis y panel sin acceso\x1b[0m');
+// En sus días gratis: aviso con la fecha, los días que quedan y el enlace para contratar
+const EA = crearEntorno({ body: datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-18' } }) });
+await EA.tick();
+ok(!EA.q('avisoPremium').hidden, 'en prueba se ve el aviso');
+eq(norm(EA.q('avisoPremiumTexto').textContent), 'Tu panel es gratis hasta el 18 Sep (quedan 15 días). Después necesitarás Premium.',
+   'el aviso dice hasta cuándo y cuántos días quedan');
+const enlace = EA.q('avisoPremiumLink').getAttribute('href');
+ok(enlace.indexOf('https://wa.me/525584323945?text=') === 0, 'el enlace es el WhatsApp de ventas', enlace);
+ok(decodeURIComponent(enlace).indexOf('Abarrotes La Esquina') > 0 && decodeURIComponent(enlace).indexOf('TEST123') > 0,
+   'el mensaje lleva el negocio y el panel (soporte sabe cuál es)', decodeURIComponent(enlace));
+EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-04' } });
+await EA.refrescar();
+eq(norm(EA.q('avisoPremiumTexto').textContent), 'Tu panel es gratis hasta mañana. Después necesitarás Premium.', 'un día: «hasta mañana»');
+EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-03' } });
+await EA.refrescar();
+eq(norm(EA.q('avisoPremiumTexto').textContent), 'Hoy es el último día gratis de tu panel. Después necesitarás Premium.', 'el último día');
+EA.estado.body = datosBase({ acceso: { estado: 'premium', hasta: '2027-09-03' } });
+await EA.refrescar();
+ok(EA.q('avisoPremium').hidden, 'con Premium no hay aviso');
+EA.estado.body = datosBase({ acceso: { estado: 'abierto', hasta: null } });
+await EA.refrescar();
+ok(EA.q('avisoPremium').hidden, 'servidor sin la migración («abierto»): no hay aviso');
+EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: null } });
+await EA.refrescar();
+ok(EA.q('avisoPremium').hidden, 'prueba sin fecha todavía: no se inventa una');
+ok(q('avisoPremium').hidden, 'sin el campo acceso (servidor anterior): no hay aviso');
+
+// Sin Premium ni días gratis: 403 premium_requerido
+EA.estado.body = datosBase();
+await EA.refrescar();
+ok(!!EA.win.localStorage.getItem('apdash:datos:TEST123'), '(antes había datos guardados en el teléfono)');
+EA.estado.status = 403;
+EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina', desde: '2026-09-01', protegido: false };
+await EA.refrescar();
+ok(EA.q('premiumBox') !== null, '403 premium_requerido: pantalla de Premium');
+ok(EA.q('ingresosHoy') === null && EA.q('gananciaHoy') === null, '…sin ni una cifra');
+ok(/Tus días gratis terminaron el 1 Sep 2026\./.test(EA.q('premiumTexto').textContent), 'dice cuándo terminaron los días gratis',
+   EA.q('premiumTexto').textContent);
+eq(EA.doc.querySelector('h1').textContent, 'Abarrotes La Esquina', 'con el nombre del negocio');
+ok(EA.q('premiumContratar').getAttribute('href').indexOf('https://wa.me/525584323945?text=') === 0, 'botón de contratar por WhatsApp');
+ok(/Actualiza el programa de tu tienda/.test(EA.q('premiumBox').textContent), 'y le dice qué hacer a quien ya pagó');
+eq(EA.win.localStorage.getItem('apdash:datos:TEST123'), null, 'lo guardado en el teléfono se borra (no se sigue mostrando)');
+const cajaAntes = EA.q('premiumBox');
+await EA.refrescar();
+ok(EA.q('premiumBox') === cajaAntes, 'el refresco de cada minuto no vuelve a montar la pantalla');
+// Al pagar, el panel vuelve solo
+EA.estado.status = 200;
+EA.estado.body = datosBase({ acceso: { estado: 'premium', hasta: '2027-09-03' } });
+await EA.refrescar();
+ok(EA.q('premiumBox') === null && EA.q('ingresosHoy') !== null, 'con Premium el panel vuelve en el siguiente refresco');
+eq(EA.q('ingresosHoy').textContent, money('4,520.50'), '…con sus cifras');
+// Sin fecha de término no se escribe «undefined»
+EA.estado.status = 403;
+EA.estado.body = { status: 'premium_requerido', negocio: 'X', desde: null };
+await EA.refrescar();
+ok(!/undefined|null/.test(EA.q('premiumTexto').textContent), 'sin fecha no sale «undefined»', EA.q('premiumTexto').textContent);
+// Lo guardado no se muestra al abrir si el panel ya no tiene acceso
+const EB = crearEntorno({ red: true, ahora: null, status: 403, body: { status: 'premium_requerido', negocio: 'Guardado', desde: '2026-09-01' },
+    almacen: { 'apdash:datos:TEST123': JSON.stringify({ t: Date.now() - 60000, data: datosBase({ negocio: 'Guardado' }) }) } });
+await EB.tick(); await EB.tick();
+ok(EB.q('premiumBox') !== null && EB.q('ingresosHoy') === null, 'al abrir, lo guardado se reemplaza por la pantalla de Premium');
+EA.win.close(); EB.win.close();
+
+console.log('\n\x1b[1m30. Sin errores JS capturados por window.onerror\x1b[0m');
 ok(doc.getElementById('app').innerHTML.indexOf('ERROR JS') === -1, 'no se disparo el handler de error');
 
 console.log(`\n\x1b[1mResultado: ${pass} pasadas, ${fail} fallidas\x1b[0m\n`);

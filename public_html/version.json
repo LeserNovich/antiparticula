@@ -1,10 +1,29 @@
 {
-  "version": "3.3.0",
+  "version": "3.4.0",
   "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Panel Móvil Renovado",
+  "changelog": "Panel móvil más completo y nuevo Premium",
   "mandatory": false,
 
   "historial": [
+    {
+      "version": "3.4.0",
+      "fecha": "2026-10-20",
+      "titulo": "Panel móvil más completo y nuevo Premium",
+      "cambios": [
+        "Panel móvil: ahora ves los productos más vendidos (hoy, 7 días y el mes), las ventas de cada cajero, lo que te deben por apartados, tus presupuestos vigentes y los gastos, con la utilidad del mes.",
+        "Ponte una meta diaria de ventas en Configuración > Panel móvil y el celular te muestra cuánto llevas del día.",
+        "Si alguien sale del programa dejando el turno abierto, el panel móvil te avisa.",
+        "Comparte el resumen del día por WhatsApp desde el panel móvil.",
+        "Si tienes varias tiendas, crea en Configuración > Panel móvil el panel de todas tus tiendas: ves las ventas, la caja y el inventario de cada una o de todas juntas, protegido con su propio PIN.",
+        "Nuevo acceso «Abrir panel móvil» en el menú lateral, junto a la versión: abre tu panel en el navegador de la computadora (solo administradores).",
+        "El panel móvil ahora es parte de Premium. Si ya lo usabas, sigue gratis 30 días; un panel nuevo tiene 15 días de prueba. Si ya tienes Premium, no tienes que hacer nada: con esta versión tu panel sigue abierto.",
+        "Premium ahora incluye también el resumen completo (meses, años y la comparación con el periodo anterior), usuarios sin límite y tickets sin la marca de Antiparticula al pie.",
+        "La versión gratuita sigue vendiendo igual que siempre: el resumen muestra los últimos 7 días y puedes tener 1 administrador y 1 cajero. Si ya tenías más usuarios, los conservas.",
+        "Contrata Premium por WhatsApp o activa tu clave desde la pantalla que te lo ofrezca; ya no tienes que salir al inicio de sesión.",
+        "En tiendas con muchos años de ventas, el envío al panel móvil es mucho más rápido y ya no puede retrasar el cobro.",
+        "Al desinstalar, el programa te pregunta si también quieres borrar tus datos, y ya no deja entradas repetidas en «Aplicaciones instaladas» de Windows. También se quitó una regla del firewall de Windows que ya no se usaba."
+      ]
+    },
     {
   "version": "3.3.0",
   "fecha": "2026-10-09",

@@ -693,6 +693,24 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 }
 .btn-solid:disabled, .pin-input:disabled { opacity: 0.5; }
 
+/* ── Premium: aviso de los días gratis y pantalla sin acceso (sin colores nuevos) ── */
+.aviso-premium {
+    margin: 4px 0 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--tile);
+    color: var(--text);
+    font-size: 13px;
+}
+.aviso-premium a { color: var(--steel); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.premium-box { margin: 26px auto 0; max-width: 360px; text-align: center; }
+.premium-box h2 { margin: 0 0 8px; font-size: 18px; color: var(--title); }
+.premium-box p { margin: 0 0 16px; font-size: 14px; color: var(--text); }
+.premium-box .btn-ghost { margin-top: 10px; }
+.premium-box .nota { margin-top: 18px; font-size: 12px; color: var(--muted); }
+a.btn-solid { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+
 .foot-link {
     margin-top: 10px;
     padding: 8px 14px;
@@ -708,3 +726,59 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     .seg button { font-size: 12px; }
     .leg { grid-template-columns: 12px minmax(0, 1fr) auto 34px; gap: 8px; }
 }
+
+/* ── Etapa 2: lo más vendido, cajeros, sesión cerrada, meta ── */
+.chips { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.tile .seg { margin-top: 10px; }
+.hrow-top { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+.hrow-top .hn {
+    grid-column: 1;
+    font-size: 14px;
+    color: var(--title);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hrow-top .hr { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.hrow-top .hbar { grid-column: 1; }
+.info { border-left: 4px solid var(--steel); }
+.info-t { font-size: 15px; font-weight: 700; color: var(--title); }
+.info p { margin-top: 6px; font-size: 13px; color: var(--text); }
+.vs-meta { margin-top: 14px; }
+.btn-compartir { margin-top: 0; }
+.gastos > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+
+/* ── Panel de todas las tiendas (tiendas.js) ── */
+.sel-tiendas { display: flex; gap: 8px; overflow-x: auto; padding: 0 0 12px; scrollbar-width: none; }
+.sel-tiendas::-webkit-scrollbar { display: none; }
+.chip-sel {
+    flex: none;
+    min-height: 36px;
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--tile);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.chip-sel[aria-pressed="true"] { background: var(--seg-on-bg); color: var(--seg-on-fg); border-color: transparent; }
+.tienda { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.tienda-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.tienda-nombre { font-size: 16px; font-weight: 700; color: var(--title); }
+.tienda-nombre small { margin-left: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); }
+.tienda-hoy { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tienda-cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.tienda-cifras b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--title); }
+.tienda-cifras span { font-size: 11px; color: var(--muted); }
+.tienda-caja { margin-top: 12px; font-size: 13px; color: var(--text); }
+.tienda-caja b { color: var(--title); font-variant-numeric: tabular-nums; }
+.tienda-caja.warn { color: var(--c-alerta); font-weight: 700; }
+.tienda-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tienda-visto { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.tienda-visto.stale { color: var(--c-alerta); font-weight: 700; }
+.cargando .panel { opacity: 0.45; transition: opacity 0.2s; }
+.urg-t { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.kv small.warn { color: var(--c-alerta); font-weight: 700; }

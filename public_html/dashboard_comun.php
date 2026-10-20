@@ -155,6 +155,79 @@ function dash_sanear_extra($e) {
             'urgentes'    => $urg,
         ];
     }
+    // ── Etapa 2 (todo opcional) ─────────────────────────────────────────────
+    // Sesión cerrada con el turno abierto: solo cuenta si viene un `true` de verdad
+    if (array_key_exists('sesion', $e)) {
+        if (is_array($e['sesion']) && isset($e['sesion']['cerrada']) && $e['sesion']['cerrada'] === true) {
+            $desde = dash_texto(isset($e['sesion']['desde']) ? $e['sesion']['desde'] : '', 30);
+            $out['sesion'] = ['cerrada' => true,
+                              'desde' => preg_match('/^\d{2}-\d{2}-\d{4} \d{1,2}:\d{2}(:\d{2})?$/', $desde) ? $desde : ''];
+        } else {
+            $out['sesion'] = null;
+        }
+    }
+
+    // Más vendidos: hasta 5 por ventana (importe en centavos, cantidad en milésimas)
+    if (isset($e['top_productos']) && is_array($e['top_productos'])) {
+        $top = [];
+        foreach (['hoy', 'semana', 'mes'] as $ventana) {
+            $top[$ventana] = [];
+            if (!isset($e['top_productos'][$ventana]) || !is_array($e['top_productos'][$ventana])) continue;
+            foreach (array_slice($e['top_productos'][$ventana], 0, 5) as $p) {
+                if (!is_array($p)) continue;
+                $top[$ventana][] = [
+                    'nombre'   => dash_texto(isset($p['nombre']) ? $p['nombre'] : '', 80),
+                    'importe'  => dash_monto0(isset($p['importe']) ? $p['importe'] : 0),
+                    'cantidad' => dash_int(isset($p['cantidad']) ? $p['cantidad'] : 0, 0, 1000000000000),
+                    'unidad'   => dash_int(isset($p['unidad']) ? $p['unidad'] : 0, 0, 3),
+                ];
+            }
+        }
+        $out['top_productos'] = $top;
+    }
+
+    if (isset($e['por_cajero']) && is_array($e['por_cajero'])) {
+        $cajeros = [];
+        foreach (array_slice($e['por_cajero'], 0, 10) as $c) {
+            if (!is_array($c)) continue;
+            $cajeros[] = [
+                'cajero'  => dash_texto(isset($c['cajero']) ? $c['cajero'] : '', 60),
+                'tickets' => dash_int(isset($c['tickets']) ? $c['tickets'] : 0, 0, 100000000),
+                'ventas'  => dash_monto0(isset($c['ventas']) ? $c['ventas'] : 0),
+            ];
+        }
+        $out['por_cajero'] = $cajeros;
+    }
+
+    if (isset($e['apartados']) && is_array($e['apartados'])) {
+        $a = $e['apartados'];
+        $out['apartados'] = [
+            'activos'    => dash_int(isset($a['activos']) ? $a['activos'] : 0, 0, 100000000),
+            'por_cobrar' => dash_monto0(isset($a['por_cobrar']) ? $a['por_cobrar'] : 0),
+            'vencidos'   => dash_int(isset($a['vencidos']) ? $a['vencidos'] : 0, 0, 100000000),
+        ];
+    }
+
+    if (isset($e['presupuestos']) && is_array($e['presupuestos'])) {
+        $pr = $e['presupuestos'];
+        $out['presupuestos'] = [
+            'vigentes'   => dash_int(isset($pr['vigentes']) ? $pr['vigentes'] : 0, 0, 100000000),
+            'monto'      => dash_monto0(isset($pr['monto']) ? $pr['monto'] : 0),
+            'por_vencer' => dash_int(isset($pr['por_vencer']) ? $pr['por_vencer'] : 0, 0, 100000000),
+            'vencidos'   => dash_int(isset($pr['vencidos']) ? $pr['vencidos'] : 0, 0, 100000000),
+        ];
+    }
+
+    if (isset($e['gastos']) && is_array($e['gastos'])) {
+        $out['gastos'] = [
+            'hoy' => dash_monto0(isset($e['gastos']['hoy']) ? $e['gastos']['hoy'] : 0),
+            'mes' => dash_monto0(isset($e['gastos']['mes']) ? $e['gastos']['mes'] : 0),
+        ];
+    }
+
+    if (array_key_exists('meta_diaria', $e)) {
+        $out['meta_diaria'] = dash_monto0($e['meta_diaria']);   // 0 = sin meta
+    }
     return $out;
 }
 
@@ -199,9 +272,24 @@ function dash_sanear_meses($lista) {
 }
 
 // ── Escrituras nuevas (cada una se llama dentro de su propio try/catch) ─────
+// `extra` se FUSIONA con lo guardado por clave de primer nivel: una clave nueva sustituye a la vieja (un
+// `null` explícito también: «sin turno abierto», «sin sesión cerrada») y lo que no se mandó se conserva.
+// Así el POS puede mandar las partes pesadas con menos frecuencia sin que el envío siguiente las borre.
+// La fila se bloquea (FOR UPDATE) para que dos envíos seguidos no se pisen.
 function dash_guardar_extra(PDO $conn, $hardware_id, array $extra) {
-    $st = $conn->prepare('UPDATE dashboard_pos SET extra_json = :j WHERE hardware_id = :id');
-    $st->execute([':j' => json_encode($extra, JSON_UNESCAPED_UNICODE), ':id' => $hardware_id]);
+    $conn->beginTransaction();
+    try {
+        $sel = $conn->prepare('SELECT extra_json FROM dashboard_pos WHERE hardware_id = :id FOR UPDATE');
+        $sel->execute([':id' => $hardware_id]);
+        $viejo = json_decode((string) $sel->fetchColumn(), true);
+        $nuevo = is_array($viejo) ? array_replace($viejo, $extra) : $extra;
+        $upd = $conn->prepare('UPDATE dashboard_pos SET extra_json = :j WHERE hardware_id = :id');
+        $upd->execute([':j' => json_encode($nuevo, JSON_UNESCAPED_UNICODE), ':id' => $hardware_id]);
+        $conn->commit();
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
 }
 
 function dash_guardar_dias(PDO $conn, $hardware_id, array $dias) {
@@ -384,4 +472,179 @@ function dash_token_de_la_peticion() {
 function dash_hoy_mx() {
     $d = new DateTime('now', new DateTimeZone('America/Mexico_City'));
     return $d->format('Y-m-d');
+}
+
+// ── Premium: el panel solo se consulta con la suscripción (o en sus días gratis) ─────────
+// El POS manda su clave premium firmada (la misma de 125 caracteres que activó el cliente)
+// y aquí se verifica con la llave PÚBLICA, igual que lo hace el programa
+// (raven.Antiparticula.Utils.LicenciaFirmada): nadie puede fabricar una sin la llave privada
+// de la consola. Ver sql/2026-10-20_panel_premium.sql.
+const DASH_PRUEBA_DIAS          = 15;    // días gratis de un panel nuevo
+const DASH_PANELES_POR_LICENCIA = 2;     // paneles que abre una misma clave (la PC y una reinstalación)
+const DASH_PRUEBA_INTENTOS      = 3;     // intentos gratis de Excel = PropiedadesDAO.INTENTOS_PRUEBA_INICIAL del POS
+const DASH_LIC_DOMINIO          = 'AP-LIC-1';
+
+// Las llaves públicas con que se verifican las claves: las mismas de
+// src/raven/resources/licencia/publica.txt del POS (número => base64 del X.509).
+// config_db.php puede sumar otras en 'llaves_licencia' (las pruebas lo hacen; producción no).
+function dash_llaves_licencia(array $cfg) {
+    $llaves = [
+        1 => 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKy/44mlC/TV1pIztCcL61eTnftOf7Te7HdxFYA0bdg5tHoUEG9l7Rl9OIr0ObyPW2j4n/A2JZ2Cxs80cH2I+wg==',
+    ];
+    if (isset($cfg['llaves_licencia']) && is_array($cfg['llaves_licencia'])) {
+        foreach ($cfg['llaves_licencia'] as $kid => $b64) $llaves[(int) $kid] = (string) $b64;
+    }
+    return $llaves;
+}
+
+// Base32 (RFC 4648, sin relleno) canónico: null si sobra un bit de relleno distinto de 0, como en el POS.
+function dash_base32($texto) {
+    $alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $buffer = 0; $bits = 0; $salida = '';
+    $n = strlen($texto);
+    for ($i = 0; $i < $n; $i++) {
+        $v = strpos($alfabeto, $texto[$i]);
+        if ($v === false) return null;
+        $buffer = (($buffer << 5) | $v) & 0xFFFF;   // nunca hay más de 12 bits pendientes
+        $bits += 5;
+        if ($bits >= 8) {
+            $salida .= chr(($buffer >> ($bits - 8)) & 0xFF);
+            $bits -= 8;
+        }
+    }
+    if ($bits > 0 && ($buffer & ((1 << $bits) - 1)) !== 0) return null;
+    return $salida;
+}
+
+// La firma viaja como r||s (32 + 32 bytes); openssl la quiere en DER.
+function dash_der_entero($bytes) {
+    $bytes = ltrim($bytes, "\x00");
+    if ($bytes === '') $bytes = "\x00";
+    if (ord($bytes[0]) & 0x80) $bytes = "\x00" . $bytes;
+    return "\x02" . chr(strlen($bytes)) . $bytes;
+}
+function dash_firma_der($rs) {
+    $r = dash_der_entero(substr($rs, 0, 32));
+    $s = dash_der_entero(substr($rs, 32, 32));
+    return "\x30" . chr(strlen($r) + strlen($s)) . $r . $s;
+}
+
+// Lee y verifica una clave premium. null si no es una clave válida (formato, llave desconocida o firma).
+// Devuelve el vencimiento (Y-m-d), el Hardware ID para el que se emitió y su huella (los 14 bytes de datos).
+// Una clave VENCIDA también se devuelve: decidir si sirve hoy es de quien la usa.
+function dash_licencia(array $cfg, $texto) {
+    if (!is_string($texto) || !function_exists('openssl_verify')) return null;
+    $t = strtoupper(preg_replace('/[\s\-]+/', '', $texto));
+    if (strlen($t) !== 125 || !preg_match('/^[A-Z2-7]+$/', $t)) return null;
+    $b = dash_base32($t);
+    if ($b === null || strlen($b) !== 78) return null;
+    $kid = ord($b[0]);
+    $llaves = dash_llaves_licencia($cfg);
+    if (!isset($llaves[$kid])) return null;
+    $pem = "-----BEGIN PUBLIC KEY-----\n" . chunk_split($llaves[$kid], 64, "\n") . "-----END PUBLIC KEY-----\n";
+    $datos = substr($b, 0, 14);
+    if (openssl_verify(DASH_LIC_DOMINIO . $datos, dash_firma_der(substr($b, 14, 64)), $pem, OPENSSL_ALGO_SHA256) !== 1) {
+        return null;
+    }
+    $dias = (ord($b[1]) << 8) | ord($b[2]);
+    $vence = new DateTime('2020-01-01', new DateTimeZone('UTC'));
+    $vence->modify("+$dias days");
+    return ['kid' => $kid, 'vence' => $vence->format('Y-m-d'),
+            'hw' => strtoupper(bin2hex(substr($b, 6, 8))), 'huella' => bin2hex($datos)];
+}
+
+// El Hardware ID estable de la PC (16 hexadecimales en mayúsculas, como lo da el POS).
+function dash_equipo_valido($equipo) {
+    return is_string($equipo) && preg_match('/^[0-9A-F]{16}$/', $equipo);
+}
+
+function dash_registrar_equipo(PDO $conn, $equipo) {
+    $conn->prepare('INSERT IGNORE INTO pruebas_equipo (equipo) VALUES (:e)')->execute([':e' => $equipo]);
+}
+
+// Qué puede ver un panel hoy. $fila trae gratis_hasta y premium_hasta de dashboard_pos.
+//   abierto  la migración 2026-10-20 no se ha corrido: todo como antes
+//   premium  con suscripción; hasta = su vencimiento
+//   prueba   en sus días gratis; hasta = el último (null si el servidor todavía no lo fijó)
+//   vencido  sin suscripción y sin días gratis; hasta = el día en que terminó
+function dash_acceso(array $fila, $hoy) {
+    if (!array_key_exists('gratis_hasta', $fila) || !array_key_exists('premium_hasta', $fila)) {
+        return ['estado' => 'abierto', 'hasta' => null];
+    }
+    $premium = dash_fecha_valida((string) $fila['premium_hasta']) ? $fila['premium_hasta'] : null;
+    $gratis  = dash_fecha_valida((string) $fila['gratis_hasta'])  ? $fila['gratis_hasta']  : null;
+    if ($premium !== null && $premium >= $hoy) return ['estado' => 'premium', 'hasta' => $premium];
+    if ($gratis === null || $gratis >= $hoy)   return ['estado' => 'prueba',  'hasta' => $gratis];
+    return ['estado' => 'vencido', 'hasta' => max($gratis, (string) $premium)];
+}
+
+function dash_acceso_de(PDO $conn, $hardware_id) {
+    $st = $conn->prepare('SELECT gratis_hasta, premium_hasta FROM dashboard_pos WHERE hardware_id = :id LIMIT 1');
+    $st->execute([':id' => $hardware_id]);
+    $f = $st->fetch(PDO::FETCH_ASSOC);
+    return $f ? dash_acceso($f, dash_hoy_mx()) : null;
+}
+
+// La primera vez que un panel habla con este servidor recibe sus días gratis. Si se conoce la PC y ya se
+// había visto antes, cuentan desde entonces: otro panel en la misma PC (otra instalación con otra base de
+// datos) no regala otros 15 días. Los paneles de antes ya traen fecha (la migración les dio 30) y no se tocan.
+function dash_fijar_gratis(PDO $conn, $hardware_id, $equipo) {
+    $desde = null;
+    if ($equipo !== null) {
+        $st = $conn->prepare('SELECT DATE(primera_vez) FROM pruebas_equipo WHERE equipo = :e');
+        $st->execute([':e' => $equipo]);
+        $v = $st->fetchColumn();
+        $desde = $v ? $v : null;
+    }
+    $conn->prepare('UPDATE dashboard_pos
+                       SET gratis_hasta = LEAST(CURRENT_DATE, COALESCE(CAST(:d AS DATE), CURRENT_DATE)) + INTERVAL ' . DASH_PRUEBA_DIAS . ' DAY
+                     WHERE hardware_id = :id AND gratis_hasta IS NULL')
+         ->execute([':d' => $desde, ':id' => $hardware_id]);
+}
+
+// Anota que esta clave abrió este panel y sube premium_hasta (nunca lo baja: una clave vieja reenviada no
+// le quita días a una renovación). Una clave abre a lo más DASH_PANELES_POR_LICENCIA paneles: false si ya
+// abrió otros tantos (se está prestando). El FOR UPDATE serializa dos envíos de la misma clave a la vez.
+function dash_registrar_licencia(PDO $conn, $hardware_id, array $lic) {
+    $conn->beginTransaction();
+    try {
+        $st = $conn->prepare('SELECT hardware_id FROM dashboard_licencias WHERE huella = :h FOR UPDATE');
+        $st->execute([':h' => $lic['huella']]);
+        $otros = 0;
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $panel) {
+            if (strcasecmp($panel, $hardware_id) !== 0) $otros++;
+        }
+        if ($otros >= DASH_PANELES_POR_LICENCIA) {   // este panel sería uno más
+            $conn->rollBack();
+            return false;
+        }
+        $conn->prepare('INSERT INTO dashboard_licencias (huella, hardware_id, vence) VALUES (:h, :id, :v)
+                        ON DUPLICATE KEY UPDATE vence = VALUES(vence), visto = CURRENT_TIMESTAMP')
+             ->execute([':h' => $lic['huella'], ':id' => $hardware_id, ':v' => $lic['vence']]);
+        $conn->prepare('UPDATE dashboard_pos SET premium_hasta = GREATEST(COALESCE(premium_hasta, :v1), :v2)
+                         WHERE hardware_id = :id')
+             ->execute([':v1' => $lic['vence'], ':v2' => $lic['vence'], ':id' => $hardware_id]);
+        $conn->commit();
+        return true;
+    } catch (PDOException $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
+}
+
+// La prueba gratis de Excel, por PC. El POS manda cuántos intentos le quedan; aquí se guarda lo más gastado
+// (usados solo sube) y se contesta cuántos quedan según el servidor. Desinstalar y volver a instalar el
+// programa no devuelve intentos: la PC es la misma.
+function dash_prueba_conciliar(PDO $conn, $equipo, $exportar_restantes, $importar_restantes) {
+    $exportar_usados = DASH_PRUEBA_INTENTOS - dash_int($exportar_restantes, 0, DASH_PRUEBA_INTENTOS);
+    $importar_usados = DASH_PRUEBA_INTENTOS - dash_int($importar_restantes, 0, DASH_PRUEBA_INTENTOS);
+    $conn->prepare('INSERT INTO pruebas_equipo (equipo, exportar_usados, importar_usados) VALUES (:e, :x, :i)
+                    ON DUPLICATE KEY UPDATE exportar_usados = GREATEST(exportar_usados, VALUES(exportar_usados)),
+                                            importar_usados = GREATEST(importar_usados, VALUES(importar_usados))')
+         ->execute([':e' => $equipo, ':x' => $exportar_usados, ':i' => $importar_usados]);
+    $st = $conn->prepare('SELECT exportar_usados, importar_usados FROM pruebas_equipo WHERE equipo = :e');
+    $st->execute([':e' => $equipo]);
+    $f = $st->fetch(PDO::FETCH_ASSOC);
+    return ['exportar' => max(0, DASH_PRUEBA_INTENTOS - (int) $f['exportar_usados']),
+            'importar' => max(0, DASH_PRUEBA_INTENTOS - (int) $f['importar_usados'])];
 }

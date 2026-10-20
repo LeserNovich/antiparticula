@@ -4,7 +4,7 @@
 # nada y no toca la base de producción ni config_db.php.
 #
 #   tests/correr_api.sh [migrado|sin-migrar]
-#     migrado      (por omisión) aplica 000 + 2026-10-09, dos veces: comprueba que es idempotente
+#     migrado      (por omisión) aplica 000 + 2026-10-09 + 2026-10-20, dos veces: comprueba que son idempotentes
 #     sin-migrar   solo la línea base: lo nuevo debe omitirse sin romper lo de siempre
 #
 # PUBLIC_HTML=<carpeta> prueba otra copia de public_html (para las mutaciones).
@@ -40,6 +40,16 @@ if [ "$MODO" = "migrado" ]; then
     if echo "$salida" | grep -qi "error"; then echo "La migración FALLA con information_schema como base activa:"; echo "$salida" | tail -3; exit 2; fi
     echo "$salida" | grep -q "ELIGE TU BASE" || { echo "La migración no avisó que la base activa no es la correcta"; exit 2; }
     echo "Con information_schema como base activa: avisa y no cambia nada"
+
+    # Premium (2026-10-20): los paneles que ya existen reciben 30 días; correrla otra vez no los alarga
+    echo "INSERT INTO dashboard_pos (hardware_id, negocio) VALUES ('ANTES0001', 'Panel de antes'), ('ANTES0002', 'Otro de antes')" | sql
+    sql < sql/2026-10-20_panel_premium.sql >/dev/null || { echo "Falló la migración premium (1.ª vez)"; exit 2; }
+    echo "UPDATE dashboard_pos SET gratis_hasta = CURRENT_DATE + INTERVAL 3 DAY WHERE hardware_id = 'ANTES0002'" | sql
+    sql < sql/2026-10-20_panel_premium.sql >/dev/null || { echo "La migración premium NO es idempotente (2.ª vez)"; exit 2; }
+    echo "Migración premium aplicada dos veces sin error"
+    salida=$(docker exec -i "$DB" mariadb -udash -pdash-prueba information_schema < sql/2026-10-20_panel_premium.sql 2>&1)
+    if echo "$salida" | grep -qi "error"; then echo "La migración premium FALLA con information_schema como base activa:"; echo "$salida" | tail -3; exit 2; fi
+    echo "$salida" | grep -q "ELIGE TU BASE" || { echo "La migración premium no avisó que la base activa no es la correcta"; exit 2; }
 fi
 
 docker run --rm --network "$RED" -v "$PH":/src/public_html:ro -v "$RAIZ/tests":/src/tests:ro "$IMG" sh -c '

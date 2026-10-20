@@ -63,6 +63,36 @@ function es_null($arr, $clave) { return is_array($arr) && array_key_exists($clav
 function nuevoId() { static $n = 0; $n++; return 'TEST' . strtoupper(dechex(mt_rand(0x10000, 0xFFFFF))) . $n; }
 function clave() { return bin2hex(random_bytes(32)); }
 
+// ── Claves premium firmadas con una llave de PRUEBA (kid 7) ─────────────────
+// El servidor la acepta porque se suma a config_db.php en 'llaves_licencia' (producción no lo hace).
+function base32($bin) {
+    $alf = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; $s = ''; $buf = 0; $bits = 0;
+    for ($i = 0; $i < strlen($bin); $i++) {
+        $buf = (($buf << 8) | ord($bin[$i])) & 0xFFFF; $bits += 8;
+        while ($bits >= 5) { $s .= $alf[($buf >> ($bits - 5)) & 31]; $bits -= 5; }
+    }
+    if ($bits > 0) $s .= $alf[($buf << (5 - $bits)) & 31];
+    return $s;
+}
+function der_a_rs($der) {   // SEQUENCE { INTEGER r, INTEGER s } -> r||s de 32 + 32 bytes
+    $p = 2; $rs = '';
+    for ($k = 0; $k < 2; $k++) {
+        $n = ord($der[$p + 1]); $v = ltrim(substr($der, $p + 2, $n), "\x00"); $p += 2 + $n;
+        $rs .= str_pad($v, 32, "\x00", STR_PAD_LEFT);
+    }
+    return $rs;
+}
+function hacer_licencia($llave, $kid, $vence, $hw, $nonce = null) {
+    $dias = (int) round((strtotime("$vence 00:00:00 UTC") - strtotime('2020-01-01 00:00:00 UTC')) / 86400);
+    $nonce = $nonce === null ? random_int(0, 0xFFFFFF) : $nonce;
+    $datos = chr($kid) . chr($dias >> 8) . chr($dias & 0xFF) . chr($nonce >> 16) . chr(($nonce >> 8) & 0xFF) . chr($nonce & 0xFF) . hex2bin($hw);
+    openssl_sign('AP-LIC-1' . $datos, $der, $llave, OPENSSL_ALGO_SHA256);
+    return base32($datos . der_a_rs($der));
+}
+function dentro($n) { global $HOY; return date('Y-m-d', strtotime("$HOY +$n days")); }
+function equipoNuevo() { return strtoupper(bin2hex(random_bytes(8))); }
+function prueba_gratis($datos) { global $BASE; return http('POST', "$BASE/prueba_gratis.php", $datos); }
+
 echo "\nModo: $MODO · PHP " . PHP_VERSION . " · $BASE\n";
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -128,6 +158,71 @@ if ($MIGRADO) {
     eq($r['codigo'], 200, 'sin migrar: el sync no falla');
     eq($r['json']['avisos'] ?? null, ['extra_no_disponible'], 'sin migrar: avisa que extra no se guardó');
     ok(es_null(leer($id)['json'], 'extra'), 'sin migrar: extra sigue null');
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+titulo('2b. extra, etapa 2: sesión, más vendidos, cajeros, por cobrar, gastos y meta');
+$id = nuevoId();
+if ($MIGRADO) {
+    $mas = function ($n) { return array_map(function ($i) { return ['nombre' => "Prod $i <b>x</b>", 'importe' => 1000 * $i, 'cantidad' => 1000 * $i, 'unidad' => 1]; }, range(1, $n)); };
+    $e2 = [
+        'sesion' => ['cerrada' => true, 'desde' => '09-10-2026 18:05:00'],
+        'top_productos' => ['hoy' => $mas(8), 'semana' => $mas(2), 'mes' => [['nombre' => 'Neg', 'importe' => -5, 'cantidad' => -1, 'unidad' => 1]], 'anio' => $mas(1)],
+        'por_cajero' => array_map(function ($i) { return ['cajero' => "Cajero $i<script>", 'tickets' => $i, 'ventas' => 100 * $i]; }, range(1, 14)),
+        'apartados' => ['activos' => 3, 'por_cobrar' => 125000, 'vencidos' => 1],
+        'presupuestos' => ['vigentes' => 4, 'monto' => 900000, 'por_vencer' => 2, 'vencidos' => 1],
+        'gastos' => ['hoy' => 15000, 'mes' => 420000],
+        'meta_diaria' => 1500000,
+        'clave_desconocida' => 'no debe pasar',
+    ];
+    $r = sync(base(['hardware_id' => $id, 'extra' => json_encode($e2)]));
+    eq($r['json']['avisos'] ?? null, [], 'extra de la etapa 2 aceptado');
+    $e = leer($id)['json']['extra'] ?? [];
+    eq($e['sesion']['cerrada'] ?? null, true, 'sesion.cerrada');
+    eq($e['sesion']['desde'] ?? null, '09-10-2026 18:05:00', 'sesion.desde con el formato del POS');
+    eq(count($e['top_productos']['hoy'] ?? []), 5, 'más vendidos: tope de 5 por ventana');
+    eq(count($e['top_productos']['semana'] ?? []), 2, 'la ventana semana conserva sus 2');
+    ok(strpos(json_encode($e['top_productos']), '<b>') === false, 'el HTML de los nombres se quita');
+    eq($e['top_productos']['mes'][0]['importe'] ?? null, 0, 'un importe negativo se acota a 0');
+    eq($e['top_productos']['mes'][0]['cantidad'] ?? null, 0, 'una cantidad negativa se acota a 0');
+    ok(!isset($e['top_productos']['anio']), 'una ventana que no existe se descarta');
+    eq(count($e['por_cajero'] ?? []), 10, 'por cajero: tope de 10');
+    ok(strpos(json_encode($e['por_cajero']), 'script') === false, 'el nombre del cajero sale sin HTML');
+    eq($e['apartados']['por_cobrar'] ?? null, 125000, 'apartados por cobrar');
+    eq($e['presupuestos']['por_vencer'] ?? null, 2, 'presupuestos por vencer');
+    eq($e['gastos']['mes'] ?? null, 420000, 'gastos del mes');
+    eq($e['meta_diaria'] ?? null, 1500000, 'meta diaria');
+    ok(!isset($e['clave_desconocida']), 'lo desconocido se descarta');
+
+    // Valores malos
+    $r = sync(base(['hardware_id' => $id, 'extra' => json_encode(['sesion' => ['cerrada' => 'true', 'desde' => 'ayer'], 'meta_diaria' => -500])]));
+    $e = leer($id)['json']['extra'] ?? [];
+    ok(es_null($e, 'sesion'), '«cerrada» como texto no cuenta: solo un true de verdad');
+    eq($e['meta_diaria'] ?? null, 0, 'una meta negativa se acota a 0 (= sin meta)');
+    sync(base(['hardware_id' => $id, 'extra' => json_encode(['sesion' => ['cerrada' => true, 'desde' => 'ayer por la tarde']])]));
+    eq(leer($id)['json']['extra']['sesion']['desde'] ?? 'x', '', 'una fecha de sesión que no tiene el formato queda vacía');
+
+    // Fusión: un envío parcial conserva lo demás; un null explícito sustituye
+    sync(base(['hardware_id' => $id, 'extra' => json_encode($e2)]));
+    sync(base(['hardware_id' => $id, 'extra' => json_encode(['meta_diaria' => 2000000])]));
+    $e = leer($id)['json']['extra'] ?? [];
+    eq($e['meta_diaria'] ?? null, 2000000, 'fusión: la clave nueva sustituye a la vieja');
+    eq($e['gastos']['hoy'] ?? null, 15000, 'fusión: lo que no se mandó se conserva (gastos)');
+    eq(count($e['top_productos']['hoy'] ?? []), 5, 'fusión: …y los más vendidos también');
+    sync(base(['hardware_id' => $id, 'extra' => json_encode(['sesion' => null])]));
+    ok(es_null(leer($id)['json']['extra'], 'sesion'), 'fusión: un null explícito sustituye (la sesión volvió a estar abierta)');
+    sync(base(['hardware_id' => $id, 'extra' => json_encode(['caja' => null])]));
+    $e = leer($id)['json']['extra'];
+    ok(es_null($e, 'caja') && ($e['gastos']['mes'] ?? null) === 420000, 'fusión: caja=null (turno cerrado) y lo demás sigue');
+    // Un envío SIN extra no borra lo guardado
+    sync(base(['hardware_id' => $id]));
+    eq(leer($id)['json']['extra']['gastos']['mes'] ?? null, 420000, 'un envío sin extra no borra lo guardado');
+    // Dos paneles no se mezclan
+    $otro = nuevoId();
+    sync(base(['hardware_id' => $otro, 'extra' => json_encode(['gastos' => ['hoy' => 1, 'mes' => 2]])]));
+    eq(leer($id)['json']['extra']['gastos']['mes'] ?? null, 420000, 'la fusión no toca el extra de otro panel');
+} else {
+    ok(true, 'sin migrar: extra no se guarda (ya cubierto arriba)');
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -221,6 +316,21 @@ if (!$MIGRADO) {
     eq($r['json']['protegido'] ?? null, false, 'queda SIN protección (el POS lo detecta con protegido=false)');
     ok(in_array('pin_no_disponible', $r['json']['avisos'] ?? []), 'avisa pin_no_disponible');
     eq(leer($id)['codigo'], 200, 'el panel sigue abierto y legible');
+
+    titulo('6. Premium con la base sin migrar: todo sigue abierto, como antes');
+    $id = nuevoId();
+    $r = sync(base(['hardware_id' => $id]));
+    ok(es_null($r['json'], 'acceso'), 'acceso = null (no se sabe)');
+    eq($r['json']['avisos'] ?? null, [], 'un POS anterior no recibe avisos nuevos');
+    $r = sync(base(['hardware_id' => $id, 'equipo' => equipoNuevo(), 'licencia' => str_repeat('A', 125)]));
+    eq($r['codigo'], 200, 'POS 3.4.0 contra la base vieja: 200');
+    ok(in_array('acceso_no_disponible', $r['json']['avisos'] ?? []), '…y avisa acceso_no_disponible');
+    $g = leer($id);
+    eq($g['codigo'], 200, 'el panel se lee');
+    eq($g['json']['acceso']['estado'] ?? null, 'abierto', 'estado «abierto»');
+    $p = prueba_gratis(['equipo' => equipoNuevo(), 'exportar' => '3', 'importar' => '3']);
+    eq($p['codigo'], 503, 'prueba_gratis sin su tabla: 503 (el POS sigue con su cuenta local)');
+    eq($p['json']['status'] ?? null, 'no_disponible', '…status no_disponible');
     echo "\n\033[1mResultado: $pass pasadas, $fail fallidas\033[0m\n";
     exit($fail === 0 ? 0 : 1);
 }
@@ -356,6 +466,164 @@ $id3 = nuevoId(); sync(base(['hardware_id' => $id3, 'pin' => $PIN, 'clave' => cl
 for ($i = 1; $i <= 8; $i++) entrar($id3, sprintf('%06d', $i));
 $pdo->exec("UPDATE dashboard_pos SET pin_bloqueo_hasta = DATE_SUB(NOW(), INTERVAL 1 MINUTE) WHERE hardware_id = " . $pdo->quote($id3));
 eq(entrar($id3, '555555')['codigo'], 429, 'tras un bloqueo vencido, el siguiente fallo bloquea otra vez');
+
+titulo('9. Premium: días gratis, clave firmada y la puerta de lectura');
+// La llave de prueba: se suma a config_db.php (el servidor lo relee en cada petición)
+$par = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+$pub = preg_replace('/-----[^-]+-----|\s+/', '', openssl_pkey_get_details($par)['key']);
+$cfg_prueba = $cfg; $cfg_prueba['llaves_licencia'] = [7 => $pub];
+file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg_prueba, true) . ';');
+// (la llave de producción no se tiene aquí; la interoperabilidad con el POS la prueba el ejemplo de Java, más abajo)
+
+// Paneles de antes: la migración les dio 30 días desde hoy y correrla otra vez no los alarga
+eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0001'")->fetchColumn(), dentro(30),
+   'panel de antes: 30 días de aviso desde que se corre la migración');
+eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0002'")->fetchColumn(), dentro(3),
+   'correrla otra vez no alarga ni reinicia lo que ya tenía fecha');
+$g = leer('ANTES0001');
+eq($g['codigo'], 200, 'un panel de antes se sigue viendo en su aviso');
+eq($g['json']['acceso'] ?? null, ['estado' => 'prueba', 'hasta' => dentro(30)], '…y el panel recibe la fecha para avisar');
+ok(!array_key_exists('gratis_hasta', $g['json']) && !array_key_exists('premium_hasta', $g['json']), 'las columnas internas no salen');
+
+// Un panel nuevo: 15 días gratis
+$id = nuevoId(); $eq1 = equipoNuevo();
+$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
+eq($r['json']['avisos'] ?? null, [], 'sync de un POS 3.4.0 sin clave: sin avisos');
+eq($r['json']['acceso'] ?? null, ['estado' => 'prueba', 'hasta' => dentro(15)], 'panel nuevo: 15 días gratis');
+eq(leer($id)['json']['acceso']['estado'] ?? null, 'prueba', 'la lectura dice lo mismo');
+$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
+eq($r['json']['acceso']['hasta'] ?? null, dentro(15), 'otro envío no reinicia los 15 días');
+eq((int) $pdo->query("SELECT COUNT(*) FROM pruebas_equipo WHERE equipo = " . $pdo->quote($eq1))->fetchColumn(), 1, 'la PC queda anotada');
+
+// Se acaban los días gratis
+$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($id));
+$g = leer($id);
+eq($g['codigo'], 403, 'sin días gratis ni Premium: 403');
+eq($g['json']['status'] ?? null, 'premium_requerido', 'status premium_requerido');
+eq($g['json']['negocio'] ?? null, 'Abarrotes Prueba', 'dice de qué negocio es');
+eq($g['json']['desde'] ?? null, dia(1), 'y desde cuándo');
+ok(!isset($g['json']['ventas_hoy']) && !isset($g['json']['extra']) && !isset($g['json']['ultimas_ventas']), '…sin ni una cifra');
+$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
+eq($r['codigo'], 200, 'el POS puede seguir enviando (para cuando pague)');
+eq($r['json']['acceso']['estado'] ?? null, 'vencido', '…y se entera de que venció');
+
+// La clave premium
+$hw = equipoNuevo();
+$lic = hacer_licencia($par, 7, dentro(365), $hw);
+eq(strlen($lic), 125, '(la clave de prueba mide 125 caracteres, como las reales)');
+$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1, 'licencia' => $lic]));
+eq($r['json']['avisos'] ?? null, [], 'clave válida: sin avisos');
+eq($r['json']['acceso'] ?? null, ['estado' => 'premium', 'hasta' => dentro(365)], 'con la clave: premium hasta su vencimiento');
+$g = leer($id);
+eq($g['codigo'], 200, 'el panel vuelve a abrir');
+eq($g['json']['acceso']['estado'] ?? null, 'premium', '…como premium');
+eq($g['json']['ventas_hoy'] ?? null, 100000, '…con sus cifras');
+$conGuiones = implode('-', str_split(strtolower($lic), 5));
+eq(dash_licencia($cfg_prueba, $conGuiones)['vence'] ?? null, dentro(365), 'con guiones y en minúsculas también se lee (como en el POS)');
+// una renovación sube la fecha; reenviar la clave vieja no la baja
+$lic2 = hacer_licencia($par, 7, dentro(730), $hw);
+eq(sync(base(['hardware_id' => $id, 'licencia' => $lic2]))['json']['acceso']['hasta'] ?? null, dentro(730), 'renovación: sube la fecha');
+eq(sync(base(['hardware_id' => $id, 'licencia' => $lic]))['json']['acceso']['hasta'] ?? null, dentro(730), 'la clave vieja reenviada no la baja');
+// un POS que deja de mandar la clave (o uno anterior) no pierde lo ya verificado
+eq(sync(base(['hardware_id' => $id]))['json']['acceso']['estado'] ?? null, 'premium', 'sin clave en un envío: sigue premium');
+
+// Claves malas
+$id2 = nuevoId();
+sync(base(['hardware_id' => $id2]));
+$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($id2));
+$i = 40; $mala = substr($lic, 0, $i) . ($lic[$i] === 'A' ? 'B' : 'A') . substr($lic, $i + 1);
+$r = sync(base(['hardware_id' => $id2, 'licencia' => $mala]));
+ok(in_array('licencia_invalida', $r['json']['avisos'] ?? []), 'un carácter cambiado: licencia_invalida');
+eq($r['json']['acceso']['estado'] ?? null, 'vencido', '…y no abre nada');
+$malas = 0;
+for ($i = 0; $i < 125; $i++) {
+    $otra = substr($lic, 0, $i) . ($lic[$i] === 'Q' ? 'R' : 'Q') . substr($lic, $i + 1);
+    if (dash_licencia($cfg_prueba, $otra) === null) $malas++;
+}
+eq($malas, 125, 'cambiar CUALQUIERA de los 125 caracteres la invalida');
+eq(dash_licencia($cfg_prueba, hacer_licencia($par, 9, dentro(30), $hw)), null, 'llave desconocida (kid 9): no vale');
+eq(dash_licencia($cfg, $lic), null, 'sin la llave de prueba en la configuración, la clave de prueba no vale (no hay llave «comodín»)');
+$otraLlave = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+eq(dash_licencia($cfg_prueba, hacer_licencia($otraLlave, 7, dentro(30), $hw)), null, 'firmada con otra llave privada: no vale');
+eq(dash_licencia($cfg_prueba, substr($lic, 0, 124)), null, 'incompleta: no vale');
+eq(dash_licencia($cfg_prueba, substr($lic, 0, 124) . '1'), null, 'con un carácter fuera de Base32: no vale');
+// una clave de recuperación de contraseña (otro dominio de firma) no es una clave premium
+$rec = (function () use ($par, $hw) {
+    $dias = (int) round((strtotime(dentro(3) . ' UTC') - strtotime('2020-01-01 UTC')) / 86400);
+    $datos = chr(7) . chr($dias >> 8) . chr($dias & 0xFF) . "\x01\x02\x03" . hex2bin($hw);
+    openssl_sign('AP-REC-1' . $datos, $der, $par, OPENSSL_ALGO_SHA256);
+    return base32($datos . der_a_rs($der));
+})();
+eq(dash_licencia($cfg_prueba, $rec), null, 'un código de recuperación (AP-REC-1) no vale como Premium');
+// vencida: se registra pero no abre
+$vieja = hacer_licencia($par, 7, dia(2), $hw);
+$r = sync(base(['hardware_id' => $id2, 'licencia' => $vieja]));
+eq($r['json']['acceso']['estado'] ?? null, 'vencido', 'clave vencida: no abre el panel');
+eq(leer($id2)['codigo'], 403, '…la lectura sigue cerrada');
+
+// Una clave no se presta: abre 2 paneles (la PC y una reinstalación), no un tercero
+$lic3 = hacer_licencia($par, 7, dentro(100), equipoNuevo());
+$p1 = nuevoId(); $p2 = nuevoId(); $p3 = nuevoId();
+eq(sync(base(['hardware_id' => $p1, 'licencia' => $lic3]))['json']['acceso']['estado'] ?? null, 'premium', '1.er panel con la clave: premium');
+eq(sync(base(['hardware_id' => $p2, 'licencia' => $lic3]))['json']['acceso']['estado'] ?? null, 'premium', '2.º panel (reinstalación): premium');
+sync(base(['hardware_id' => $p3]));   // el 3.er panel existe y ya sin días gratis
+$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($p3));
+$r = sync(base(['hardware_id' => $p3, 'licencia' => $lic3]));
+ok(in_array('licencia_en_otros_paneles', $r['json']['avisos'] ?? []), '3.er panel: licencia_en_otros_paneles');
+eq($r['json']['acceso']['estado'] ?? null, 'vencido', '…y NO se abre');
+eq($pdo->query("SELECT premium_hasta FROM dashboard_pos WHERE hardware_id = " . $pdo->quote($p3))->fetchColumn(), null, '…ni se le anota premium');
+eq(sync(base(['hardware_id' => $p1, 'licencia' => $lic3]))['json']['avisos'] ?? null, [], 'los 2 primeros la siguen usando sin aviso');
+$pdo->exec("DELETE FROM dashboard_licencias WHERE hardware_id = " . $pdo->quote($p2));   // soporte libera el panel viejo
+eq(sync(base(['hardware_id' => $p3, 'licencia' => $lic3]))['json']['acceso']['estado'] ?? null, 'premium', 'soporte libera un panel: el nuevo ya abre');
+
+// Con PIN, quien no tiene el PIN no se entera ni de eso: 401 antes que 403
+$idp = nuevoId(); $kp = clave();
+sync(base(['hardware_id' => $idp, 'pin' => '482915', 'clave' => $kp]));
+$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($idp));
+eq(leer($idp)['codigo'], 401, 'panel con PIN y sin Premium, sin token: 401 (no 403)');
+$tk = entrar($idp, '482915')['json']['token'] ?? null;
+$g = leer($idp, $tk);
+eq($g['codigo'], 403, 'con el PIN correcto: 403 premium_requerido');
+eq($g['json']['protegido'] ?? null, true, '…y dice que está protegido');
+
+// Los días gratis cuentan desde la primera vez que se vio la PC: otro panel en la misma PC no regala 15 más
+$eqv = equipoNuevo();
+sync(base(['hardware_id' => nuevoId(), 'equipo' => $eqv]));
+$pdo->exec("UPDATE pruebas_equipo SET primera_vez = NOW() - INTERVAL 20 DAY WHERE equipo = " . $pdo->quote($eqv));
+$r = sync(base(['hardware_id' => nuevoId(), 'equipo' => $eqv]));
+eq($r['json']['acceso'] ?? null, ['estado' => 'vencido', 'hasta' => dia(5)], 'panel nuevo en una PC vista hace 20 días: sin días gratis (terminaron hace 5)');
+$r = sync(base(['hardware_id' => nuevoId(), 'equipo' => 'no-hex']));
+eq($r['json']['acceso']['estado'] ?? null, 'prueba', 'un equipo inválido se ignora (no rompe el envío)');
+
+// La clave generada por el POS (Java) se lee igual aquí: tests/fixtures/licencia_java.json
+$fx_ruta = '/src/tests/fixtures/licencia_java.json';
+if (file_exists($fx_ruta)) {
+    $fx = json_decode(file_get_contents($fx_ruta), true);
+    $cfg_java = $cfg; $cfg_java['llaves_licencia'] = [(int) $fx['kid'] => $fx['publica']];
+    $l = dash_licencia($cfg_java, $fx['licencia']);
+    eq($l['vence'] ?? null, $fx['vence'], 'clave emitida en Java: mismo vencimiento');
+    eq($l['hw'] ?? null, $fx['hardware_id'], 'clave emitida en Java: mismo Hardware ID');
+    eq(dash_licencia($cfg_java, $fx['licencia_con_guiones']) !== null, true, 'clave de Java con guiones: también');
+    eq(dash_licencia($cfg_java, $fx['alterada']), null, 'clave de Java alterada: no vale');
+} else {
+    ok(false, 'falta tests/fixtures/licencia_java.json (lo genera PruebaPremiumPanel del POS)');
+}
+
+titulo('10. La prueba gratis de Excel, por PC');
+$e = equipoNuevo();
+eq(prueba_gratis(['equipo' => $e, 'exportar' => '3', 'importar' => '3'])['json'], ['status' => 'exitoso', 'exportar' => 3, 'importar' => 3], 'PC nueva: 3 y 3');
+eq(prueba_gratis(['equipo' => $e, 'exportar' => '1', 'importar' => '3'])['json']['exportar'] ?? null, 1, 'gastó 2: le queda 1');
+$r = prueba_gratis(['equipo' => $e, 'exportar' => '3', 'importar' => '3']);
+eq([$r['json']['exportar'] ?? null, $r['json']['importar'] ?? null], [1, 3], 'reinstaló (otra vez 3 en local): el servidor dice 1');
+eq(prueba_gratis(['equipo' => strtolower($e), 'exportar' => '0', 'importar' => '2'])['json'], ['status' => 'exitoso', 'exportar' => 0, 'importar' => 2], 'en minúsculas es la misma PC; solo baja');
+eq(prueba_gratis(['equipo' => $e, 'exportar' => '9', 'importar' => '3'])['json']['exportar'] ?? null, 0, 'un número fuera de rango no devuelve intentos');
+eq(prueba_gratis(['equipo' => 'XYZ', 'exportar' => '3', 'importar' => '3'])['codigo'], 400, 'equipo inválido: 400');
+eq(prueba_gratis(['equipo' => equipoNuevo(), 'exportar' => '3'])['codigo'], 400, 'falta una cuenta: 400 (no se lee como «0»)');
+eq(prueba_gratis(['equipo' => equipoNuevo(), 'exportar' => '-1', 'importar' => '3'])['codigo'], 400, 'cuenta negativa: 400');
+eq(http('GET', "$BASE/prueba_gratis.php")['codigo'], 405, 'solo POST');
+ok(stripos(prueba_gratis(['equipo' => $e, 'exportar' => '0', 'importar' => '0'])['cabeceras'], 'Access-Control-Allow-Origin') === false,
+   'sin CORS: ningún navegador lo llama');
+file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg, true) . ';');
 
 titulo('8. CORS y método');
 $op = http('OPTIONS', "$BASE/get_dashboard_data.php", null, ['Origin: https://www.antiparticula.com']);

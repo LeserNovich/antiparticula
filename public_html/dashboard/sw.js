@@ -1,11 +1,12 @@
 // Subir esta versión en CADA cambio del shell (html/css/js), si no los
 // clientes instalados siguen sirviendo la copia vieja desde caché.
-const CACHE_NAME = 'antiparticula-dashboard-v5';
+const CACHE_NAME = 'antiparticula-dashboard-v8';
 
 const SHELL_FILES = [
     '/dashboard/index.html',
     '/dashboard/dashboard.css',
     '/dashboard/dashboard.js',
+    '/dashboard/tiendas.js',
     '/dashboard/manifest.json',
     '/dashboard/icon-192.png',
     '/dashboard/icon-512.png',

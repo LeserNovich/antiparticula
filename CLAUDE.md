@@ -160,6 +160,35 @@ El lado del POS (qué manda, cada cuánto, la bitácora de cancelaciones) está 
 
 **POST `dashboard_auth.php`** (`id`, `pin`) → 200 `{token, expira}` | 401 `pin_incorrecto` + `restantes` | 429 `bloqueado` + `reintentar_en`.
 
+#### Etapa 2 (POS 3.4.0, panel v4, `sw.js` → `antiparticula-dashboard-v6`; sin migración SQL)
+
+Más claves opcionales dentro de `extra`: `sesion {cerrada:true, desde}` (salió del POS dejando el turno abierto; `null` = no),
+`top_productos {hoy,semana,mes}` (≤ 5 por importe), `por_cajero` (≤ 10, hoy), `apartados {activos,por_cobrar,vencidos}`,
+`presupuestos {vigentes,monto,por_vencer,vencidos}`, `gastos {hoy,mes}`, `meta_diaria` (centavos, 0 = sin meta).
+- **`dash_guardar_extra` FUSIONA** por clave de primer nivel (`array_replace`, lectura y escritura en una transacción): una clave
+  ausente conserva lo guardado y un `null` explícito lo reemplaza. Por eso el POS manda **siempre** todas las claves.
+- Saneado en `dash_sanear_extra` (topes, `strip_tags`, negativos a 0, lo desconocido se descarta; `sesion` solo con `true` real).
+- El panel oculta cada tarjeta si su dato no llegó (un POS 3.3.0 se ve igual que antes): lo más vendido (selector Hoy | 7 días |
+  Mes), ventas por cajero (solo con 2 o más), por cobrar / presupuestos / gastos en Caja, utilidad del mes (ganancia − gastos)
+  en Historial → Mes, barra de meta en la cabecera, chip «Sesión cerrada» + aviso en Caja y «Compartir resumen del día»
+  (`navigator.share`, si no `wa.me/?text=`).
+- Cerrar la ventana del programa NO es «sesión cerrada» (el latido se detiene y el panel dice «sin datos del POS»).
+- Pruebas: `test_dashboard.js` 361, `correr_api.sh migrado` 153. Orden de despliegue: PHP → `dashboard/*` → POS.
+
+#### Panel de TODAS las tiendas (`/dashboard/T-<código>`, `tiendas.js`; POS 3.4.0 + servidor 1.5.0)
+
+Otro panel, para el dueño con varias tiendas: **no usa PHP ni MySQL**; el navegador lee directo de `https://api.antiparticula.com/api/v1/panel/*`
+(servidor multisucursal; CORS ya resuelto allá) con una sesión que da el servidor al escribir el código del enlace y un PIN (6–8 dígitos, 8 fallos →
+15 min). Lo crea la PC de administrador desde el POS. Pestañas **Hoy · Tiendas · Inventario · Historial (Semana | Mes)** y selector Todas · cada tienda.
+- `dashboard.js` sale al ver un id `T-…` (el id de una sola tienda es un Hardware ID de 16 hex); `index.html` carga `tiendas.js` después, y `sw.js`
+  (`antiparticula-dashboard-v7`) lo guarda. `tiendas.js` reutiliza las funciones globales de `dashboard.js` (`pintarPagos`, `pintarTop`, `pintarHoras`,
+  `pintarSemana`, `pintarMes`, `htmlColumnas`…): **si cambias la forma de lo que esas reciben (`d.pagos`, `d.top`, `d.horas`, `d.semana`, `d.mes`,
+  `d.utilidad`), cambia también `derivarT`**.
+- En `localhost`/`127.0.0.1` la API es `http://<host>:18080/api/v1` (probar contra un servidor local); en producción, `api.antiparticula.com`.
+- Es lo que cada tienda **ya sincronizó** (no en vivo): cada tienda dice cuándo reportó y una que lleva más de 30 min sin hablar sale en ámbar.
+- Pruebas: `NODE_PATH=<jsdom> node tests/test_tiendas.js` (171). Sus ejemplos (`tests/fixtures/panel_tiendas_*.json`) los genera el servidor real
+  (`PanelTest -Dpanel.ejemplo=…`), no se escriben a mano. Detalle y despliegue: `docs/panel-tiendas.md` del repo del POS.
+
 #### PIN opcional (sin PIN el panel sigue abierto por su ID, como siempre)
 
 - Al activarlo, el POS genera una **clave** (32 bytes) y manda `pin`+`clave`; el servidor guarda `pin_hash`
@@ -174,6 +203,40 @@ El lado del POS (qué manda, cada cuánto, la bitácora de cancelaciones) está 
   pin_fallos=0, pin_bloqueo_hasta=NULL WHERE hardware_id='…'` (también en el encabezado de la migración).
 - **Límite conocido:** quien activa la protección primero «reclama» el ID; si fuera alguien que solo conoce el ID, el
   dueño lo arregla con el `UPDATE` de arriba. Sin PIN, el panel sigue siendo tan abierto como antes.
+
+#### Premium (2026-10-20; POS 3.4.0, `FIRMA_DOM` v5, `sw.js` → `antiparticula-dashboard-v8`)
+
+El panel de **una** tienda se consulta con la suscripción Premium o en sus días gratis (el de todas las tiendas va con la
+licencia multisucursal y no cambia). Migración `sql/2026-10-20_panel_premium.sql` (idempotente, solo agrega):
+`dashboard_pos.gratis_hasta` y `premium_hasta`, tablas `dashboard_licencias` y `pruebas_equipo`.
+- **Días gratis:** un panel nuevo, 15 (`DASH_PRUEBA_DIAS`), contados desde la primera vez que se vio **la PC** (`equipo`, el
+  Hardware ID estable): otro panel en la misma PC no regala otros 15. Los paneles que existían al correr la migración reciben
+  **30 días desde ese día** (el aviso): **correrla el mismo día en que se sube el PHP**; correrla otra vez no los alarga.
+- **La clave:** `sync_pos.php` recibe `licencia` (la clave firmada de 125 caracteres) y `equipo`. `dash_licencia()` la verifica
+  como el POS (`LicenciaFirmada`): Base32 canónico, `kid`, ECDSA P-256/SHA-256 sobre `"AP-LIC-1"` + 14 bytes (r||s → DER), con
+  las llaves de `dash_llaves_licencia()` = las de `publica.txt` del POS (**una llave nueva va en los dos lados**; `config_db.php`
+  puede sumar otras en `llaves_licencia`: solo las pruebas lo hacen). `premium_hasta` solo sube (`GREATEST`). Una clave abre a
+  lo más **2 paneles** (`DASH_PANELES_POR_LICENCIA`): el tercero recibe el aviso `licencia_en_otros_paneles` y no se abre.
+- **Respuesta de `sync_pos.php`:** agrega `acceso {estado, hasta}`: `premium` | `prueba` | `vencido` | `abierto` (sin la
+  migración: todo como antes, y `acceso` = null). Avisos nuevos: `licencia_invalida`, `licencia_en_otros_paneles`,
+  `acceso_no_disponible` (este, solo si el POS mandó algo de esto).
+- **Lectura:** `get_dashboard_data.php` responde **403 `{status:'premium_requerido', negocio, desde, protegido}`** sin un solo
+  dato; va **después** del PIN (sin token, 401 como siempre). Con acceso, la fila trae `acceso`; `gratis_hasta`/`premium_hasta`
+  nunca salen.
+- **Panel:** en sus días gratis, un aviso bajo el banner («Tu panel es gratis hasta el 18 Sep (quedan 15 días)…» + «Contratar
+  Premium», `wa.me/525584323945` con el negocio y el ID del panel); con 403, `showPremium()`: la pantalla «El panel móvil es parte
+  de Premium» (contratar por WhatsApp, «Ya lo activé: volver a revisar» y «¿Ya tienes Premium? Actualiza el programa…»), borra
+  lo guardado en el teléfono y no se vuelve a montar en cada refresco. Al pagar, el siguiente refresco monta el panel.
+- **`prueba_gratis.php`** (no es del panel, pero vive aquí): la prueba de Excel del POS contada **por PC**. POST `equipo`,
+  `exportar`, `importar` (lo que le QUEDA al POS, 0–9) → 200 `{exportar, importar}` (lo que queda según el servidor: `usados`
+  solo sube); 400 si falta una cuenta (no se lee como «0»); 503 sin la tabla. Sin CORS.
+- **Soporte** (en el encabezado de la migración): dar días (`UPDATE dashboard_pos SET gratis_hasta = …`), liberar un panel
+  viejo de una clave (`DELETE FROM dashboard_licencias WHERE hardware_id = …`) o devolver la prueba de Excel.
+- **Orden de despliegue:** 1. SQL (el mismo día) · 2. PHP (`dashboard_comun.php`, `sync_pos.php`, `get_dashboard_data.php`,
+  `prueba_gratis.php`) y `dashboard/*` · 3. publicar el POS 3.4.0. Comprobar después que una clave real abre: un sync con
+  `licencia` de un cliente debe contestar `acceso.estado = premium` (si el hosting no tuviera `openssl`, `dash_licencia` da
+  null y **todos** quedarían sin Premium al terminar sus días). Detalle del POS: `docs/licencias-y-hardware-id.md` del POS,
+  «Qué es Premium», y `docs/dashboard-movil.md`.
 
 #### Migración y orden de despliegue
 
@@ -192,15 +255,17 @@ y `dashboard/*` · **3.** publicar el POS 3.3.0. Volver atrás = re-subir los ar
 #### Pruebas
 
 ```bash
-NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 267 comprobaciones del panel (jsdom)
+NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 385 comprobaciones del panel (jsdom)
 php tests/test_sync.php                                       # parseo de ultimas_ventas (29)
-tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 127 (migrado)
-tests/correr_api.sh sin-migrar     # lo viejo funciona y lo nuevo se omite con aviso: 29
+tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 217 (migrado, con Premium)
+tests/correr_api.sh sin-migrar     # lo viejo funciona y lo nuevo se omite con aviso: 38
 ```
 `correr_api.sh` construye una imagen alpine con PHP 8.3 + `pdo_mysql` (la oficial `php:*-cli` es una descarga grande que
 en algunas redes se cuelga), levanta `mariadb:10.11`, aplica la migración **dos veces** y golpea los endpoints por HTTP;
 `PUBLIC_HTML=<copia>` prueba otra copia (así se hicieron las mutaciones). No toca `config_db.php` ni la base real.
 Todas las pruebas tienen **mutaciones comprobadas** (romper la regla hace fallar alguna).
+`tests/fixtures/licencia_java.json` (una clave emitida en Java con una llave de prueba) lo genera `test/test/PruebaPremium.java`
+del POS con la ruta como argumento: **no se escribe a mano**; con él, la sección 9 comprueba que PHP lee la clave igual que Java.
 
 #### Aspecto (rediseño 2026-10-09)
 

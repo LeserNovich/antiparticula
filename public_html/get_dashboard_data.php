@@ -102,6 +102,16 @@ try {
     unset($row['pin_hash'], $row['clave_hash'], $row['pin_fallos'], $row['pin_bloqueo_hasta']);
     $row['protegido'] = $protegido;
 
+    // ── Puerta de Premium: sin suscripción ni días gratis, ni un dato (va DESPUÉS del PIN: a quien no
+    // tiene el PIN no se le dice ni eso). Sin la migración 2026-10-20 el estado es «abierto», como antes.
+    $acceso = dash_acceso($row, dash_hoy_mx());
+    unset($row['gratis_hasta'], $row['premium_hasta']);
+    if ($acceso['estado'] === 'vencido') {
+        dash_responder(403, ['status' => 'premium_requerido', 'negocio' => $row['negocio'],
+                             'desde' => $acceso['hasta'], 'protegido' => $protegido]);
+    }
+    $row['acceso'] = $acceso;
+
     // Pagos, caja, cancelaciones e inventario (null con un POS anterior a la 3.3.0)
     $extra_decodificado = isset($row['extra_json']) && $row['extra_json'] !== null && $row['extra_json'] !== ''
         ? json_decode($row['extra_json'], true) : null;
