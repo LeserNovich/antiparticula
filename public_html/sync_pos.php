@@ -390,16 +390,13 @@ try {
         }
     }
 
-    // (e) Premium: la clave firmada que manda el POS (3.4.0+) y los días gratis del panel. Ver
-    //     sql/2026-10-20_panel_premium.sql. Un POS anterior no manda clave: cuando terminen sus días
-    //     gratis, el panel le pide actualizar. Sin la migración, acceso = null y el panel sigue abierto.
+    // (e) Premium: la clave firmada que manda el POS (3.4.0+). Ver sql/2026-10-20_panel_premium.sql.
+    //     El panel es solo de Premium (sin días gratis); un POS anterior no manda clave y su panel pide
+    //     actualizar. El POS también manda `equipo` (su ID estable): ya no se usa aquí, se ignora.
+    //     Sin la migración, acceso = null y el panel sigue abierto.
     $acceso = null;
     $param_licencia = isset($_POST['licencia']) && is_string($_POST['licencia']) ? $_POST['licencia'] : '';
-    $param_equipo   = isset($_POST['equipo'])   && is_string($_POST['equipo'])   ? strtoupper(trim($_POST['equipo'])) : '';
-    $equipo = dash_equipo_valido($param_equipo) ? $param_equipo : null;
     try {
-        if ($equipo !== null) dash_registrar_equipo($conn, $equipo);   // antes de fijar los días: cuentan desde la 1.ª vez de la PC
-        dash_fijar_gratis($conn, $hardware_id, $equipo);
         if ($param_licencia !== '') {
             $lic = dash_licencia($cfg, $param_licencia);
             if ($lic === null) {
@@ -410,10 +407,23 @@ try {
         }
         $acceso = dash_acceso_de($conn, $hardware_id);
     } catch (PDOException $e) {
-        // Como las demás partes nuevas: solo se avisa (y se anota) si el POS mandó algo de esto
-        if ($param_licencia !== '' || $equipo !== null) {
+        // Como las demás partes nuevas: solo se avisa (y se anota) si el POS mandó una clave
+        if ($param_licencia !== '') {
             error_log('sync_pos.php acceso: ' . $e->getMessage());
             $avisos[] = 'acceso_no_disponible';
+        }
+    }
+
+    // (f) La tienda (POS 3.5.0+): qué PC es este panel, para comprar Premium desde el celular y que la clave le
+    //     llegue sola (tienda/pagar.php?panel=…). Solo la manda un POS que conoce la llave de ventas (número 2):
+    //     uno anterior no podría activar la clave. Sin sql/2026-10-21_tienda.sql la columna no existe: se ignora.
+    $hw_licencia = isset($_POST['hw_licencia']) ? strtoupper((string) $_POST['hw_licencia']) : '';
+    if (dash_equipo_valido($hw_licencia)) {
+        try {
+            $conn->prepare('UPDATE dashboard_pos SET hw_licencia = :hw WHERE hardware_id = :id')
+                 ->execute([':hw' => $hw_licencia, ':id' => $hardware_id]);
+        } catch (PDOException $e) {
+            // Sin la migración de la tienda: el panel compra con código
         }
     }
 

@@ -43,7 +43,17 @@ function http($metodo, $url, $datos = null, $cabeceras = []) {
     $cuerpo = substr((string) $resp, $hlen);
     return ['codigo' => $codigo, 'json' => json_decode($cuerpo, true), 'cuerpo' => $cuerpo, 'cabeceras' => substr((string) $resp, 0, $hlen)];
 }
-function sync($datos) { global $BASE; return http('POST', "$BASE/sync_pos.php", $datos); }
+// Desde el 2026-10-20 el panel es solo de Premium: con la base migrada, cada panel de prueba lleva su PROPIA clave firmada
+// (una clave abre a lo más 2 paneles). Para probar un envío sin clave, mandar 'licencia' => '' a propósito.
+function sync($datos) {
+    global $BASE, $MIGRADO, $PAR, $LIC_AUTO;
+    if ($MIGRADO && !array_key_exists('licencia', $datos) && isset($datos['hardware_id'])) {
+        $id = $datos['hardware_id'];
+        if (!isset($LIC_AUTO[$id])) $LIC_AUTO[$id] = hacer_licencia($PAR, 7, dentro(365), strtoupper(bin2hex(random_bytes(8))));
+        $datos['licencia'] = $LIC_AUTO[$id];
+    }
+    return http('POST', "$BASE/sync_pos.php", $datos);
+}
 function leer($id, $token = null) {
     global $BASE;
     return http('GET', "$BASE/get_dashboard_data.php?id=" . urlencode($id), null, $token ? ["X-Dash-Token: $token"] : []);
@@ -94,6 +104,13 @@ function equipoNuevo() { return strtoupper(bin2hex(random_bytes(8))); }
 function prueba_gratis($datos) { global $BASE; return http('POST', "$BASE/prueba_gratis.php", $datos); }
 
 echo "\nModo: $MODO · PHP " . PHP_VERSION . " · $BASE\n";
+
+// La llave de PRUEBA (kid 7): se suma a config_db.php (el servidor lo relee en cada petición). La de producción no se tiene
+// aquí; la interoperabilidad con el POS la prueba el ejemplo de Java (sección 9).
+$PAR = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+$cfg_prueba = $cfg; $LIC_AUTO = [];
+$cfg_prueba['llaves_licencia'] = [7 => preg_replace('/-----[^-]+-----|\s+/', '', openssl_pkey_get_details($PAR)['key'])];
+if ($MIGRADO) file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg_prueba, true) . ';');
 
 // ═════════════════════════════════════════════════════════════════════════════
 titulo('1. Lo de siempre sigue funcionando (POS anterior, sin campos nuevos)');
@@ -467,51 +484,42 @@ for ($i = 1; $i <= 8; $i++) entrar($id3, sprintf('%06d', $i));
 $pdo->exec("UPDATE dashboard_pos SET pin_bloqueo_hasta = DATE_SUB(NOW(), INTERVAL 1 MINUTE) WHERE hardware_id = " . $pdo->quote($id3));
 eq(entrar($id3, '555555')['codigo'], 429, 'tras un bloqueo vencido, el siguiente fallo bloquea otra vez');
 
-titulo('9. Premium: días gratis, clave firmada y la puerta de lectura');
-// La llave de prueba: se suma a config_db.php (el servidor lo relee en cada petición)
-$par = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
-$pub = preg_replace('/-----[^-]+-----|\s+/', '', openssl_pkey_get_details($par)['key']);
-$cfg_prueba = $cfg; $cfg_prueba['llaves_licencia'] = [7 => $pub];
-file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg_prueba, true) . ';');
-// (la llave de producción no se tiene aquí; la interoperabilidad con el POS la prueba el ejemplo de Java, más abajo)
+titulo('9. Premium: el panel es solo de Premium (clave firmada y puerta de lectura)');
+$par = $PAR;   // la llave de prueba de arriba
 
-// Paneles de antes: la migración les dio 30 días desde hoy y correrla otra vez no los alarga
-eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0001'")->fetchColumn(), dentro(30),
-   'panel de antes: 30 días de aviso desde que se corre la migración');
-eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0002'")->fetchColumn(), dentro(3),
-   'correrla otra vez no alarga ni reinicia lo que ya tenía fecha');
+// La migración sigue llenando gratis_hasta (30 días a los de antes, idempotente), pero ya no se consulta:
+// desde el 2026-10-20 por la tarde el panel es solo de Premium, sin días gratis
+// (la migración corre con la fecha del servidor de base de datos, en UTC: cerca de la medianoche ya es «mañana»)
+eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0001'")->fetchColumn(), gmdate('Y-m-d', time() + 30 * 86400),
+   '(la migración llenó los 30 días de antes)');
+eq($pdo->query("SELECT gratis_hasta FROM dashboard_pos WHERE hardware_id = 'ANTES0002'")->fetchColumn(), gmdate('Y-m-d', time() + 3 * 86400),
+   '(y correrla otra vez no los alarga)');
 $g = leer('ANTES0001');
-eq($g['codigo'], 200, 'un panel de antes se sigue viendo en su aviso');
-eq($g['json']['acceso'] ?? null, ['estado' => 'prueba', 'hasta' => dentro(30)], '…y el panel recibe la fecha para avisar');
+eq($g['codigo'], 403, 'un panel de antes sin Premium ya no se ve, aunque la migración le diera días');
+ok(es_null($g['json'], 'desde'), '…y como nunca tuvo Premium no hay fecha de vencimiento');
 ok(!array_key_exists('gratis_hasta', $g['json']) && !array_key_exists('premium_hasta', $g['json']), 'las columnas internas no salen');
 
-// Un panel nuevo: 15 días gratis
-$id = nuevoId(); $eq1 = equipoNuevo();
-$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
+// Un panel nuevo sin clave: cerrado desde el primer envío
+$id = nuevoId();
+$r = sync(base(['hardware_id' => $id, 'equipo' => equipoNuevo(), 'licencia' => '']));
+eq($r['codigo'], 200, 'el POS puede enviar (para cuando pague)');
 eq($r['json']['avisos'] ?? null, [], 'sync de un POS 3.4.0 sin clave: sin avisos');
-eq($r['json']['acceso'] ?? null, ['estado' => 'prueba', 'hasta' => dentro(15)], 'panel nuevo: 15 días gratis');
-eq(leer($id)['json']['acceso']['estado'] ?? null, 'prueba', 'la lectura dice lo mismo');
-$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
-eq($r['json']['acceso']['hasta'] ?? null, dentro(15), 'otro envío no reinicia los 15 días');
-eq((int) $pdo->query("SELECT COUNT(*) FROM pruebas_equipo WHERE equipo = " . $pdo->quote($eq1))->fetchColumn(), 1, 'la PC queda anotada');
-
-// Se acaban los días gratis
-$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($id));
+eq($r['json']['acceso'] ?? null, ['estado' => 'vencido', 'hasta' => null], 'panel nuevo sin clave: vencido, sin días gratis');
 $g = leer($id);
-eq($g['codigo'], 403, 'sin días gratis ni Premium: 403');
+eq($g['codigo'], 403, 'sin Premium: 403');
 eq($g['json']['status'] ?? null, 'premium_requerido', 'status premium_requerido');
 eq($g['json']['negocio'] ?? null, 'Abarrotes Prueba', 'dice de qué negocio es');
-eq($g['json']['desde'] ?? null, dia(1), 'y desde cuándo');
 ok(!isset($g['json']['ventas_hoy']) && !isset($g['json']['extra']) && !isset($g['json']['ultimas_ventas']), '…sin ni una cifra');
-$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1]));
-eq($r['codigo'], 200, 'el POS puede seguir enviando (para cuando pague)');
-eq($r['json']['acceso']['estado'] ?? null, 'vencido', '…y se entera de que venció');
+$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dentro(10)) . " WHERE hardware_id = " . $pdo->quote($id));
+eq(leer($id)['codigo'], 403, 'aunque la columna de días gratis diga que le quedan: cerrado');
+$r = sync(base(['hardware_id' => $id, 'equipo' => 'no-hex', 'licencia' => '']));
+eq($r['codigo'], 200, 'un equipo inválido se ignora (no rompe el envío)');
 
 // La clave premium
 $hw = equipoNuevo();
 $lic = hacer_licencia($par, 7, dentro(365), $hw);
 eq(strlen($lic), 125, '(la clave de prueba mide 125 caracteres, como las reales)');
-$r = sync(base(['hardware_id' => $id, 'equipo' => $eq1, 'licencia' => $lic]));
+$r = sync(base(['hardware_id' => $id, 'licencia' => $lic]));
 eq($r['json']['avisos'] ?? null, [], 'clave válida: sin avisos');
 eq($r['json']['acceso'] ?? null, ['estado' => 'premium', 'hasta' => dentro(365)], 'con la clave: premium hasta su vencimiento');
 $g = leer($id);
@@ -525,12 +533,11 @@ $lic2 = hacer_licencia($par, 7, dentro(730), $hw);
 eq(sync(base(['hardware_id' => $id, 'licencia' => $lic2]))['json']['acceso']['hasta'] ?? null, dentro(730), 'renovación: sube la fecha');
 eq(sync(base(['hardware_id' => $id, 'licencia' => $lic]))['json']['acceso']['hasta'] ?? null, dentro(730), 'la clave vieja reenviada no la baja');
 // un POS que deja de mandar la clave (o uno anterior) no pierde lo ya verificado
-eq(sync(base(['hardware_id' => $id]))['json']['acceso']['estado'] ?? null, 'premium', 'sin clave en un envío: sigue premium');
+eq(sync(base(['hardware_id' => $id, 'licencia' => '']))['json']['acceso']['estado'] ?? null, 'premium', 'sin clave en un envío: sigue premium');
 
 // Claves malas
 $id2 = nuevoId();
-sync(base(['hardware_id' => $id2]));
-$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($id2));
+sync(base(['hardware_id' => $id2, 'licencia' => '']));
 $i = 40; $mala = substr($lic, 0, $i) . ($lic[$i] === 'A' ? 'B' : 'A') . substr($lic, $i + 1);
 $r = sync(base(['hardware_id' => $id2, 'licencia' => $mala]));
 ok(in_array('licencia_invalida', $r['json']['avisos'] ?? []), 'un carácter cambiado: licencia_invalida');
@@ -558,7 +565,7 @@ eq(dash_licencia($cfg_prueba, $rec), null, 'un código de recuperación (AP-REC-
 // vencida: se registra pero no abre
 $vieja = hacer_licencia($par, 7, dia(2), $hw);
 $r = sync(base(['hardware_id' => $id2, 'licencia' => $vieja]));
-eq($r['json']['acceso']['estado'] ?? null, 'vencido', 'clave vencida: no abre el panel');
+eq($r['json']['acceso'] ?? null, ['estado' => 'vencido', 'hasta' => dia(2)], 'clave vencida: no abre el panel (y dice cuándo venció)');
 eq(leer($id2)['codigo'], 403, '…la lectura sigue cerrada');
 
 // Una clave no se presta: abre 2 paneles (la PC y una reinstalación), no un tercero
@@ -566,8 +573,7 @@ $lic3 = hacer_licencia($par, 7, dentro(100), equipoNuevo());
 $p1 = nuevoId(); $p2 = nuevoId(); $p3 = nuevoId();
 eq(sync(base(['hardware_id' => $p1, 'licencia' => $lic3]))['json']['acceso']['estado'] ?? null, 'premium', '1.er panel con la clave: premium');
 eq(sync(base(['hardware_id' => $p2, 'licencia' => $lic3]))['json']['acceso']['estado'] ?? null, 'premium', '2.º panel (reinstalación): premium');
-sync(base(['hardware_id' => $p3]));   // el 3.er panel existe y ya sin días gratis
-$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($p3));
+sync(base(['hardware_id' => $p3, 'licencia' => '']));   // el 3.er panel existe, sin Premium
 $r = sync(base(['hardware_id' => $p3, 'licencia' => $lic3]));
 ok(in_array('licencia_en_otros_paneles', $r['json']['avisos'] ?? []), '3.er panel: licencia_en_otros_paneles');
 eq($r['json']['acceso']['estado'] ?? null, 'vencido', '…y NO se abre');
@@ -578,22 +584,12 @@ eq(sync(base(['hardware_id' => $p3, 'licencia' => $lic3]))['json']['acceso']['es
 
 // Con PIN, quien no tiene el PIN no se entera ni de eso: 401 antes que 403
 $idp = nuevoId(); $kp = clave();
-sync(base(['hardware_id' => $idp, 'pin' => '482915', 'clave' => $kp]));
-$pdo->exec("UPDATE dashboard_pos SET gratis_hasta = " . $pdo->quote(dia(1)) . " WHERE hardware_id = " . $pdo->quote($idp));
+sync(base(['hardware_id' => $idp, 'pin' => '482915', 'clave' => $kp, 'licencia' => '']));
 eq(leer($idp)['codigo'], 401, 'panel con PIN y sin Premium, sin token: 401 (no 403)');
 $tk = entrar($idp, '482915')['json']['token'] ?? null;
 $g = leer($idp, $tk);
 eq($g['codigo'], 403, 'con el PIN correcto: 403 premium_requerido');
 eq($g['json']['protegido'] ?? null, true, '…y dice que está protegido');
-
-// Los días gratis cuentan desde la primera vez que se vio la PC: otro panel en la misma PC no regala 15 más
-$eqv = equipoNuevo();
-sync(base(['hardware_id' => nuevoId(), 'equipo' => $eqv]));
-$pdo->exec("UPDATE pruebas_equipo SET primera_vez = NOW() - INTERVAL 20 DAY WHERE equipo = " . $pdo->quote($eqv));
-$r = sync(base(['hardware_id' => nuevoId(), 'equipo' => $eqv]));
-eq($r['json']['acceso'] ?? null, ['estado' => 'vencido', 'hasta' => dia(5)], 'panel nuevo en una PC vista hace 20 días: sin días gratis (terminaron hace 5)');
-$r = sync(base(['hardware_id' => nuevoId(), 'equipo' => 'no-hex']));
-eq($r['json']['acceso']['estado'] ?? null, 'prueba', 'un equipo inválido se ignora (no rompe el envío)');
 
 // La clave generada por el POS (Java) se lee igual aquí: tests/fixtures/licencia_java.json
 $fx_ruta = '/src/tests/fixtures/licencia_java.json';

@@ -1,0 +1,599 @@
+<?php
+// ────────────────────────────────────────────────────────────────────────────
+// La tienda de Premium: los planes, el cobro con Stripe y la clave que llega sola.
+// NO es un endpoint: los de public_html/tienda/ hacen
+//     define('TIENDA_COMUN_OK', true); require __DIR__ . '/../tienda_comun.php';
+// y quien lo abra directo recibe un 404. Compatible con PHP 7.2 (como dashboard_comun.php).
+//
+// Cómo funciona:
+//   tienda/pagar.php    crea la sesión de cobro de Stripe (Checkout) y manda ahí al cliente
+//   tienda/webhook.php  Stripe avisa que se pagó → se anota la compra y, si se sabe la PC,
+//                       se firma su clave con la llave de ventas (número 2)
+//   tienda/claves.php   el programa pregunta por sus claves nuevas y las activa solo
+//   tienda/canjear.php  el código de la compra: para quien pagó en la página (no se sabe su PC)
+//                       y para cambiar de PC (uno automático cada 12 meses)
+//   tienda/estado.php   lo que muestra /compra después de pagar
+//   tienda/planes.php   precios y beneficios (programa, panel y página)
+//
+// config_db.php (fuera del webroot) trae, además de la base:
+//   'stripe_secreto'          sk_live_… (basta una llave restringida con «Checkout Sessions: escritura»)
+//   'stripe_webhook_secreto'  whsec_… (el del endpoint https://www.antiparticula.com/tienda/webhook.php)
+//   'llave_ventas'            ruta del PEM de la llave privada número 2, FUERA del webroot
+//   'tienda_url'              opcional; https://www.antiparticula.com
+//   'tienda_correo_de'        opcional; ventas@antiparticula.com
+//   'stripe_api', 'correo_archivo'   solo pruebas (otra API de Stripe; correos a un archivo)
+// ────────────────────────────────────────────────────────────────────────────
+if (!defined('TIENDA_COMUN_OK')) {
+    http_response_code(404);
+    exit;
+}
+if (!defined('DASH_COMUN_OK')) define('DASH_COMUN_OK', true);
+require_once __DIR__ . '/dashboard_comun.php';
+
+const TIENDA_KID              = 2;            // la llave de ventas: renglón «2:» de publica.txt del POS
+const TIENDA_GRACIA_DIAS      = 3;            // la clave vence 3 días después de lo pagado: tiempo para que llegue la renovación
+const TIENDA_CAMBIO_PC_MESES  = 12;           // un cambio de PC automático cada 12 meses
+const TIENDA_PARA_SIEMPRE     = '2199-06-06'; // 2020-01-01 + 0xFFFF días = LicenciaFirmada.PARA_SIEMPRE del POS
+const TIENDA_MAX_FALLOS_HORA  = 20;           // canjes fallidos por IP y hora
+const TIENDA_STRIPE_VERSION   = '2024-06-20';
+// Sin 0/O, 1/I/L, 2/Z, 5/S ni 8/B: se dicta y se copia sin confundir letras
+const TIENDA_ALFABETO_CODIGO  = 'ACDEFGHJKMNPQRTUVWXY34679';
+// Una compra en el modo de prueba de Stripe (tarjeta 4242…) no cuesta nada, pero la clave se firma con la llave de
+// ventas REAL: dura solo estos días (alcanza para probar que se activa; no regala Premium a quien encuentre pagar.php).
+const TIENDA_DIAS_PRUEBA      = 2;
+
+// ¿Es una compra del modo de prueba de Stripe? Sus sesiones empiezan con cs_test_ (las reales con cs_live_).
+function tienda_es_prueba(array $compra) {
+    return strpos((string) $compra['stripe_sesion'], 'cs_test_') === 0;
+}
+
+// ── Planes ──────────────────────────────────────────────────────────────────
+// Precios en centavos, IVA incluido (decisión del dueño, 2026-10-20). meses = 0: pago único para siempre.
+// modo: 'suscripcion' se renueva sola con tarjeta; 'pago' es un solo cobro con tarjeta u OXXO.
+function tienda_planes() {
+    return [
+        'premium_mensual' => ['tipo' => 'premium', 'meses' => 1,  'precio' => 14900,  'modo' => 'suscripcion',
+                              'nombre' => 'Premium mensual', 'periodo' => 'al mes'],
+        'premium_anual'   => ['tipo' => 'premium', 'meses' => 12, 'precio' => 129000, 'modo' => 'pago',
+                              'nombre' => 'Premium anual', 'periodo' => 'al año'],
+        'premium_siempre' => ['tipo' => 'premium', 'meses' => 0,  'precio' => 349000, 'modo' => 'pago',
+                              'nombre' => 'Premium para siempre', 'periodo' => 'pago único'],
+        'multi_mensual'   => ['tipo' => 'multi',   'meses' => 1,  'precio' => 29900,  'modo' => 'suscripcion',
+                              'nombre' => 'Varias sucursales mensual', 'periodo' => 'al mes, por computadora'],
+        'multi_anual'     => ['tipo' => 'multi',   'meses' => 12, 'precio' => 299000, 'modo' => 'pago',
+                              'nombre' => 'Varias sucursales anual', 'periodo' => 'al año, por computadora'],
+    ];
+}
+
+// Lo mismo que Premium.INCLUYE e INCLUYE_MULTISUCURSAL del POS: si cambia allá, cambia aquí.
+function tienda_beneficios() {
+    return [
+        'premium' => [
+            'Exportar e importar productos en Excel, sin límite',
+            'Panel móvil: ventas, caja e inventario en el celular',
+            'Resumen completo: meses, años y comparaciones',
+            'Usuarios sin límite (administradores y cajeros)',
+            'Opción de quitar la marca Antiparticula del ticket',
+            'Soporte y actualizaciones',
+        ],
+        'multi' => [
+            'Todo lo de Premium',
+            'Une tus tiendas: inventario, precios y productos de todas',
+            'Traspasos de mercancía entre tiendas',
+            'Tickets, cortes y reportes de cada tienda desde cualquiera',
+            'Panel del celular con todas tus tiendas',
+        ],
+    ];
+}
+
+function tienda_plan($id) {
+    $planes = tienda_planes();
+    return is_string($id) && isset($planes[$id]) ? $planes[$id] : null;
+}
+
+function tienda_url(array $cfg) {
+    return rtrim(isset($cfg['tienda_url']) ? $cfg['tienda_url'] : 'https://www.antiparticula.com', '/');
+}
+
+// ── Fechas (Y-m-d, sin hora) ────────────────────────────────────────────────
+function tienda_fecha($ymd) {
+    return DateTime::createFromFormat('!Y-m-d', $ymd, new DateTimeZone('UTC'));
+}
+
+// Suma meses sin desbordar: 31-ene + 1 mes = 28/29-feb (DateTime::modify daría 3-mar).
+function tienda_sumar_meses($ymd, $meses) {
+    $d = tienda_fecha($ymd);
+    $dia = (int) $d->format('j');
+    $d->modify('first day of this month');
+    $d->modify('+' . (int) $meses . ' months');
+    $d->setDate((int) $d->format('Y'), (int) $d->format('n'), min($dia, (int) $d->format('t')));
+    return $d->format('Y-m-d');
+}
+
+function tienda_sumar_dias($ymd, $dias) {
+    $d = tienda_fecha($ymd);
+    $d->modify('+' . (int) $dias . ' days');
+    return $d->format('Y-m-d');
+}
+
+function tienda_min_fecha($a, $b) { return strcmp($a, $b) <= 0 ? $a : $b; }
+function tienda_max_fecha($a, $b) {
+    if ($a === null) return $b;
+    if ($b === null) return $a;
+    return strcmp($a, $b) >= 0 ? $a : $b;
+}
+
+// ── Código de la compra ─────────────────────────────────────────────────────
+function tienda_codigo_nuevo() {
+    $s = '';
+    $n = strlen(TIENDA_ALFABETO_CODIGO);
+    for ($i = 0; $i < 12; $i++) $s .= TIENDA_ALFABETO_CODIGO[random_int(0, $n - 1)];
+    return $s;
+}
+
+// «ap-acde-fghj-kmnp», «ACDEFGHJKMNP»… → «ACDEFGHJKMNP»; null si no tiene forma de código
+function tienda_codigo_normalizar($texto) {
+    $t = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $texto));
+    if (strlen($t) === 14 && strpos($t, 'AP') === 0) $t = substr($t, 2);
+    return preg_match('/^[A-Z0-9]{12}$/', $t) ? $t : null;
+}
+
+function tienda_codigo_mostrar($codigo) {
+    return 'AP-' . substr($codigo, 0, 4) . '-' . substr($codigo, 4, 4) . '-' . substr($codigo, 8, 4);
+}
+
+// ── Firmar la clave (el mismo formato que LicenciaFirmada del POS) ───────────
+function tienda_base32($bin) {
+    $alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $s = ''; $buffer = 0; $bits = 0;
+    $n = strlen($bin);
+    for ($i = 0; $i < $n; $i++) {
+        $buffer = (($buffer << 8) | ord($bin[$i])) & 0xFFFF;
+        $bits += 8;
+        while ($bits >= 5) {
+            $s .= $alfabeto[($buffer >> ($bits - 5)) & 31];
+            $bits -= 5;
+        }
+    }
+    if ($bits > 0) $s .= $alfabeto[($buffer << (5 - $bits)) & 31];
+    return $s;
+}
+
+// openssl firma en DER (SEQUENCE de dos INTEGER); en la clave va r||s en 64 bytes fijos.
+function tienda_der_a_rs($der) {
+    $i = 0;
+    if (strlen($der) < 8 || ord($der[$i++]) !== 0x30) throw new RuntimeException('Firma DER mal formada');
+    $largo = ord($der[$i++]);
+    if ($largo === 0x81) $largo = ord($der[$i++]);
+    $rs = '';
+    for ($p = 0; $p < 2; $p++) {
+        if (ord($der[$i++]) !== 0x02) throw new RuntimeException('Firma DER mal formada (entero)');
+        $n = ord($der[$i++]);
+        $entero = ltrim(substr($der, $i, $n), "\x00");
+        $i += $n;
+        if (strlen($entero) > 32) throw new RuntimeException('Firma DER mal formada (tamaño)');
+        $rs .= str_pad($entero, 32, "\x00", STR_PAD_LEFT);
+    }
+    return $rs;
+}
+
+// La clave de 125 caracteres para esa PC. $tipo: 'premium' o 'multi'. Antes de entregarla se verifica con la
+// llave PÚBLICA (como la consola): una clave que el programa no aceptaría nunca sale de aquí.
+function tienda_firmar(array $cfg, $tipo, $hw, $vence) {
+    $dias = (int) round((tienda_fecha($vence)->getTimestamp() - tienda_fecha('2020-01-01')->getTimestamp()) / 86400);
+    if ($dias < 0 || $dias > 0xFFFF) throw new RuntimeException("Vencimiento fuera de rango: $vence");
+    if (!dash_equipo_valido($hw)) throw new RuntimeException("Hardware ID no válido: $hw");
+    if (empty($cfg['llave_ventas']) || !is_readable($cfg['llave_ventas'])) {
+        throw new RuntimeException('Falta la llave de ventas (config_db.php: llave_ventas)');
+    }
+    $privada = openssl_pkey_get_private(file_get_contents($cfg['llave_ventas']));
+    if ($privada === false) throw new RuntimeException('La llave de ventas no se pudo leer');
+    $nonce = random_int(0, 0xFFFFFF);
+    $datos = chr(TIENDA_KID) . chr($dias >> 8) . chr($dias & 0xFF)
+           . chr($nonce >> 16) . chr(($nonce >> 8) & 0xFF) . chr($nonce & 0xFF) . hex2bin($hw);
+    $dominio = $tipo === 'multi' ? DASH_LIC_DOMINIO_MULTI : DASH_LIC_DOMINIO;
+    $der = '';
+    if (!openssl_sign($dominio . $datos, $der, $privada, OPENSSL_ALGO_SHA256)) {
+        throw new RuntimeException('openssl_sign falló');
+    }
+    $clave = tienda_base32($datos . tienda_der_a_rs($der));
+    $lic = dash_licencia($cfg, $clave);
+    if ($lic === null || $lic['hw'] !== $hw || $lic['vence'] !== $vence || $lic['plan'] !== $tipo || $lic['kid'] !== TIENDA_KID) {
+        throw new RuntimeException('La clave recién firmada no pasa la verificación (¿la pública 2 no es de esta privada?)');
+    }
+    return $clave;
+}
+
+// ── Lo que cada PC ya tiene ─────────────────────────────────────────────────
+// Hasta dónde llega lo pagado de ese plan en esa PC: lo que entregó la tienda (sin la gracia) o lo que ya tenía
+// (claves de la consola que el programa reportó). null si nada.
+function tienda_vence_actual(PDO $conn, $hw, $tipo) {
+    $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE hardware_id = :hw AND tipo = :t');
+    $st->execute([':hw' => $hw, ':t' => $tipo]);
+    $tienda = $st->fetchColumn() ?: null;
+    $st = $conn->prepare('SELECT vence FROM tienda_reportados WHERE hardware_id = :hw AND tipo = :t');
+    $st->execute([':hw' => $hw, ':t' => $tipo]);
+    $reportado = $st->fetchColumn() ?: null;
+    return tienda_max_fecha($tienda, $reportado);
+}
+
+// Anota las claves que ya tiene una PC (el programa las manda): verificadas con la llave pública, de esa PC.
+// Las de la tienda (llave 2) no: ya están en tienda_claves sin la gracia, y contarlas aquí la sumaría cada mes.
+function tienda_registrar_reportadas(PDO $conn, array $cfg, $hw, $claves) {
+    if (!is_string($claves) || $claves === '') return;
+    $lista = array_slice(explode(',', $claves), 0, 20);
+    foreach ($lista as $texto) {
+        $lic = dash_licencia($cfg, trim($texto));
+        if ($lic === null || $lic['hw'] !== $hw || $lic['kid'] === TIENDA_KID) continue;
+        $conn->prepare('INSERT INTO tienda_reportados (hardware_id, tipo, vence) VALUES (:hw, :t, :v)
+                        ON DUPLICATE KEY UPDATE vence = GREATEST(vence, VALUES(vence))')
+             ->execute([':hw' => $hw, ':t' => $lic['plan'], ':v' => $lic['vence']]);
+    }
+}
+
+// ── Compras y pagos ─────────────────────────────────────────────────────────
+function tienda_compra_por(PDO $conn, $campo, $valor, $bloquear = false) {
+    $campos = ['id' => 'id', 'codigo' => 'codigo', 'sesion' => 'stripe_sesion', 'suscripcion' => 'stripe_suscripcion'];
+    $st = $conn->prepare('SELECT * FROM tienda_compras WHERE ' . $campos[$campo] . ' = :v ORDER BY id LIMIT 1'
+                         . ($bloquear ? ' FOR UPDATE' : ''));
+    $st->execute([':v' => $valor]);
+    $f = $st->fetch(PDO::FETCH_ASSOC);
+    return $f ?: null;
+}
+
+// Convierte en claves los pagos de la compra que aún no lo son. Solo si la compra ya tiene PC.
+// Cada pago se suma desde lo más lejano entre hoy y lo que esa PC ya tenía de ese plan: renovar antes de tiempo
+// no pierde días, y quien llega vencido empieza hoy. Debe correr dentro de una transacción.
+// Devuelve las claves nuevas.
+function tienda_aplicar(PDO $conn, array $cfg, array $compra) {
+    $hw = $compra['hardware_id'];
+    if (!$hw) return [];
+    $st = $conn->prepare('SELECT id, meses FROM tienda_pagos WHERE compra_id = :c AND aplicado = 0 ORDER BY id FOR UPDATE');
+    $st->execute([':c' => $compra['id']]);
+    $nuevas = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $pago) {
+        $actual = tienda_vence_actual($conn, $hw, $compra['tipo']);
+        if (tienda_es_prueba($compra)) {
+            // Modo de prueba: siempre 2 días desde hoy, sin sumarse a nada (y sin contar para lo que la PC ya tiene)
+            $pagado = tienda_sumar_dias(dash_hoy_mx(), TIENDA_DIAS_PRUEBA);
+            $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $pagado);
+            $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
+                            VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
+                 ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => dash_hoy_mx(), ':v' => $pagado, ':k' => $clave]);
+            $nuevas[] = $clave;
+        } elseif ($actual !== TIENDA_PARA_SIEMPRE) {
+            if ((int) $pago['meses'] === 0) {
+                $pagado = TIENDA_PARA_SIEMPRE;
+                $vence = TIENDA_PARA_SIEMPRE;
+            } else {
+                $base = tienda_max_fecha(dash_hoy_mx(), $actual);
+                $pagado = tienda_min_fecha(tienda_sumar_meses($base, (int) $pago['meses']), TIENDA_PARA_SIEMPRE);
+                $vence = tienda_min_fecha(tienda_sumar_dias($pagado, TIENDA_GRACIA_DIAS), TIENDA_PARA_SIEMPRE);
+            }
+            $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $vence);
+            $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
+                            VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
+                 ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => $pagado, ':v' => $vence, ':k' => $clave]);
+            $nuevas[] = $clave;
+        }
+        // Ya es para siempre: un pago más no cambia nada (pagar.php no lo deja comprar)
+        $conn->prepare('UPDATE tienda_pagos SET aplicado = 1 WHERE id = :id')->execute([':id' => $pago['id']]);
+    }
+    return $nuevas;
+}
+
+// Lo que Stripe confirmó de una sesión de cobro (webhook): crea o actualiza la compra y, si quedó pagada, anota el
+// pago y entrega la clave si se sabe la PC. Repetido (Stripe reintenta) no duplica nada.
+// $s: sesion, plan, hw, origen, email, monto, suscripcion, pagada (bool).
+// Devuelve ['compra' => fila, 'nuevas' => claves, 'recien_pagada' => bool].
+function tienda_registrar_sesion(PDO $conn, array $cfg, array $s) {
+    $plan = tienda_plan($s['plan']);
+    if ($plan === null) throw new RuntimeException('Plan desconocido: ' . $s['plan']);
+    $conn->beginTransaction();
+    try {
+        $compra = tienda_compra_por($conn, 'sesion', $s['sesion'], true);
+        $recien = false;
+        if ($compra === null) {
+            $codigo = tienda_codigo_nuevo();
+            while (tienda_compra_por($conn, 'codigo', $codigo) !== null) $codigo = tienda_codigo_nuevo();
+            $conn->prepare('INSERT INTO tienda_compras (codigo, plan, tipo, hardware_id, origen, estado, email, monto,
+                                                        stripe_sesion, stripe_suscripcion, creada, pagada)
+                            VALUES (:c, :p, :t, :hw, :o, :e, :m, :mo, :s, :su, NOW(), ' . ($s['pagada'] ? 'NOW()' : 'NULL') . ')')
+                 ->execute([':c' => $codigo, ':p' => $s['plan'], ':t' => $plan['tipo'], ':hw' => $s['hw'],
+                            ':o' => $s['origen'], ':e' => $s['pagada'] ? 'pagada' : 'pendiente', ':m' => $s['email'],
+                            ':mo' => (int) $s['monto'], ':s' => $s['sesion'], ':su' => $s['suscripcion']]);
+            $compra = tienda_compra_por($conn, 'sesion', $s['sesion'], true);
+            $recien = $s['pagada'];
+        } elseif ($s['pagada'] && $compra['estado'] !== 'pagada') {
+            $conn->prepare('UPDATE tienda_compras SET estado = \'pagada\', pagada = NOW(),
+                                   email = COALESCE(email, :e), stripe_suscripcion = COALESCE(stripe_suscripcion, :su)
+                             WHERE id = :id')
+                 ->execute([':e' => $s['email'], ':su' => $s['suscripcion'], ':id' => $compra['id']]);
+            $compra = tienda_compra_por($conn, 'id', $compra['id'], true);
+            $recien = true;
+        }
+        $nuevas = [];
+        if ($compra['estado'] === 'pagada') {
+            $conn->prepare('INSERT IGNORE INTO tienda_pagos (compra_id, stripe_ref, meses, creado) VALUES (:c, :r, :m, NOW())')
+                 ->execute([':c' => $compra['id'], ':r' => $s['sesion'], ':m' => $plan['meses']]);
+            $nuevas = tienda_aplicar($conn, $cfg, $compra);
+        }
+        $conn->commit();
+        return ['compra' => $compra, 'nuevas' => $nuevas, 'recien_pagada' => $recien];
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
+}
+
+// Un pago de OXXO que venció sin pagarse.
+function tienda_marcar_vencida(PDO $conn, $sesion) {
+    $conn->prepare('UPDATE tienda_compras SET estado = \'vencida\' WHERE stripe_sesion = :s AND estado = \'pendiente\'')
+         ->execute([':s' => $sesion]);
+}
+
+// La renovación de una suscripción (cada mes): un mes más para la PC de esa compra. null si la suscripción no es
+// de una compra conocida.
+function tienda_renovar(PDO $conn, array $cfg, $suscripcion, $factura) {
+    $conn->beginTransaction();
+    try {
+        $compra = tienda_compra_por($conn, 'suscripcion', $suscripcion, true);
+        if ($compra === null) {
+            $conn->rollBack();
+            return null;
+        }
+        $plan = tienda_plan($compra['plan']);
+        $conn->prepare('INSERT IGNORE INTO tienda_pagos (compra_id, stripe_ref, meses, creado) VALUES (:c, :r, :m, NOW())')
+             ->execute([':c' => $compra['id'], ':r' => $factura, ':m' => $plan ? $plan['meses'] : 1]);
+        $nuevas = tienda_aplicar($conn, $cfg, $compra);
+        $conn->commit();
+        return ['compra' => $compra, 'nuevas' => $nuevas];
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
+}
+
+// Las claves que la tienda entregó a esa PC (las más nuevas primero).
+function tienda_claves_de(PDO $conn, $hw) {
+    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE hardware_id = :hw ORDER BY id DESC LIMIT 50');
+    $st->execute([':hw' => $hw]);
+    return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// ── Canjear el código: atar la compra a una PC, o cambiarla de PC ────────────
+// Devuelve ['ok' => bool, 'motivo' => no_existe|pendiente|no_pagada|cambio_reciente|vencida|ok, 'mensaje' => texto
+// para el cliente, 'claves' => [...]].
+function tienda_canjear(PDO $conn, array $cfg, $codigo, $hw) {
+    $conn->beginTransaction();
+    try {
+        $compra = tienda_compra_por($conn, 'codigo', $codigo, true);
+        if ($compra === null) {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => 'no_existe', 'mensaje' => 'Ese código no existe. Revisa que esté completo (AP-XXXX-XXXX-XXXX).', 'claves' => []];
+        }
+        if ($compra['estado'] === 'pendiente') {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => 'pendiente', 'mensaje' => 'Ese pago todavía no se confirma. Si pagaste en OXXO, puede tardar unas horas.', 'claves' => []];
+        }
+        if ($compra['estado'] !== 'pagada') {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => 'no_pagada', 'mensaje' => 'Ese pago no se completó (la ficha de OXXO venció).', 'claves' => []];
+        }
+        $nombre = tienda_plan($compra['plan']) ? tienda_plan($compra['plan'])['nombre'] : 'Premium';
+
+        if (!$compra['hardware_id']) {
+            // Comprado en la página: la primera PC que lo canjea se queda con él (no cuenta como cambio)
+            $conn->prepare('UPDATE tienda_compras SET hardware_id = :hw WHERE id = :id')->execute([':hw' => $hw, ':id' => $compra['id']]);
+            $compra['hardware_id'] = $hw;
+            tienda_aplicar($conn, $cfg, $compra);
+            $conn->commit();
+            return ['ok' => true, 'motivo' => 'ok', 'mensaje' => "$nombre activado en esta computadora.", 'claves' => tienda_claves_compra($conn, $compra['id'], $hw)];
+        }
+        if ($compra['hardware_id'] === $hw) {
+            // La misma PC (reinstaló el programa): sus claves otra vez
+            tienda_aplicar($conn, $cfg, $compra);
+            $conn->commit();
+            return ['ok' => true, 'motivo' => 'ok', 'mensaje' => "$nombre ya era de esta computadora: se activó otra vez.", 'claves' => tienda_claves_compra($conn, $compra['id'], $hw)];
+        }
+
+        // Otra PC: un cambio cada 12 meses
+        $hoy = dash_hoy_mx();
+        if ($compra['ultimo_cambio_pc']) {
+            $siguiente = tienda_sumar_meses(substr($compra['ultimo_cambio_pc'], 0, 10), TIENDA_CAMBIO_PC_MESES);
+            if (strcmp($hoy, $siguiente) < 0) {
+                $conn->rollBack();
+                $f = tienda_fecha($siguiente)->format('d/m/Y');
+                return ['ok' => false, 'motivo' => 'cambio_reciente', 'mensaje' => "Esta compra ya cambió de computadora este año. El siguiente cambio automático "
+                        . "es a partir del $f; si lo necesitas antes, escríbenos por WhatsApp al 55 8432 3945.", 'claves' => []];
+            }
+        }
+        $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE compra_id = :c');
+        $st->execute([':c' => $compra['id']]);
+        $pagado = $st->fetchColumn() ?: null;
+        if ($pagado === null || strcmp($pagado, $hoy) < 0) {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => 'vencida', 'mensaje' => 'Esa compra ya venció: no hay nada que pasar a esta computadora.', 'claves' => []];
+        }
+        $vence = tienda_es_prueba($compra) ? tienda_sumar_dias($hoy, TIENDA_DIAS_PRUEBA)
+               : ($pagado === TIENDA_PARA_SIEMPRE ? $pagado
+               : tienda_min_fecha(tienda_sumar_dias($pagado, TIENDA_GRACIA_DIAS), TIENDA_PARA_SIEMPRE));
+        $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $vence);
+        $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
+                        VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
+             ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => $pagado, ':v' => $vence, ':k' => $clave]);
+        // Las renovaciones de una suscripción ya van a la PC nueva
+        $conn->prepare('UPDATE tienda_compras SET hardware_id = :hw, ultimo_cambio_pc = NOW() WHERE id = :id')
+             ->execute([':hw' => $hw, ':id' => $compra['id']]);
+        $conn->commit();
+        return ['ok' => true, 'motivo' => 'ok', 'mensaje' => "$nombre pasó a esta computadora. El siguiente cambio automático podrá ser en 12 meses.",
+                'claves' => [$clave]];
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
+}
+
+function tienda_claves_compra(PDO $conn, $compra_id, $hw) {
+    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw ORDER BY id DESC');
+    $st->execute([':c' => $compra_id, ':hw' => $hw]);
+    return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// Canjes fallidos por IP: el código tiene 25^12 combinaciones, pero no se deja probar sin freno.
+function tienda_ip() {
+    return isset($_SERVER['REMOTE_ADDR']) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '?';
+}
+function tienda_bloqueada(PDO $conn, $ip) {
+    $st = $conn->prepare('SELECT fallos FROM tienda_intentos WHERE ip = :ip AND hora = :h');
+    $st->execute([':ip' => $ip, ':h' => date('Y-m-d H')]);
+    return (int) $st->fetchColumn() >= TIENDA_MAX_FALLOS_HORA;
+}
+function tienda_anotar_fallo(PDO $conn, $ip) {
+    $conn->prepare('INSERT INTO tienda_intentos (ip, hora, fallos) VALUES (:ip, :h, 1) ON DUPLICATE KEY UPDATE fallos = fallos + 1')
+         ->execute([':ip' => $ip, ':h' => date('Y-m-d H')]);
+}
+
+// ── Stripe ──────────────────────────────────────────────────────────────────
+// Por qué falló la última llamada a Stripe, en corto y sin secretos: pagar.php lo enseña como «detalle técnico»
+// (sin acceso al registro de errores del hosting es la única forma de saberlo).
+function tienda_ultimo_error($nuevo = null) {
+    static $ultimo = null;
+    if ($nuevo !== null) $ultimo = $nuevo;
+    return $ultimo;
+}
+
+// POST a la API con los parámetros como formulario (Stripe entiende a[b][c]=…). null si falla.
+function tienda_stripe(array $cfg, $ruta, array $params) {
+    if (empty($cfg['stripe_secreto'])) {
+        tienda_ultimo_error('falta stripe_secreto en config_db.php');
+        return null;
+    }
+    if (!function_exists('curl_init')) {
+        tienda_ultimo_error('el hosting no tiene la extensión curl de PHP');
+        return null;
+    }
+    $base = isset($cfg['stripe_api']) ? rtrim($cfg['stripe_api'], '/') : 'https://api.stripe.com';
+    $ch = curl_init($base . $ruta);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query($params),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $cfg['stripe_secreto'], 'Stripe-Version: ' . TIENDA_STRIPE_VERSION],
+    ]);
+    $respuesta = curl_exec($ch);
+    $codigo = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error_red = curl_error($ch);
+    curl_close($ch);
+    $json = is_string($respuesta) ? json_decode($respuesta, true) : null;
+    if ($codigo !== 200 || !is_array($json)) {
+        error_log('tienda: Stripe ' . $ruta . ' respondió ' . $codigo . ': ' . substr((string) $respuesta, 0, 500));
+        $e = is_array($json) && isset($json['error']) && is_array($json['error']) ? $json['error'] : [];
+        $d = $codigo === 0 ? 'no se pudo conectar con Stripe (' . $error_red . ')' : 'Stripe respondió ' . $codigo;
+        if ($codigo === 401) $d .= ': la llave no es válida (¿copiada completa? ¿de modo de prueba o real, según toque?)';
+        if ($codigo === 403) $d .= ': a la llave le faltan permisos';
+        foreach (['type', 'code', 'param'] as $k) {
+            if (!empty($e[$k]) && is_string($e[$k])) $d .= ' · ' . $k . ' ' . $e[$k];
+        }
+        // El mensaje de un 400 dice qué parámetro no le gustó (p. ej. OXXO sin activar); el de 401/403 trae la cuenta: no
+        if ($codigo === 400 && !empty($e['message']) && is_string($e['message'])) $d .= ' · ' . substr($e['message'], 0, 200);
+        tienda_ultimo_error($d);
+        return null;
+    }
+    return $json;
+}
+
+// Los parámetros de la sesión de cobro de un plan. $hw puede ser null (compra desde la página: se entrega un código).
+function tienda_parametros_sesion(array $cfg, $plan_id, $hw, $origen) {
+    $plan = tienda_plan($plan_id);
+    $url = tienda_url($cfg);
+    $precio = ['currency' => 'mxn', 'unit_amount' => $plan['precio'], 'product_data' => ['name' => $plan['nombre']]];
+    if ($plan['modo'] === 'suscripcion') $precio['recurring'] = ['interval' => 'month'];
+    $meta = ['plan' => $plan_id, 'hw' => $hw === null ? '' : $hw, 'origen' => $origen];
+    $p = [
+        'mode'                 => $plan['modo'] === 'suscripcion' ? 'subscription' : 'payment',
+        'line_items'           => [['price_data' => $precio, 'quantity' => 1]],
+        'metadata'             => $meta,
+        'locale'               => 'es-419',
+        'allow_promotion_codes' => 'true',
+        'success_url'          => $url . '/compra?sesion={CHECKOUT_SESSION_ID}',
+        'cancel_url'           => $url . '/compra?cancelada=1',
+    ];
+    if ($hw !== null) $p['client_reference_id'] = $hw;
+    if ($plan['modo'] === 'suscripcion') {
+        // OXXO no permite cobros automáticos: la mensualidad es con tarjeta
+        $p['payment_method_types'] = ['card'];
+        $p['subscription_data'] = ['metadata' => $meta];
+    } else {
+        $p['payment_method_types'] = ['card', 'oxxo'];
+        $p['payment_method_options'] = ['oxxo' => ['expires_after_days' => 3]];
+    }
+    return $p;
+}
+
+// ¿La firma del aviso es de Stripe? Cabecera «t=…,v1=…»: HMAC-SHA256 de «t.cuerpo» con el secreto del endpoint;
+// fuera de 5 minutos se rechaza (un aviso viejo repetido).
+function tienda_firma_stripe_valida($cuerpo, $cabecera, $secreto, $ahora = null, $tolerancia = 300) {
+    if (!is_string($cabecera) || !is_string($secreto) || $secreto === '') return false;
+    $t = null;
+    $firmas = [];
+    foreach (explode(',', $cabecera) as $parte) {
+        $kv = explode('=', trim($parte), 2);
+        if (count($kv) !== 2) continue;
+        if ($kv[0] === 't') $t = $kv[1];
+        elseif ($kv[0] === 'v1') $firmas[] = $kv[1];
+    }
+    // Sin ctype_digit: la extensión ctype no siempre está instalada
+    if ($t === null || !preg_match('/^\d{1,12}$/', $t) || !$firmas) return false;
+    if (abs(($ahora === null ? time() : $ahora) - (int) $t) > $tolerancia) return false;
+    $esperada = hash_hmac('sha256', $t . '.' . $cuerpo, $secreto);
+    foreach ($firmas as $f) {
+        if (hash_equals($esperada, $f)) return true;
+    }
+    return false;
+}
+
+// ── Correo ──────────────────────────────────────────────────────────────────
+function tienda_correo(array $cfg, $para, $asunto, $texto) {
+    if (!is_string($para) || !filter_var($para, FILTER_VALIDATE_EMAIL)) return false;
+    if (!empty($cfg['correo_archivo'])) {
+        return file_put_contents($cfg['correo_archivo'], "Para: $para\nAsunto: $asunto\n\n$texto\n-----\n", FILE_APPEND) !== false;
+    }
+    $de = isset($cfg['tienda_correo_de']) ? $cfg['tienda_correo_de'] : 'ventas@antiparticula.com';
+    $cabeceras = "From: =?UTF-8?B?" . base64_encode('Antipartícula') . "?= <$de>\r\n"
+               . "Reply-To: $de\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit";
+    return @mail($para, '=?UTF-8?B?' . base64_encode($asunto) . '?=', $texto, $cabeceras);
+}
+
+// El correo de una compra recién pagada: el código siempre (sirve para reinstalar o cambiar de PC).
+function tienda_correo_compra(array $cfg, array $compra) {
+    $plan = tienda_plan($compra['plan']);
+    $nombre = $plan ? $plan['nombre'] : 'Premium';
+    $codigo = tienda_codigo_mostrar($compra['codigo']);
+    $l = [];
+    if (tienda_es_prueba($compra)) {
+        $l[] = "COMPRA DE PRUEBA (modo de prueba de Stripe): no se cobró nada y la clave dura " . TIENDA_DIAS_PRUEBA . " días.";
+        $l[] = "";
+    }
+    $l[] = "¡Gracias por tu compra!";
+    $l[] = "";
+    $l[] = "Plan: $nombre";
+    $l[] = "Tu código: $codigo";
+    $l[] = "";
+    if ($compra['hardware_id']) {
+        $l[] = "Se activa solo en la computadora donde lo compraste: en cuanto el programa esté abierto y con internet.";
+        $l[] = "Si no lo ves en unos minutos, abre Configuración > Premium > «Tengo un código» y escribe tu código.";
+    } else {
+        $l[] = "Para activarlo: en el programa abre Configuración > Premium > «Tengo un código» y escribe tu código.";
+    }
+    $l[] = "";
+    $l[] = "Guarda este correo. Si cambias de computadora, escribe el mismo código en la nueva (un cambio cada 12 meses).";
+    if ($plan && $plan['modo'] === 'suscripcion') {
+        $l[] = "Tu plan se renueva solo cada mes con tu tarjeta; la clave nueva le llega sola al programa.";
+    }
+    $l[] = "";
+    $l[] = "¿Dudas? WhatsApp 55 8432 3945 · " . tienda_url($cfg);
+    return tienda_correo($cfg, $compra['email'], (tienda_es_prueba($compra) ? '[PRUEBA] ' : '') . "Tu $nombre · Antipartícula Punto de Venta",
+                         implode("\n", $l));
+}

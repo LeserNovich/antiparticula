@@ -99,6 +99,10 @@ function crearEntorno({ almacen = {}, red = true, body = datosBase(), ahora = AH
             return { ok: estado.auth.status < 400, status: estado.auth.status, json: async () => estado.auth.body };
         }
         if (!estado.ok) throw new Error('network down');
+        if (String(url).indexOf('/tienda/planes.php') === 0) {
+            if (!estado.planes) throw new Error('sin planes');
+            return { ok: true, status: 200, json: async () => estado.planes };
+        }
         const tk = opts && opts.headers && opts.headers['X-Dash-Token'];
         if (estado.requiereToken && tk !== estado.requiereToken) {
             return { ok: false, status: 401, json: async () => ({ status: 'protegido' }) };
@@ -907,39 +911,29 @@ const shell = [...SW.matchAll(/'(\/dashboard\/[^']+)'/g)].map(m => m[1]);
 ok(shell.length >= 5, 'el service worker lista su shell', shell.join(', '));
 shell.forEach(f => ok(fs.existsSync(PUB + f), 'existe ' + f));
 ok(/cache:\s*'reload'/.test(SW), 'el SW precachea saltando la caché HTTP');
-eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v8', 'versión del caché subida');
+eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v10', 'versión del caché subida');
+// El CDN de Hostinger guarda css/js 7 días: cada publicación los pide con ?v=<versión> (el número de CACHE_NAME)
+{
+    const ver = (SW.match(/CACHE_NAME = 'antiparticula-dashboard-v(\d+)'/) || [])[1];
+    const pedidos = [...HTML.matchAll(/(?:href|src)="\/dashboard\/(dashboard\.css|dashboard\.js|tiendas\.js)(\?v=\d+)?"/g)];
+    eq(pedidos.length, 3, 'index.html pide el css y los dos js');
+    ok(pedidos.every(m => m[2] === '?v=' + ver), 'index.html los pide con ?v= igual a la versión del SW', pedidos.map(m => m[1] + (m[2] || '')).join(', '));
+    ok(/'\/dashboard\/dashboard\.css' \+ V/.test(SW) && /const V = '\?v=' \+ CACHE_NAME/.test(SW), 'el SW guarda esas mismas URLs');
+}
 ok(!/\/img\/|\/css\//.test(HTML.replace(/<!--[\s\S]*?-->/g, '')) , 'el shell no depende de archivos fuera de /dashboard/');
 ok(/dashboard_auth\.php|get_dashboard_data\.php/.test(SW), 'el SW conoce las rutas de la API (nunca se cachean)');
 
-console.log('\n\x1b[1m29. Premium: días gratis y panel sin acceso\x1b[0m');
-// En sus días gratis: aviso con la fecha, los días que quedan y el enlace para contratar
-const EA = crearEntorno({ body: datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-18' } }) });
+console.log('\n\x1b[1m29. Premium: el panel es solo de Premium (sin días gratis)\x1b[0m');
+const EA = crearEntorno({ body: datosBase({ acceso: { estado: 'premium', hasta: '2027-09-03' } }) });
 await EA.tick();
-ok(!EA.q('avisoPremium').hidden, 'en prueba se ve el aviso');
-eq(norm(EA.q('avisoPremiumTexto').textContent), 'Tu panel es gratis hasta el 18 Sep (quedan 15 días). Después necesitarás Premium.',
-   'el aviso dice hasta cuándo y cuántos días quedan');
-const enlace = EA.q('avisoPremiumLink').getAttribute('href');
-ok(enlace.indexOf('https://wa.me/525584323945?text=') === 0, 'el enlace es el WhatsApp de ventas', enlace);
-ok(decodeURIComponent(enlace).indexOf('Abarrotes La Esquina') > 0 && decodeURIComponent(enlace).indexOf('TEST123') > 0,
-   'el mensaje lleva el negocio y el panel (soporte sabe cuál es)', decodeURIComponent(enlace));
-EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-04' } });
+eq(EA.q('ingresosHoy').textContent, money('4,520.50'), 'con Premium se ve el panel');
+ok(EA.q('avisoPremium') === null, 'ya no hay aviso de días gratis (no existen)');
+EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-18' } });
 await EA.refrescar();
-eq(norm(EA.q('avisoPremiumTexto').textContent), 'Tu panel es gratis hasta mañana. Después necesitarás Premium.', 'un día: «hasta mañana»');
-EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: '2026-09-03' } });
-await EA.refrescar();
-eq(norm(EA.q('avisoPremiumTexto').textContent), 'Hoy es el último día gratis de tu panel. Después necesitarás Premium.', 'el último día');
-EA.estado.body = datosBase({ acceso: { estado: 'premium', hasta: '2027-09-03' } });
-await EA.refrescar();
-ok(EA.q('avisoPremium').hidden, 'con Premium no hay aviso');
-EA.estado.body = datosBase({ acceso: { estado: 'abierto', hasta: null } });
-await EA.refrescar();
-ok(EA.q('avisoPremium').hidden, 'servidor sin la migración («abierto»): no hay aviso');
-EA.estado.body = datosBase({ acceso: { estado: 'prueba', hasta: null } });
-await EA.refrescar();
-ok(EA.q('avisoPremium').hidden, 'prueba sin fecha todavía: no se inventa una');
-ok(q('avisoPremium').hidden, 'sin el campo acceso (servidor anterior): no hay aviso');
+ok(EA.q('avisoPremium') === null && !/gratis hasta/.test(EA.doc.getElementById('app').textContent),
+   'aunque un servidor viejo dijera «prueba», no se anuncia nada');
 
-// Sin Premium ni días gratis: 403 premium_requerido
+// Sin Premium vigente: 403 premium_requerido
 EA.estado.body = datosBase();
 await EA.refrescar();
 ok(!!EA.win.localStorage.getItem('apdash:datos:TEST123'), '(antes había datos guardados en el teléfono)');
@@ -948,15 +942,39 @@ EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina',
 await EA.refrescar();
 ok(EA.q('premiumBox') !== null, '403 premium_requerido: pantalla de Premium');
 ok(EA.q('ingresosHoy') === null && EA.q('gananciaHoy') === null, '…sin ni una cifra');
-ok(/Tus días gratis terminaron el 1 Sep 2026\./.test(EA.q('premiumTexto').textContent), 'dice cuándo terminaron los días gratis',
+ok(/^Tu suscripción terminó el 1 Sep 2026\. Con Premium ves/.test(EA.q('premiumTexto').textContent), 'dice cuándo venció la suscripción',
    EA.q('premiumTexto').textContent);
 eq(EA.doc.querySelector('h1').textContent, 'Abarrotes La Esquina', 'con el nombre del negocio');
-ok(EA.q('premiumContratar').getAttribute('href').indexOf('https://wa.me/525584323945?text=') === 0, 'botón de contratar por WhatsApp');
-ok(/Actualiza el programa de tu tienda/.test(EA.q('premiumBox').textContent), 'y le dice qué hacer a quien ya pagó');
+// Se compra aquí mismo (POS 3.5.0+): tres planes y un solo botón para pagar
+eq(EA.doc.querySelectorAll('[data-k="planes"] .plan').length, 3, 'los tres planes de Premium');
+eq(EA.doc.querySelector('.plan.sel').getAttribute('data-plan'), 'premium_anual', 'el anual, elegido de entrada');
+eq(EA.q('premiumPagar').getAttribute('href'), '/tienda/pagar.php?plan=premium_anual&panel=TEST123', 'Pagar lleva el plan y el ID del panel');
+eq(EA.q('premiumPagar').textContent, 'Pagar $1,290', '…y dice cuánto');
+ok(/ahorras \$498/.test(EA.q('planes').textContent), 'el anual dice cuánto ahorra');
+EA.doc.querySelector('.plan[data-plan="premium_mensual"]').click();
+eq(EA.q('premiumPagar').getAttribute('href'), '/tienda/pagar.php?plan=premium_mensual&panel=TEST123', 'elegir el mensual cambia el pago');
+eq(EA.q('premiumPagar').textContent, 'Pagar $149', '…y el precio');
+eq(EA.doc.querySelector('.plan.sel').getAttribute('data-plan'), 'premium_mensual', '…y la tarjeta elegida');
+ok(EA.q('premiumDudas').getAttribute('href').indexOf('https://wa.me/525584323945?text=') === 0, 'las dudas, por WhatsApp');
+ok(/te damos un código/.test(EA.q('premiumComo').textContent) && /Actualiza el programa de tu tienda/.test(EA.q('premiumBox').textContent),
+   'con un programa anterior a la 3.5.0: el pago da un código, y le dice que actualice');
 eq(EA.win.localStorage.getItem('apdash:datos:TEST123'), null, 'lo guardado en el teléfono se borra (no se sigue mostrando)');
 const cajaAntes = EA.q('premiumBox');
 await EA.refrescar();
 ok(EA.q('premiumBox') === cajaAntes, 'el refresco de cada minuto no vuelve a montar la pantalla');
+// Con el programa 3.5.0 la clave llega sola; los precios vigentes los da el sitio
+EA.estado.planes = { planes: [
+    { id: 'premium_mensual', tipo: 'premium', precio: 16900, periodo: 'al mes' },
+    { id: 'premium_anual', tipo: 'premium', precio: 139000, periodo: 'al año' },
+    { id: 'premium_siempre', tipo: 'premium', precio: 349000, periodo: 'pago único' },
+    { id: 'multi_anual', tipo: 'multi', precio: 299000, periodo: 'al año' }] };
+EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina', desde: '2026-09-01', protegido: false, compra_directa: true };
+await EA.refrescar(); await EA.tick();
+ok(/se activa solo en el programa de tu tienda/.test(EA.q('premiumComo').textContent), 'con el programa 3.5.0: se activa solo');
+eq(EA.q('planes').textContent.indexOf('$169') !== -1 && EA.q('planes').textContent.indexOf('$1,390') !== -1, true,
+   'los precios del sitio reemplazan a los incluidos');
+ok(/ahorras \$638/.test(EA.q('planes').textContent), '…y el ahorro se calcula con ellos');
+EA.estado.planes = null;
 // Al pagar, el panel vuelve solo
 EA.estado.status = 200;
 EA.estado.body = datosBase({ acceso: { estado: 'premium', hasta: '2027-09-03' } });
@@ -968,6 +986,8 @@ EA.estado.status = 403;
 EA.estado.body = { status: 'premium_requerido', negocio: 'X', desde: null };
 await EA.refrescar();
 ok(!/undefined|null/.test(EA.q('premiumTexto').textContent), 'sin fecha no sale «undefined»', EA.q('premiumTexto').textContent);
+ok(/^Con Premium ves desde el celular/.test(EA.q('premiumTexto').textContent), '…ni una fecha: nunca tuvo Premium', EA.q('premiumTexto').textContent);
+ok(!/gratis/.test(EA.q('premiumBox').textContent), 'la pantalla no habla de días gratis');
 // Lo guardado no se muestra al abrir si el panel ya no tiene acceso
 const EB = crearEntorno({ red: true, ahora: null, status: 403, body: { status: 'premium_requerido', negocio: 'Guardado', desde: '2026-09-01' },
     almacen: { 'apdash:datos:TEST123': JSON.stringify({ t: Date.now() - 60000, data: datosBase({ negocio: 'Guardado' }) }) } });

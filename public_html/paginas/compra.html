@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <link rel="shortcut icon" href="../img/A.png" type="image/x-icon">
+    <title>Tu compra | Antipartícula Punto de Venta</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* A donde Stripe regresa al cliente después de pagar (tienda/pagar.php: success_url y cancel_url).
+           Lee tienda/estado.php?sesion=… hasta que llega el aviso de Stripe. */
+        .compra { max-width: 560px; margin: calc(60px + var(--site-nav-h)) auto 70px; padding: 0 20px; font-family: 'Montserrat', sans-serif; color: #1d2433; }
+        .compra h1 { font-size: 1.6rem; margin: 0 0 12px; }
+        .compra p { line-height: 1.6; color: #4e5a68; }
+        .compra .codigo { font-size: 1.5rem; font-weight: 700; letter-spacing: .06em; background: #f3f6f9; border: 1px solid #e2e6eb;
+                          border-radius: 12px; padding: 14px 18px; display: inline-block; margin: 6px 0 14px; user-select: all; }
+        .compra .pasos { background: #f8fafc; border-radius: 12px; padding: 14px 18px; }
+        .compra a.boton { display: inline-block; margin-top: 18px; background: #2c6e95; color: #fff; padding: 12px 22px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+    </style>
+    <link rel="stylesheet" href="../css/nav.css">
+</head>
+<body>
+    <!-- parcial:menu solido actual="paginas/puntodeventa.html" -->
+    <nav class="site-nav site-nav--solid" id="siteNav" aria-label="Menú principal">
+        <div class="site-nav__bar">
+            <a class="site-nav__brand" href="../index.html">
+                <img src="../img/A.png" alt="" width="34" height="30">
+                <span>Antipartícula</span>
+            </a>
+            <div class="site-nav__menu" id="siteNavMenu">
+                <ul class="site-nav__list">
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/puntodeventa.html" aria-current="page">Punto de Venta</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li class="site-nav__item"><a class="site-nav__link" href="../paginas/contacto.html">Contacto</a></li>
+                </ul>
+                <div class="site-nav__drawer-foot">
+                    <a class="site-nav__cta" href="../paginas/puntodeventa.html">Descargar gratis</a>
+                    <a class="site-nav__whats" href="https://wa.me/525584323945" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp</a>
+                </div>
+            </div>
+            <a class="site-nav__cta site-nav__cta--bar" href="../paginas/puntodeventa.html">Descargar gratis</a>
+            <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu" aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+    <!-- /parcial:menu -->
+    <main class="compra" id="compra" aria-live="polite">
+        <h1>Revisando tu pago…</h1>
+        <p>Un momento: estamos confirmando tu compra con el banco.</p>
+    </main>
+    <!-- parcial:footer lema="pos" -->
+    <footer>
+        <div class="rowFooter">
+            <div class="colFooter">
+                <img src="../img/A.png" alt="Antipartícula Punto de Venta" class="logoFooter">
+                <p>Impulsamos a negocios y tiendas en LATAM a través de la transformación digital. <br>
+                    <br> Con <i class="fa-regular fa-heart" style="color: #ffffff;"></i> para México y Latinoamérica.
+                </p>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/antiparticular" target="_blank" rel="noopener" class="fa-brands fa-facebook-f" aria-label="Facebook"></a>
+                    <a href="https://www.instagram.com/antiparticular/" target="_blank" rel="noopener" class="fa-brands fa-instagram" aria-label="Instagram"></a>
+                    <a href="https://www.tiktok.com/@antiparticula.com" target="_blank" rel="noopener" class="fa-brands fa-tiktok" aria-label="TikTok"></a>
+                    <a href="https://wa.me/525584323945" target="_blank" rel="noopener" class="fa-brands fa-whatsapp" aria-label="WhatsApp"></a>
+                </div>
+            </div>
+            <div class="colFooter">
+                <h3>Punto de Venta</h3>
+                <ul>
+                    <li><a href="../paginas/puntodeventa.html">Conoce el sistema</a></li>
+                    <li><a href="../paginas/puntodeventa.html#pricing">Precios</a></li>
+                    <li><a href="../paginas/instrucciones-descarga.html">Cómo instalarlo</a></li>
+                    <li><a href="../paginas/puntodeventa.html#faq">Preguntas frecuentes</a></li>
+                    <li><a href="../paginas/versiones.html">Novedades</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Empresa</h3>
+                <ul>
+                    <li><a href="../paginas/queHacemos.html">Servicios</a></li>
+                    <li><a href="../paginas/quienes-somos.html">Nosotros</a></li>
+                    <li><a href="../paginas/contacto.html">Contacto</a></li>
+                </ul>
+            </div>
+            <div class="colFooter">
+                <h3>Oficina</h3>
+                <p>Tecámac, Estado de México</p>
+                <p class="email-id">contacto&commat;antiparticula.com</p>
+                <h4>+52 (55) 8432 3945</h4>
+                <p class="footer-form-label">Solicita información</p>
+                <form action="https://formsubmit.co/viresbhx@gmail.com" method="POST">
+                    <i class="fa-regular fa-envelope"></i>
+                    <input type="email" placeholder="Ingresa tu email" required name="Correo" aria-label="Tu email">
+                    <button type="submit" aria-label="Enviar"><i class="fa-solid fa-arrow-right"></i></button>
+                    <input type="hidden" name="_next" value="https://antiparticula.com/paginas/compra.html?enviado=true">
+                    <input type="hidden" name="_captcha" value="false">
+                </form>
+            </div>
+        </div>
+        <hr>
+        <p class="copyright">Antipartícula es una marca registrada de Leser Tech Services</p>
+    </footer>
+    <!-- /parcial:footer -->
+    <script>
+    (function () {
+        var caja = document.getElementById('compra');
+        var q = new URLSearchParams(location.search);
+        function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+        function poner(html) { caja.innerHTML = html; }
+        var wa = '<a href="https://wa.me/525584323945" target="_blank" rel="noopener">WhatsApp 55 8432 3945</a>';
+        if (q.get('cancelada')) {
+            poner('<h1>No se hizo ningún cobro</h1><p>Cancelaste el pago. Cuando quieras, vuelve a elegir tu plan.</p><a class="boton" href="puntodeventa.html#pricing">Ver los planes</a>');
+            return;
+        }
+        if (q.get('ya') === 'siempre') {
+            poner('<h1>Ya tienes Premium para siempre</h1><p>Esa computadora ya tiene Premium sin vencimiento: no hay nada más que pagar. ¿Dudas? ' + wa + '.</p>');
+            return;
+        }
+        var sesion = q.get('sesion') || '';
+        if (!/^cs_[A-Za-z0-9_]+$/.test(sesion)) { poner('<h1>No encontramos tu compra</h1><p>Si ya pagaste, escríbenos por ' + wa + '.</p>'); return; }
+        var intentos = 0;
+        function revisar() {
+            intentos++;
+            fetch('/tienda/estado.php?sesion=' + encodeURIComponent(sesion), { cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    if (j.estado === 'esperando') {
+                        if (intentos < 40) { setTimeout(revisar, 3000); return; }
+                        poner('<h1>Tu pago está en camino</h1><p>Todavía no recibimos la confirmación. Te llegará un correo con tu código en cuanto se confirme. Si tarda, escríbenos por ' + wa + '.</p>');
+                        return;
+                    }
+                    var codigo = '<div class="codigo">' + esc(j.codigo) + '</div>';
+                    if (j.estado === 'pendiente') {
+                        poner('<h1>Paga tu ficha en OXXO</h1><p>Cuando pagues, tu <b>' + esc(j.nombre) + '</b> se activa solo' + (j.con_pc ? ' en el programa' : '') + ' y te llega un correo. Guarda tu código:</p>' + codigo);
+                        return;
+                    }
+                    if (j.estado !== 'pagada') {
+                        poner('<h1>El pago no se completó</h1><p>La ficha de OXXO venció sin pagarse. Puedes volver a intentarlo.</p><a class="boton" href="puntodeventa.html#pricing">Ver los planes</a>');
+                        return;
+                    }
+                    var como = j.con_pc
+                        ? '<p>Vuelve al programa: se activa solo en unos segundos. Si no lo ves, abre <b>Configuración › Premium › ¿Ya tienes un código o una clave?</b> y escribe este código.</p>'
+                        : '<div class="pasos"><p><b>Para activarlo:</b> abre el programa (versión 3.5.0 o más reciente) y ve a <b>Configuración › Premium › ¿Ya tienes un código o una clave?</b>. Escribe este código.</p></div>';
+                    var prueba = j.prueba ? '<p class="pasos"><b>Compra de prueba</b> (modo de prueba de Stripe): no se cobró nada y la clave dura 2 días.</p>' : '';
+                    poner(prueba + '<h1>¡Gracias! Tu ' + esc(j.nombre) + ' está pagado</h1><p>Tu código (también te llegó por correo):</p>' + codigo + como
+                        + '<p>Si cambias de computadora, escribe el mismo código en la nueva (un cambio cada 12 meses).</p>');
+                })
+                .catch(function () { if (intentos < 40) setTimeout(revisar, 3000); });
+        }
+        revisar();
+    })();
+    </script>
+    <script src="../js/nav.js"></script>
+</body>
+</html>

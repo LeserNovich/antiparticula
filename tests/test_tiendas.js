@@ -37,6 +37,9 @@ function eq(actual, expected, label) {
 // ── El «ahora» de las pruebas: el día de los ejemplos (domingo 11 de octubre de 2026), 15:20 en México ──
 const HOY = FX_TODAS.hoy;
 const AHORA = { y: 2026, m: 10, d: 11, h: 15, mi: 20, clave: HOY };
+// El mismo instante como marca de tiempo (México es UTC-6 todo el año). Lo guardado en el teléfono se compara contra
+// ahoraMX(): con Date.now() la prueba solo pasaba el 11 de octubre de 2026.
+const T_AHORA = Date.parse(`${HOY}T15:20:00-06:00`);
 const ID = 'T-K7P2M9XQ4T';
 const URL_PANEL = 'https://antiparticula.com/dashboard/' + ID;
 const CENTRO = FX_TODAS.sucursales.find(s => s.nombre === 'Centro').id;
@@ -530,14 +533,15 @@ console.log('\n\x1b[1m17. Una sola tienda: sin selector\x1b[0m');
 
 console.log('\n\x1b[1m18. Lo guardado en el teléfono\x1b[0m');
 {
-    const hoyGuardado = { t: Date.now(), datos: { todas: frescas(FX_TODAS) } };
+    const hoyGuardado = { t: T_AHORA - 30 * 60000, datos: { todas: frescas(FX_TODAS) } };
     const A = crearEntorno({ almacen: Object.assign({ ['apdash:tdatos:' + ID]: JSON.stringify(hoyGuardado) }, conSesion), red: false });
     ok(A.q('negocio') && A.q('negocio').textContent === FX_TODAS.negocio, 'con lo guardado de hoy abre al instante, sin esperar al servidor');
     await A.tick(); await A.tick();
-    ok(!A.q('banner').hidden && /Mostrando lo último guardado/.test(A.q('banner').textContent), 'y avisa que son datos guardados', A.q('banner').textContent);
+    const banner = A.q('banner');
+    ok(!!banner && !banner.hidden && /Mostrando lo último guardado/.test(banner.textContent), 'y avisa que son datos guardados', banner && banner.textContent);
     A.win.close();
 
-    const ayer = { t: Date.now() - 2 * 24 * 3600 * 1000, datos: { todas: frescas(FX_TODAS) } };
+    const ayer = { t: T_AHORA - 2 * 24 * 3600 * 1000, datos: { todas: frescas(FX_TODAS) } };
     const B = crearEntorno({ almacen: Object.assign({ ['apdash:tdatos:' + ID]: JSON.stringify(ayer) }, conSesion), red: false });
     ok(!B.q('negocio') || B.q('negocio').textContent !== FX_TODAS.negocio, 'lo guardado de otro día no se usa (no son las cifras de hoy)');
     await B.tick(); await B.tick();   // que termine su petición fallida antes de cerrar la ventana
@@ -586,8 +590,8 @@ console.log('\n\x1b[1m20. Dónde está el servidor, ids que no son de tiendas, e
 console.log('\n\x1b[1m21. Archivos del service worker y sin errores JS\x1b[0m');
 {
     ok(/'\/dashboard\/tiendas\.js'/.test(SW), 'tiendas.js está en el shell del service worker');
-    eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v7', 'versión del caché subida');
-    ok(/<script src="\/dashboard\/tiendas\.js" defer><\/script>/.test(HTML), 'index.html carga tiendas.js después de dashboard.js');
+    eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v10', 'versión del caché subida');
+    ok(/<script src="\/dashboard\/tiendas\.js(\?v=\d+)?" defer><\/script>/.test(HTML), 'index.html carga tiendas.js después de dashboard.js');
     ok(HTML.indexOf('dashboard.js') < HTML.indexOf('tiendas.js'), 'y en ese orden');
     ok(fs.existsSync(PUB + '/dashboard/tiendas.js'), 'existe el archivo');
     ok(!/jsdelivr|cdn\./.test(JS_TIENDAS), 'sin dependencias externas');

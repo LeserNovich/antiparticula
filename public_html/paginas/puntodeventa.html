@@ -42,7 +42,8 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/paginas.css">
-    <link rel="stylesheet" href="../css/puntodeventa.css">
+    <!-- ?v=: con el CSS anterior en caché, las cifras escondidas de la barra se verían vacías -->
+    <link rel="stylesheet" href="../css/puntodeventa.css?v=3">
     <link rel="stylesheet" href="../css/mensaje-exito.css?version=2">
 
     <!-- Datos estructurados Schema.org (rich snippets de Google).
@@ -61,27 +62,18 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
             "url": "https://antiparticula.com/puntodeventa",
             "softwareVersion": "2.3.1",
             "offers": [
-              {
-                "@type": "Offer",
-                "name": "Versión Gratuita",
-                "price": "0",
-                "priceCurrency": "MXN",
-                "description": "Versión gratuita para siempre con todas las funciones principales incluidas."
-              },
-              {
-                "@type": "Offer",
-                "name": "Plan Premium Semestral",
-                "price": "954",
-                "priceCurrency": "MXN",
-                "description": "Facturado cada 6 meses. Incluye importación y exportación ilimitada de productos vía Excel."
-              },
-              {
-                "@type": "Offer",
-                "name": "Plan Premium Anual",
-                "price": "1669",
-                "priceCurrency": "MXN",
-                "description": "Facturado anualmente con un 12% de ahorro. Incluye importación y exportación ilimitada de productos vía Excel."
-              }
+              { "@type": "Offer", "name": "Versión Gratuita", "price": "0", "priceCurrency": "MXN",
+                "description": "Gratis para siempre: ventas, inventario, cortes de caja e impresión de tickets." },
+              { "@type": "Offer", "name": "Premium mensual", "price": "149", "priceCurrency": "MXN",
+                "description": "Excel sin límite, panel móvil, resumen completo, usuarios sin límite. Se renueva cada mes." },
+              { "@type": "Offer", "name": "Premium anual", "price": "1290", "priceCurrency": "MXN",
+                "description": "Todo Premium por un año, en un solo pago con tarjeta u OXXO." },
+              { "@type": "Offer", "name": "Premium para siempre", "price": "3490", "priceCurrency": "MXN",
+                "description": "Todo Premium en un solo pago, sin vencimiento." },
+              { "@type": "Offer", "name": "Varias sucursales mensual", "price": "299", "priceCurrency": "MXN",
+                "description": "Une las computadoras de tus tiendas; incluye Premium. Por computadora, cada mes." },
+              { "@type": "Offer", "name": "Varias sucursales anual", "price": "2990", "priceCurrency": "MXN",
+                "description": "Une las computadoras de tus tiendas; incluye Premium. Por computadora, por un año." }
             ]
           },
           {
@@ -128,7 +120,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 "name": "¿La versión gratuita es realmente gratis para siempre?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Sí, sin letra chica. La versión gratuita incluye ventas, inventario, reportes, control de usuarios, turnos, impresión de tickets y panel web en tiempo real, sin límite de tiempo ni de productos. Premium solo agrega la importación/exportación masiva de Excel."
+                  "text": "Sí, sin letra chica. La versión gratuita incluye ventas, inventario, cortes de caja, turnos, impresión de tickets, el resumen de los últimos 7 días y dos usuarios (un administrador y un cajero), sin límite de tiempo ni de productos. Premium agrega Excel sin límite, el panel móvil, el resumen completo, usuarios sin límite y la opción de quitar la marca del ticket."
                 }
               },
               {
@@ -157,10 +149,18 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
               },
               {
                 "@type": "Question",
+                "name": "¿Cómo pago Premium y cómo se activa?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Con tarjeta o en efectivo en OXXO, desde el programa (Configuración › Premium) o desde esta página. Si lo compras desde el programa, se activa solo en cuanto se confirma el pago. Si lo compras aquí, te damos un código que escribes en el programa. La mensualidad se paga con tarjeta y se renueva sola; el pago único es para siempre."
+                }
+              },
+              {
+                "@type": "Question",
                 "name": "¿Puedo usarlo en varias computadoras del mismo negocio?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Sí, el modo multi-caja está disponible en la versión Premium. Permite conectar varias cajas en el mismo negocio compartiendo el mismo inventario y datos en tiempo real. Contáctanos por WhatsApp para activarlo."
+                  "text": "Sí, con el plan de varias sucursales: une las computadoras de tus tiendas para compartir productos, precios e inventario, hacer traspasos y ver los tickets, cortes y reportes de todas. Cuesta $299 al mes o $2,990 al año por computadora e incluye todo lo de Premium."
                 }
               }
             ]
@@ -237,10 +237,11 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                     <!-- Lo llena mensaje-exito.js según el sistema que detecta (Windows, Mac con chip Apple o Intel) -->
                     <p class="pv-os-note" id="pvOsNota" hidden></p>
                     <a class="pv-hero-link" href="#pricing">Ver Premium <i class="fa-solid fa-arrow-right"></i></a>
-                    <!-- .stats-bar: el script de estadísticas la observa para cargar los números -->
+                    <!-- .stats-bar: el script de estadísticas la observa para cargar los números. Solo cifras reales
+                         (get_stats.php): sin número de relleno; cada una aparece cuando llega, y si no llega no se enseña. -->
                     <div class="pv-stats stats-bar">
-                        <div><strong id="statTotal">+500</strong><span>negocios activos</span></div>
-                        <div><strong id="statMes">+50</strong><span>descargas este mes</span></div>
+                        <div hidden><strong id="statTotal"></strong><span data-uno="negocio activo">negocios activos</span></div>
+                        <div hidden><strong id="statDescargas"></strong><span data-uno="descarga">descargas</span></div>
                         <div><strong>$0</strong><span>para siempre</span></div>
                     </div>
                 </div>
@@ -377,7 +378,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 <div class="pv-sheet">
                     <div class="pv-panel">
                         <div>
-                            <span class="pv-badge pv-badge--oscuro"><i class="fa-solid fa-globe"></i> Nuevo · Panel web</span>
+                            <span class="pv-badge pv-badge--oscuro"><i class="fa-solid fa-globe"></i> Premium · Panel web</span>
                             <h2>Vigila tus ventas desde donde estés</h2>
                             <p class="pv-panel-intro">Tu punto de venta tiene un panel de informes accesible desde cualquier
                                 navegador. Sin instalar nada: solo abre el link en tu celular y listo.</p>
@@ -403,16 +404,12 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                     </div>
 
                     <details class="pv-hw">
-                        <summary>¿Cómo obtengo mi Hardware ID? <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+                        <summary>¿Dónde encuentro mi dirección? <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
                         <div class="pv-hw-cuerpo">
-                            <div class="pv-hw-imagenes">
-                                <img src="../img/hardware_ID_p1.png" loading="lazy" alt="Paso 1: en la pantalla de inicio de sesión, haz clic en Activar suscripción premium">
-                                <img src="../img/hardware_ID_p2.png" loading="lazy" alt="Paso 2: la ventana de activación muestra tu Hardware ID">
-                            </div>
                             <ol class="pv-pasos">
-                                <li><div><strong>Abre el Punto de Venta</strong>En la pantalla de inicio de sesión, haz clic en <em>"Activar suscripción premium"</em>.</div></li>
-                                <li><div><strong>Copia tu Hardware ID</strong>En el cuadro <em>"Tu ID de equipo"</em> verás un código como <code>79350C063DFC1727</code>. Ese es tu ID único.</div></li>
-                                <li><div><strong>Arma tu dirección</strong>Visita <code>antiparticula.com/dashboard/79350C063DFC1727</code> (sustituyendo con tu ID).</div></li>
+                                <li><div><strong>Abre el Punto de Venta</strong>Ve a <em>Configuración › Panel móvil</em>.</div></li>
+                                <li><div><strong>Copia tu enlace</strong>Usa <em>«Copiar enlace»</em> o <em>«Enviarme el enlace por WhatsApp»</em> y ábrelo en tu celular.</div></li>
+                                <li><div><strong>Tenlo a la mano</strong>En el celular, agrégalo a la pantalla de inicio: se abre como una aplicación.</div></li>
                             </ol>
                         </div>
                     </details>
@@ -444,57 +441,78 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 <div class="pv-head">
                     <span class="pv-chip">Precios</span>
                     <h2>Simple y transparente</h2>
-                    <p>Usa gratis para siempre o mejora a Premium para importar y exportar productos en Excel sin límites.</p>
+                    <p>Vender es gratis para siempre. Premium agrega lo que le sirve al dueño, y el plan de varias sucursales une tus tiendas. Precios en pesos, IVA incluido.</p>
                 </div>
+                <!-- Los botones abren tienda/pagar.php: el cobro de Stripe. Desde la página no se sabe la PC: el cliente recibe un
+                     código que escribe en el programa. Los precios viven en tienda_planes() (tienda_comun.php): si cambian, aquí también. -->
                 <div class="pv-planes">
                     <div class="pv-plan">
                         <h3>Versión Gratuita</h3>
                         <div class="pv-precio">$0 <span>para siempre</span></div>
                         <p class="pv-cobro">Sin pagos. Sin vencimientos.</p>
                         <ul>
-                            <li><i class="fa-solid fa-check"></i> Gestión completa de inventario</li>
-                            <li><i class="fa-solid fa-check"></i> Ventas y reportes</li>
-                            <li><i class="fa-solid fa-check"></i> Control de clientes</li>
+                            <li><i class="fa-solid fa-check"></i> Ventas, cobro y tickets</li>
+                            <li><i class="fa-solid fa-check"></i> Inventario sin límite de productos</li>
+                            <li><i class="fa-solid fa-check"></i> Cortes de caja y turnos</li>
+                            <li><i class="fa-solid fa-check"></i> Resumen de los últimos 7 días</li>
+                            <li><i class="fa-solid fa-check"></i> Un administrador y un cajero</li>
                             <li><i class="fa-solid fa-check"></i> Actualizaciones gratuitas</li>
-                            <li><i class="fa-solid fa-check"></i> Sin límites de productos</li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
                         </ul>
                         <button class="pv-btn pv-btn-dark" type="button" onclick="descargarPrueba()" data-descarga>
                             <i class="fa-solid fa-download"></i> Descargar ahora
                         </button>
                     </div>
 
-                    <div class="pv-plan pv-plan--recomendado">
+                    <div class="pv-plan pv-plan--recomendado" data-plan-tienda>
                         <span class="pv-etiqueta">Recomendado</span>
-                        <h3>Premium Anual</h3>
-                        <div class="pv-precio">$139 <span>/ mes</span></div>
-                        <p class="pv-cobro">Facturado anualmente a $1,669 MXN</p>
+                        <h3>Premium</h3>
+                        <div class="pv-periodos" role="group" aria-label="Forma de pago de Premium">
+                            <button type="button" class="pv-periodo" data-plan="premium_mensual" data-precio="$149" data-unidad="/ mes"
+                                    data-cobro="Con tarjeta; se renueva sola cada mes.">Mensual</button>
+                            <button type="button" class="pv-periodo activo" data-plan="premium_anual" data-precio="$1,290" data-unidad="/ año"
+                                    data-cobro="Un pago con tarjeta u OXXO. Ahorras $498 frente al mensual.">Anual</button>
+                            <button type="button" class="pv-periodo" data-plan="premium_siempre" data-precio="$3,490" data-unidad="una vez"
+                                    data-cobro="Un solo pago con tarjeta u OXXO. Sin vencimiento.">Para siempre</button>
+                        </div>
+                        <div class="pv-precio" data-precio>$1,290 <span>/ año</span></div>
+                        <p class="pv-cobro" data-cobro>Un pago con tarjeta u OXXO. Ahorras $498 frente al mensual.</p>
                         <ul>
-                            <li><i class="fa-solid fa-check"></i> <strong>Todo de la versión gratuita</strong></li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel ilimitado</strong></li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel ilimitado</strong></li>
+                            <li><i class="fa-solid fa-check"></i> <strong>Todo lo de la versión gratuita</strong></li>
+                            <li><i class="fa-solid fa-star"></i> <strong>Panel móvil: ventas, caja e inventario en el celular</strong></li>
+                            <li><i class="fa-solid fa-star"></i> Importar y exportar productos en Excel sin límite</li>
+                            <li><i class="fa-solid fa-star"></i> Resumen completo: meses, años y comparaciones</li>
+                            <li><i class="fa-solid fa-star"></i> Usuarios sin límite</li>
+                            <li><i class="fa-solid fa-check"></i> Opción de quitar la marca del ticket</li>
                             <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
                         </ul>
-                        <a href="https://buy.stripe.com/28E8wQ3C57Pp3XC9MXeUU03" target="_blank" rel="noopener" class="pv-btn pv-btn-light">Obtener Premium Anual</a>
+                        <a href="/tienda/pagar.php?plan=premium_anual" class="pv-btn pv-btn-light" data-pagar>Comprar Premium</a>
                         <p class="pv-garantia"><i class="fa-solid fa-shield-halved"></i> Garantía de devolución 7 días</p>
                     </div>
 
-                    <div class="pv-plan">
-                        <h3>Premium Semestral</h3>
-                        <div class="pv-precio">$159 <span>/ mes</span></div>
-                        <p class="pv-cobro">Facturado cada 6 meses a $954 MXN</p>
+                    <div class="pv-plan" data-plan-tienda>
+                        <h3>Varias sucursales</h3>
+                        <div class="pv-periodos" role="group" aria-label="Forma de pago de varias sucursales">
+                            <button type="button" class="pv-periodo" data-plan="multi_mensual" data-precio="$299" data-unidad="/ mes"
+                                    data-cobro="Por computadora, con tarjeta; se renueva sola cada mes.">Mensual</button>
+                            <button type="button" class="pv-periodo activo" data-plan="multi_anual" data-precio="$2,990" data-unidad="/ año"
+                                    data-cobro="Por computadora, en un pago con tarjeta u OXXO. Ahorras $598.">Anual</button>
+                        </div>
+                        <div class="pv-precio" data-precio>$2,990 <span>/ año</span></div>
+                        <p class="pv-cobro" data-cobro>Por computadora, en un pago con tarjeta u OXXO. Ahorras $598.</p>
                         <ul>
-                            <li><i class="fa-solid fa-check"></i> <strong>Todo de la versión gratuita</strong></li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Importar productos desde Excel ilimitado</strong></li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Exportar productos a Excel ilimitado</strong></li>
-                            <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
-                            <li><i class="fa-solid fa-star"></i> <strong>Panel web de ventas en tiempo real</strong></li>
+                            <li><i class="fa-solid fa-check"></i> <strong>Todo lo de Premium</strong></li>
+                            <li><i class="fa-solid fa-star"></i> Une tus tiendas: productos, precios e inventario</li>
+                            <li><i class="fa-solid fa-star"></i> Traspasos de mercancía entre tiendas</li>
+                            <li><i class="fa-solid fa-star"></i> Tickets, cortes y reportes de cada tienda</li>
+                            <li><i class="fa-solid fa-star"></i> Panel del celular con todas tus tiendas</li>
                         </ul>
-                        <a href="https://buy.stripe.com/fZuaEY6Oh8Ttbq44sDeUU04" target="_blank" rel="noopener" class="pv-btn pv-btn-dark">Obtener Premium Semestral</a>
+                        <a href="/tienda/pagar.php?plan=multi_anual" class="pv-btn pv-btn-dark" data-pagar>Comprar varias sucursales</a>
                         <p class="pv-garantia"><i class="fa-solid fa-shield-halved"></i> Garantía de devolución 7 días</p>
                     </div>
                 </div>
+                <p class="pv-nota-compra">Pagas con tarjeta o en efectivo en OXXO y recibes un código para activarlo en el programa
+                    (versión 3.5.0 o más reciente). ¿Ya tienes el programa? Cómpralo desde <strong>Configuración › Premium</strong>
+                    y se activa solo.</p>
 
                 <div class="pv-guardar">
                     <p>¿Prefieres guardarte el link para descargarlo después?</p>
@@ -514,55 +532,9 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                     <p>Negocios reales que ya transformaron su manera de vender.</p>
                 </div>
 
-                <div class="testimonios-grid" id="testimoniosGrid">
-                    <div class="testimonio-card">
-                        <div class="testimonio-header">
-                            <div class="testimonio-avatar">M</div>
-                            <div class="testimonio-info">
-                                <h4>Marisol R.</h4>
-                                <span>Tienda de Abarrotes · CDMX</span>
-                            </div>
-                        </div>
-                        <div class="testimonio-estrellas">★★★★★</div>
-                        <p class="testimonio-texto">"Antes llevaba todo en papel y siempre me faltaba dinero al cuadrar. Con Antipartícula ya sé exactamente cuánto vendí cada día. Lo instalé yo sola en 5 minutos."</p>
-                    </div>
-
-                    <div class="testimonio-card">
-                        <div class="testimonio-header">
-                            <div class="testimonio-avatar av2">J</div>
-                            <div class="testimonio-info">
-                                <h4>Jorge T.</h4>
-                                <span>Ferretería · Monterrey, NL</span>
-                            </div>
-                        </div>
-                        <div class="testimonio-estrellas">★★★★★</div>
-                        <p class="testimonio-texto">"Lo que más me gustó es que funciona sin internet. En mi zona se va seguido la señal y el sistema nunca falla. Además el panel web me avisa las ventas desde el celular."</p>
-                    </div>
-
-                    <div class="testimonio-card">
-                        <div class="testimonio-header">
-                            <div class="testimonio-avatar av3">L</div>
-                            <div class="testimonio-info">
-                                <h4>Lupita V.</h4>
-                                <span>Papelería · Puebla</span>
-                            </div>
-                        </div>
-                        <div class="testimonio-estrellas">★★★★★</div>
-                        <p class="testimonio-texto">"El inventario de papelería tiene cientos de productos. Lo importé todo desde Excel en minutos. Ya no tengo que capturarlo uno por uno. Vale mucho la pena Premium."</p>
-                    </div>
-
-                    <div class="testimonio-card">
-                        <div class="testimonio-header">
-                            <div class="testimonio-avatar av4">R</div>
-                            <div class="testimonio-info">
-                                <h4>Roberto M.</h4>
-                                <span>Carnicería · Guadalajara, Jal</span>
-                            </div>
-                        </div>
-                        <div class="testimonio-estrellas">★★★★★</div>
-                        <p class="testimonio-texto">"Vendía por kilos y buscaba algo que lo manejara bien. Este sistema lo hace perfecto. Además el ticket que imprime se ve muy profesional, mis clientes lo notan."</p>
-                    </div>
-                </div>
+                <!-- Solo opiniones reales: las que la gente publica con el formulario de abajo (get_comentarios.php).
+                     Aquí no se escriben opiniones a mano. -->
+                <div class="testimonios-grid" id="testimoniosGrid"></div>
 
                 <!-- CTA para dejar opinión -->
                 <div class="tst-cta">
@@ -647,8 +619,9 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 const nombre  = (c.nombre && c.nombre.trim()) ? c.nombre.trim() : 'Usuario';
                 const inicial = nombre.charAt(0).toUpperCase();
                 const av      = avClasses[idx % 5];
-                const calif   = Math.min(5, Math.max(1, parseInt(c.calificacion) || 5));
-                const estrellas = '★'.repeat(calif) + '☆'.repeat(5 - calif);
+                // Sin calificación no se inventan estrellas
+                const calif   = parseInt(c.calificacion);
+                const estrellas = calif >= 1 && calif <= 5 ? '★'.repeat(calif) + '☆'.repeat(5 - calif) : '';
 
                 let sub = '';
                 if (c.tipo_negocio && c.tipo_negocio.trim()) sub = esc(c.tipo_negocio.trim());
@@ -664,7 +637,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                             ${sub ? `<span>${sub}</span>` : ''}
                         </div>
                     </div>
-                    <div class="testimonio-estrellas">${estrellas}</div>
+                    ${estrellas ? `<div class="testimonio-estrellas">${estrellas}</div>` : ''}
                     <p class="testimonio-texto">"${esc(c.comentario)}"</p>
                 </div>`;
             }
@@ -678,11 +651,23 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 loader.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
                 grid.appendChild(loader);
 
+                // Con la sección sin opiniones inventadas, una lista vacía se dice en vez de dejar el hueco
+                function aviso(texto) {
+                    const p = document.createElement('p');
+                    p.className = 'tst-vacio tst-db';
+                    p.textContent = texto;
+                    grid.appendChild(p);
+                }
+
                 fetch('/get_comentarios.php')
                     .then(r => r.json())
                     .then(data => {
                         loader.remove();
-                        if (!data.comentarios || !data.comentarios.length) return;
+                        if (!data.comentarios) throw new Error();
+                        if (!data.comentarios.length) {
+                            aviso('Todavía no hay opiniones publicadas. Si ya usas el sistema, cuéntanos cómo te va.');
+                            return;
+                        }
                         data.comentarios.forEach((c, i) => {
                             const wrap = document.createElement('div');
                             wrap.className = 'tst-db';
@@ -690,7 +675,10 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                             grid.appendChild(wrap);
                         });
                     })
-                    .catch(() => loader.remove());
+                    .catch(() => {
+                        loader.remove();
+                        aviso('No se pudieron cargar las opiniones. Intenta de nuevo más tarde.');
+                    });
             }
 
             // ── Enviar ───────────────────────────────────────────────
@@ -785,7 +773,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
                     <div class="faq-respuesta">
-                        Sí, sin letra chica. La versión gratuita incluye ventas, inventario, reportes, control de usuarios, turnos, impresión de tickets y panel web en tiempo real, sin límite de tiempo ni de productos. Premium solo agrega la importación/exportación masiva de Excel.
+                        Sí, sin letra chica. La versión gratuita incluye ventas, inventario, cortes de caja, turnos, impresión de tickets, el resumen de los últimos 7 días y dos usuarios (un administrador y un cajero), sin límite de tiempo ni de productos. Premium agrega Excel sin límite, el panel móvil, el resumen completo, usuarios sin límite y la opción de quitar la marca del ticket.
                     </div>
                 </div>
 
@@ -821,11 +809,21 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
 
                 <div class="faq-item">
                     <button class="faq-pregunta" onclick="toggleFaq(this)">
+                        ¿Cómo pago Premium y cómo se activa?
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-respuesta">
+                        Con tarjeta o en efectivo en OXXO, desde el programa (Configuración › Premium) o desde esta página. Si lo compras desde el programa, se activa solo en cuanto se confirma el pago. Si lo compras aquí, te damos un código que escribes en el programa. La mensualidad se paga con tarjeta y se renueva sola; el pago único es para siempre.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-pregunta" onclick="toggleFaq(this)">
                         ¿Puedo usarlo en varias computadoras del mismo negocio?
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
                     <div class="faq-respuesta">
-                        Sí, el modo multi-caja está disponible en la versión Premium. Permite conectar varias cajas en el mismo negocio compartiendo el mismo inventario y datos en tiempo real. Contáctanos por WhatsApp para activarlo.
+                        Sí, con el plan de varias sucursales: une las computadoras de tus tiendas para compartir productos, precios e inventario, hacer traspasos y ver los tickets, cortes y reportes de todas. Cuesta $299 al mes o $2,990 al año por computadora e incluye todo lo de Premium.
                     </div>
                 </div>
             </div>
@@ -999,19 +997,33 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
         })();
 
         /* ── Contador animado de estadísticas ──────────────────────── */
+        /* Solo cifras reales de get_stats.php, exactas (sin «+»). La que no llega, o vale 0, no se enseña. */
         (function () {
             var statsLoaded = false;
+
+            function formato(n) {
+                return n.toLocaleString('es-MX');
+            }
 
             function animateCount(el, target, duration) {
                 var startTime = null;
                 function step(ts) {
                     if (!startTime) startTime = ts;
                     var progress = Math.min((ts - startTime) / duration, 1);
-                    el.textContent = '+' + Math.floor(progress * target);
+                    el.textContent = formato(Math.floor(progress * target));
                     if (progress < 1) requestAnimationFrame(step);
-                    else el.textContent = '+' + target;
+                    else el.textContent = formato(target);
                 }
                 requestAnimationFrame(step);
+            }
+
+            function mostrar(id, valor) {
+                if (typeof valor !== 'number' || valor <= 0) return;
+                var el = document.getElementById(id);
+                var etiqueta = el.nextElementSibling;
+                if (valor === 1) etiqueta.textContent = etiqueta.getAttribute('data-uno');
+                el.parentElement.hidden = false;
+                animateCount(el, valor, 1500);
             }
 
             function loadStats() {
@@ -1020,12 +1032,10 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 fetch('https://antiparticula.com/get_stats.php')
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
-                        if (data.total !== undefined)
-                            animateCount(document.getElementById('statTotal'), data.total, 1500);
-                        if (data.este_mes !== undefined)
-                            animateCount(document.getElementById('statMes'), data.este_mes, 1500);
+                        mostrar('statTotal', data.total);
+                        mostrar('statDescargas', data.descargas);
                     })
-                    .catch(function () { /* fallback ya visible en el HTML */ });
+                    .catch(function () { /* sin cifra no se enseña nada: nunca un número de relleno */ });
             }
 
             var statsBar = document.querySelector('.stats-bar');
@@ -1042,6 +1052,24 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <script async src="https://js.stripe.com/v3/buy-button.js"></script>
     <script src="../js/script.js"></script>
     <script src="../js/mensaje-exito.js?version=4"></script>
+
+    <!-- Precios: elegir mensual, anual o para siempre -->
+    <script>
+        document.querySelectorAll('[data-plan-tienda]').forEach(function (tarjeta) {
+            tarjeta.addEventListener('click', function (ev) {
+                var b = ev.target.closest('.pv-periodo');
+                if (!b) return;
+                tarjeta.querySelectorAll('.pv-periodo').forEach(function (x) { x.classList.toggle('activo', x === b); });
+                var precio = tarjeta.querySelector('[data-precio]');
+                precio.textContent = b.getAttribute('data-precio') + ' ';
+                var unidad = document.createElement('span');
+                unidad.textContent = b.getAttribute('data-unidad');
+                precio.appendChild(unidad);
+                tarjeta.querySelector('[data-cobro]').textContent = b.getAttribute('data-cobro');
+                tarjeta.querySelector('[data-pagar]').setAttribute('href', '/tienda/pagar.php?plan=' + encodeURIComponent(b.getAttribute('data-plan')));
+            });
+        });
+    </script>
 
     <!-- FAQ Acordeón -->
     <script>

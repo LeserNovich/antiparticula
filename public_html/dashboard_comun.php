@@ -474,22 +474,28 @@ function dash_hoy_mx() {
     return $d->format('Y-m-d');
 }
 
-// ── Premium: el panel solo se consulta con la suscripción (o en sus días gratis) ─────────
+// ── Premium: el panel solo se consulta con la suscripción ──────────────────────────────
 // El POS manda su clave premium firmada (la misma de 125 caracteres que activó el cliente)
 // y aquí se verifica con la llave PÚBLICA, igual que lo hace el programa
 // (raven.Antiparticula.Utils.LicenciaFirmada): nadie puede fabricar una sin la llave privada
-// de la consola. Ver sql/2026-10-20_panel_premium.sql.
-const DASH_PRUEBA_DIAS          = 15;    // días gratis de un panel nuevo
+// de la consola. Ver sql/2026-10-20_panel_premium.sql. SIN días gratis: el 2026-10-20 (por la
+// tarde) el dueño decidió que el panel es solo de Premium desde ya; la columna gratis_hasta que
+// llenó la migración ya no se consulta.
 const DASH_PANELES_POR_LICENCIA = 2;     // paneles que abre una misma clave (la PC y una reinstalación)
 const DASH_PRUEBA_INTENTOS      = 3;     // intentos gratis de Excel = PropiedadesDAO.INTENTOS_PRUEBA_INICIAL del POS
 const DASH_LIC_DOMINIO          = 'AP-LIC-1';
+// El plan de varias sucursales (POS 3.5.0): incluye Premium, así que también abre el panel
+const DASH_LIC_DOMINIO_MULTI    = 'AP-MUL-1';
 
 // Las llaves públicas con que se verifican las claves: las mismas de
 // src/raven/resources/licencia/publica.txt del POS (número => base64 del X.509).
 // config_db.php puede sumar otras en 'llaves_licencia' (las pruebas lo hacen; producción no).
+//   1 = la de la consola del proveedor (claves a mano)
+//   2 = la de las ventas automáticas (tienda_comun.php firma con su privada)
 function dash_llaves_licencia(array $cfg) {
     $llaves = [
         1 => 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKy/44mlC/TV1pIztCcL61eTnftOf7Te7HdxFYA0bdg5tHoUEG9l7Rl9OIr0ObyPW2j4n/A2JZ2Cxs80cH2I+wg==',
+        2 => 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6mFpxCzqSaM2nuCgVeLq5z4A23Z9/Lv0DPKmth3SAYDrTlSzSsbJ8qRTc0ktHjrvgSSKkDFV4NrHDmvXHultOw==',
     ];
     if (isset($cfg['llaves_licencia']) && is_array($cfg['llaves_licencia'])) {
         foreach ($cfg['llaves_licencia'] as $kid => $b64) $llaves[(int) $kid] = (string) $b64;
@@ -530,7 +536,8 @@ function dash_firma_der($rs) {
 }
 
 // Lee y verifica una clave premium. null si no es una clave válida (formato, llave desconocida o firma).
-// Devuelve el vencimiento (Y-m-d), el Hardware ID para el que se emitió y su huella (los 14 bytes de datos).
+// Devuelve el vencimiento (Y-m-d), el Hardware ID para el que se emitió, su huella (los 14 bytes de datos)
+// y el plan: 'premium' o 'multi' (varias sucursales, que incluye Premium).
 // Una clave VENCIDA también se devuelve: decidir si sirve hoy es de quien la usa.
 function dash_licencia(array $cfg, $texto) {
     if (!is_string($texto) || !function_exists('openssl_verify')) return null;
@@ -543,13 +550,19 @@ function dash_licencia(array $cfg, $texto) {
     if (!isset($llaves[$kid])) return null;
     $pem = "-----BEGIN PUBLIC KEY-----\n" . chunk_split($llaves[$kid], 64, "\n") . "-----END PUBLIC KEY-----\n";
     $datos = substr($b, 0, 14);
-    if (openssl_verify(DASH_LIC_DOMINIO . $datos, dash_firma_der(substr($b, 14, 64)), $pem, OPENSSL_ALGO_SHA256) !== 1) {
-        return null;
+    $firma = dash_firma_der(substr($b, 14, 64));
+    $plan = null;
+    foreach ([DASH_LIC_DOMINIO => 'premium', DASH_LIC_DOMINIO_MULTI => 'multi'] as $dominio => $p) {
+        if (openssl_verify($dominio . $datos, $firma, $pem, OPENSSL_ALGO_SHA256) === 1) {
+            $plan = $p;
+            break;
+        }
     }
+    if ($plan === null) return null;
     $dias = (ord($b[1]) << 8) | ord($b[2]);
     $vence = new DateTime('2020-01-01', new DateTimeZone('UTC'));
     $vence->modify("+$dias days");
-    return ['kid' => $kid, 'vence' => $vence->format('Y-m-d'),
+    return ['kid' => $kid, 'vence' => $vence->format('Y-m-d'), 'plan' => $plan,
             'hw' => strtoupper(bin2hex(substr($b, 6, 8))), 'huella' => bin2hex($datos)];
 }
 
@@ -558,48 +571,25 @@ function dash_equipo_valido($equipo) {
     return is_string($equipo) && preg_match('/^[0-9A-F]{16}$/', $equipo);
 }
 
-function dash_registrar_equipo(PDO $conn, $equipo) {
-    $conn->prepare('INSERT IGNORE INTO pruebas_equipo (equipo) VALUES (:e)')->execute([':e' => $equipo]);
-}
-
-// Qué puede ver un panel hoy. $fila trae gratis_hasta y premium_hasta de dashboard_pos.
+// Qué puede ver un panel hoy. $fila trae premium_hasta de dashboard_pos.
 //   abierto  la migración 2026-10-20 no se ha corrido: todo como antes
 //   premium  con suscripción; hasta = su vencimiento
-//   prueba   en sus días gratis; hasta = el último (null si el servidor todavía no lo fijó)
-//   vencido  sin suscripción y sin días gratis; hasta = el día en que terminó
+//   vencido  sin suscripción vigente; hasta = el día en que venció (null si nunca la tuvo)
+// (La migración dejó «prueba» con días gratis; ya no existe: el panel es solo de Premium.)
 function dash_acceso(array $fila, $hoy) {
-    if (!array_key_exists('gratis_hasta', $fila) || !array_key_exists('premium_hasta', $fila)) {
+    if (!array_key_exists('premium_hasta', $fila)) {
         return ['estado' => 'abierto', 'hasta' => null];
     }
     $premium = dash_fecha_valida((string) $fila['premium_hasta']) ? $fila['premium_hasta'] : null;
-    $gratis  = dash_fecha_valida((string) $fila['gratis_hasta'])  ? $fila['gratis_hasta']  : null;
     if ($premium !== null && $premium >= $hoy) return ['estado' => 'premium', 'hasta' => $premium];
-    if ($gratis === null || $gratis >= $hoy)   return ['estado' => 'prueba',  'hasta' => $gratis];
-    return ['estado' => 'vencido', 'hasta' => max($gratis, (string) $premium)];
+    return ['estado' => 'vencido', 'hasta' => $premium];
 }
 
 function dash_acceso_de(PDO $conn, $hardware_id) {
-    $st = $conn->prepare('SELECT gratis_hasta, premium_hasta FROM dashboard_pos WHERE hardware_id = :id LIMIT 1');
+    $st = $conn->prepare('SELECT premium_hasta FROM dashboard_pos WHERE hardware_id = :id LIMIT 1');
     $st->execute([':id' => $hardware_id]);
     $f = $st->fetch(PDO::FETCH_ASSOC);
     return $f ? dash_acceso($f, dash_hoy_mx()) : null;
-}
-
-// La primera vez que un panel habla con este servidor recibe sus días gratis. Si se conoce la PC y ya se
-// había visto antes, cuentan desde entonces: otro panel en la misma PC (otra instalación con otra base de
-// datos) no regala otros 15 días. Los paneles de antes ya traen fecha (la migración les dio 30) y no se tocan.
-function dash_fijar_gratis(PDO $conn, $hardware_id, $equipo) {
-    $desde = null;
-    if ($equipo !== null) {
-        $st = $conn->prepare('SELECT DATE(primera_vez) FROM pruebas_equipo WHERE equipo = :e');
-        $st->execute([':e' => $equipo]);
-        $v = $st->fetchColumn();
-        $desde = $v ? $v : null;
-    }
-    $conn->prepare('UPDATE dashboard_pos
-                       SET gratis_hasta = LEAST(CURRENT_DATE, COALESCE(CAST(:d AS DATE), CURRENT_DATE)) + INTERVAL ' . DASH_PRUEBA_DIAS . ' DAY
-                     WHERE hardware_id = :id AND gratis_hasta IS NULL')
-         ->execute([':d' => $desde, ':id' => $hardware_id]);
 }
 
 // Anota que esta clave abrió este panel y sube premium_hasta (nunca lo baja: una clave vieja reenviada no

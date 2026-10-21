@@ -204,38 +204,38 @@ Otro panel, para el dueño con varias tiendas: **no usa PHP ni MySQL**; el naveg
 - **Límite conocido:** quien activa la protección primero «reclama» el ID; si fuera alguien que solo conoce el ID, el
   dueño lo arregla con el `UPDATE` de arriba. Sin PIN, el panel sigue siendo tan abierto como antes.
 
-#### Premium (2026-10-20; POS 3.4.0, `FIRMA_DOM` v5, `sw.js` → `antiparticula-dashboard-v8`)
+#### Premium (2026-10-20; POS 3.4.0, `FIRMA_DOM` v6, `sw.js` → `antiparticula-dashboard-v9`)
 
-El panel de **una** tienda se consulta con la suscripción Premium o en sus días gratis (el de todas las tiendas va con la
-licencia multisucursal y no cambia). Migración `sql/2026-10-20_panel_premium.sql` (idempotente, solo agrega):
+El panel de **una** tienda se consulta **solo con la suscripción Premium** (el de todas las tiendas va con la licencia
+multisucursal y no cambia). Migración `sql/2026-10-20_panel_premium.sql` (idempotente, solo agrega):
 `dashboard_pos.gratis_hasta` y `premium_hasta`, tablas `dashboard_licencias` y `pruebas_equipo`.
-- **Días gratis:** un panel nuevo, 15 (`DASH_PRUEBA_DIAS`), contados desde la primera vez que se vio **la PC** (`equipo`, el
-  Hardware ID estable): otro panel en la misma PC no regala otros 15. Los paneles que existían al correr la migración reciben
-  **30 días desde ese día** (el aviso): **correrla el mismo día en que se sube el PHP**; correrla otra vez no los alarga.
+- **Sin días gratis.** La 3.4.0 salió (2026-10-20) con 15 días de prueba por PC y 30 de aviso a los paneles de antes; esa misma
+  tarde el dueño decidió que el panel es solo de Premium desde ya. La migración sigue llenando `gratis_hasta`, pero **ya no se
+  consulta** (`dash_acceso` solo mira `premium_hasta`); `equipo` llega del POS y se ignora.
 - **La clave:** `sync_pos.php` recibe `licencia` (la clave firmada de 125 caracteres) y `equipo`. `dash_licencia()` la verifica
   como el POS (`LicenciaFirmada`): Base32 canónico, `kid`, ECDSA P-256/SHA-256 sobre `"AP-LIC-1"` + 14 bytes (r||s → DER), con
   las llaves de `dash_llaves_licencia()` = las de `publica.txt` del POS (**una llave nueva va en los dos lados**; `config_db.php`
   puede sumar otras en `llaves_licencia`: solo las pruebas lo hacen). `premium_hasta` solo sube (`GREATEST`). Una clave abre a
   lo más **2 paneles** (`DASH_PANELES_POR_LICENCIA`): el tercero recibe el aviso `licencia_en_otros_paneles` y no se abre.
-- **Respuesta de `sync_pos.php`:** agrega `acceso {estado, hasta}`: `premium` | `prueba` | `vencido` | `abierto` (sin la
-  migración: todo como antes, y `acceso` = null). Avisos nuevos: `licencia_invalida`, `licencia_en_otros_paneles`,
-  `acceso_no_disponible` (este, solo si el POS mandó algo de esto).
+- **Respuesta de `sync_pos.php`:** agrega `acceso {estado, hasta}`: `premium` (hasta = vencimiento) | `vencido` (hasta = cuándo
+  venció; null si nunca tuvo Premium) | `abierto` (sin la migración: todo como antes, y `acceso` = null). Avisos nuevos:
+  `licencia_invalida`, `licencia_en_otros_paneles`, `acceso_no_disponible` (este, solo si el POS mandó una clave).
 - **Lectura:** `get_dashboard_data.php` responde **403 `{status:'premium_requerido', negocio, desde, protegido}`** sin un solo
   dato; va **después** del PIN (sin token, 401 como siempre). Con acceso, la fila trae `acceso`; `gratis_hasta`/`premium_hasta`
   nunca salen.
-- **Panel:** en sus días gratis, un aviso bajo el banner («Tu panel es gratis hasta el 18 Sep (quedan 15 días)…» + «Contratar
-  Premium», `wa.me/525584323945` con el negocio y el ID del panel); con 403, `showPremium()`: la pantalla «El panel móvil es parte
-  de Premium» (contratar por WhatsApp, «Ya lo activé: volver a revisar» y «¿Ya tienes Premium? Actualiza el programa…»), borra
-  lo guardado en el teléfono y no se vuelve a montar en cada refresco. Al pagar, el siguiente refresco monta el panel.
+- **Panel:** con 403, `showPremium()`: la pantalla «El panel móvil es parte de Premium» («Tu suscripción terminó el …» si la
+  hubo; contratar por `wa.me/525584323945` con el negocio y el ID del panel, «Ya lo activé: volver a revisar» y «¿Ya tienes
+  Premium? Actualiza el programa…»), borra lo guardado en el teléfono y no se vuelve a montar en cada refresco. Al pagar, el
+  siguiente refresco monta el panel. (El aviso de días gratis de la 3.4.0 se quitó con ellos.)
 - **`prueba_gratis.php`** (no es del panel, pero vive aquí): la prueba de Excel del POS contada **por PC**. POST `equipo`,
   `exportar`, `importar` (lo que le QUEDA al POS, 0–9) → 200 `{exportar, importar}` (lo que queda según el servidor: `usados`
   solo sube); 400 si falta una cuenta (no se lee como «0»); 503 sin la tabla. Sin CORS.
-- **Soporte** (en el encabezado de la migración): dar días (`UPDATE dashboard_pos SET gratis_hasta = …`), liberar un panel
+- **Soporte** (en el encabezado de la migración): liberar un panel
   viejo de una clave (`DELETE FROM dashboard_licencias WHERE hardware_id = …`) o devolver la prueba de Excel.
 - **Orden de despliegue:** 1. SQL (el mismo día) · 2. PHP (`dashboard_comun.php`, `sync_pos.php`, `get_dashboard_data.php`,
   `prueba_gratis.php`) y `dashboard/*` · 3. publicar el POS 3.4.0. Comprobar después que una clave real abre: un sync con
   `licencia` de un cliente debe contestar `acceso.estado = premium` (si el hosting no tuviera `openssl`, `dash_licencia` da
-  null y **todos** quedarían sin Premium al terminar sus días). Detalle del POS: `docs/licencias-y-hardware-id.md` del POS,
+  null y **todos** quedarían sin Premium; comprobado en producción el 2026-10-20). Detalle del POS: `docs/licencias-y-hardware-id.md` del POS,
   «Qué es Premium», y `docs/dashboard-movil.md`.
 
 #### Migración y orden de despliegue
@@ -255,9 +255,9 @@ y `dashboard/*` · **3.** publicar el POS 3.3.0. Volver atrás = re-subir los ar
 #### Pruebas
 
 ```bash
-NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 385 comprobaciones del panel (jsdom)
+NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 380 comprobaciones del panel (jsdom)
 php tests/test_sync.php                                       # parseo de ultimas_ventas (29)
-tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 217 (migrado, con Premium)
+tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 212 (migrado, con Premium)
 tests/correr_api.sh sin-migrar     # lo viejo funciona y lo nuevo se omite con aviso: 38
 ```
 `correr_api.sh` construye una imagen alpine con PHP 8.3 + `pdo_mysql` (la oficial `php:*-cli` es una descarga grande que
@@ -369,6 +369,24 @@ oscuro por sistema, oscuro fijado a mano).
   de `script.js`/`mensaje-exito.js`.
 - Las preguntas frecuentes deben coincidir palabra por palabra con el `FAQPage` de
   los datos estructurados del `<head>`.
+- **Cifras y opiniones: solo datos reales (pedido del dueño, 2026-10-20).** No se escriben
+  en el HTML números de relleno ni opiniones a mano (hubo «+500 negocios activos», «+50
+  descargas» y cuatro testimonios inventados; se quitaron).
+  - La barra `.stats-bar` arranca con las dos cifras escondidas (`hidden`, con
+    `.pv-stats div[hidden]` en el CSS porque `display:flex` le gana). `get_stats.php` las
+    llena con el número exacto (sin «+»); si una consulta falla manda `null` (y lo deja en el
+    registro de errores) y esa cifra no se enseña, igual que si vale 0. `total` = negocios
+    activos = computadoras distintas (`hardware_id`) con inicio de sesión en el POS en los
+    últimos 30 días (`uso_punto_venta`, que llena `registrar_uso.php`); un negocio con dos
+    computadoras cuenta dos. `descargas` = todas las descargas registradas desde siempre
+    (antes eran solo las del mes; el dueño prefirió el total).
+    Hasta el 2026-10-20 `total` eran IPs que alguna vez descargaron, y en producción
+    `get_stats.php` respondía 500: la página enseñaba siempre los números inventados.
+  - `get_comentarios.php` devuelve solo lo publicado con el formulario de la página
+    (`nombre IS NOT NULL`: el formulario lo manda siempre, aunque sea vacío). La misma tabla
+    recibe los mensajes de «Comentarios y sugerencias» del POS (dudas, fallas, contraseñas):
+    son privados y `registrar_comentario.php` les guarda 5 estrellas que nadie puso. Una
+    opinión sin calificación se enseña sin estrellas; sin opiniones, la página lo dice.
 - **Capturas de la app** en `img/pos/`: `resumen|vender|busqueda|inventario` ×
   `claro|oscuro`, cada una en tres anchos: `-2x` (2860 px, pantallas de alta
   densidad), sin sufijo (1430 px) y `-720` (celular), todas WebP **sin pérdida**
@@ -383,6 +401,46 @@ oscuro por sistema, oscuro fijado a mano).
   `-Dawt.useSystemAAFontSettings=on` y la red bloqueada por proxy
   (`-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=9`), para que la app no mande
   telemetría ni sincronice datos de ejemplo al servidor. Nunca contra la base real.
+
+### Tienda de Premium (`tienda_comun.php`, `tienda/*.php`; 2026-10-21, POS 3.5.0)
+
+Cobro con **Stripe Checkout** (tarjeta y OXXO) y **la clave firmada llega sola** al programa. Planes y precios (IVA incluido) en
+`tienda_planes()`: es el **único** lugar donde viven (el POS, el panel y la página los leen de `tienda/planes.php`; la página los
+repite en la sección de precios y en sus datos estructurados: si cambian, cambiar también ahí). Beneficios en `tienda_beneficios()`
+= `Premium.INCLUYE`/`INCLUYE_MULTISUCURSAL` del POS.
+
+- `tienda/pagar.php?plan=…` (GET) crea la sesión de Stripe y redirige (303). Con `&hw=<ID>&origen=pos` (desde el programa) o
+  `&panel=<ID del panel>` (busca `dashboard_pos.hw_licencia`, que manda el POS 3.5.0) la clave se firma para esa PC; sin PC
+  (la página, o un panel de un POS viejo) se entrega un **código** `AP-XXXX-XXXX-XXXX`. Quien ya tiene Premium para siempre no puede
+  volver a comprarlo (va a `/compra?ya=siempre`).
+- `tienda/webhook.php`: firma `Stripe-Signature` (5 min de tolerancia); `checkout.session.completed` / `async_payment_succeeded`
+  (OXXO pagado) → compra + pago + clave; `async_payment_failed`/`expired` → vencida; `invoice.paid` con `subscription_cycle` → un mes
+  más (las dos formas de la factura de la API). Idempotente (`tienda_eventos` + índices únicos); si no puede firmar responde 500 y
+  Stripe reintenta (no queda nada a medias). Correo con el código (`mail()`; en pruebas a un archivo).
+- `tienda/claves.php` (el POS pregunta, POST hw + sus claves: las verificadas de la consola se anotan en `tienda_reportados` para
+  sumar desde ahí; las de la llave 2 no, ya están sin la gracia), `tienda/canjear.php` (código; un cambio de PC automático cada 12
+  meses; 20 fallos por IP y hora → 429), `tienda/estado.php` (lo que pinta `/compra` = `paginas/compra.html`, regla en `.htaccess`).
+- **Firma:** llave privada número **2** (solo de ventas automáticas) en el PEM de `config_db.php` → `'llave_ventas'`, **fuera de
+  `public_html`**. `tienda_firmar` verifica con la pública antes de entregar. Una clave vence 3 días después de lo pagado (gracia de
+  la renovación); cada pago se suma desde lo más lejano entre hoy y lo que esa PC ya tenía de ese plan. Para siempre = 2199-06-06.
+- **Modo de prueba de Stripe:** una compra con sesión `cs_test_…` (tarjeta 4242) da una clave de **2 días** (`TIENDA_DIAS_PRUEBA`),
+  porque la clave se firma con la llave de ventas REAL: sin ese límite, mientras `config_db.php` tenga la llave de prueba cualquiera
+  que encuentre `pagar.php` sacaría Premium gratis. El correo dice `[PRUEBA]` y `/compra` lo avisa. Los detalles de un fallo salen en
+  la página de error de `pagar.php` («Detalle técnico») y en la respuesta del webhook (Stripe la guarda en cada envío).
+- **`config_db.php`** suma: `'stripe_secreto'` (basta una llave **restringida** con *Checkout Sessions: Write*), `'stripe_webhook_secreto'`
+  (`whsec_…`), `'llave_ventas'` (ruta del PEM) y, opcionales, `'tienda_url'`, `'tienda_correo_de'`.
+- **Stripe (una vez, en el dashboard):** activar **OXXO** en *Settings › Payment methods*; crear la llave restringida; *Developers ›
+  Webhooks › Add endpoint* `https://www.antiparticula.com/tienda/webhook.php` con los eventos `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` e `invoice.paid`.
+  No hace falta crear productos ni enlaces de pago (la sesión lleva el precio). Los enlaces `buy.stripe.com` viejos ya no se usan:
+  desactivarlos (sus pagos no traen plan y el aviso los ignora).
+- **Orden de despliegue:** 1) `sql/2026-10-21_tienda.sql` · 2) el PEM y `config_db.php` · 3) PHP (`tienda_comun.php`, `tienda/`,
+  `dashboard_comun.php`, `sync_pos.php`, `get_dashboard_data.php`, `.htaccess`, `paginas/compra.html`) y el panel (`dashboard/*`, sw v10)
+  · 4) servidor de sucursales 1.6.0 · 5) publicar el POS 3.5.0 · 6) **al final** la página de precios (`paginas/puntodeventa.html`,
+  `css/puntodeventa.css`, `products.json`): un código comprado en la página se canjea en el programa 3.5.0.
+- **Pruebas:** `tests/correr_tienda.sh [carpeta]` (MariaDB real + Stripe de imitación, `tests/stripe_falso.php`; 102 comprobaciones; con
+  carpeta deja `clave_tienda.json` para que el POS compruebe que acepta las claves del PHP: `PruebaClavesDeLaTienda`). Con Stripe de
+  verdad: modo de prueba (`sk_test_…`, tarjeta 4242…), y para el aviso local `stripe listen --forward-to …/tienda/webhook.php`.
 
 ## Contact Information
 - Business email: contacto@antiparticula.com

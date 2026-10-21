@@ -20,7 +20,7 @@ const REFRESH_MS = 60 * 1000;
 const STALE_MIN  = 30;            // minutos sin sync del POS => badge rojo
 const OFFLINE_MS = 3 * 60 * 1000; // sin respuesta del servidor => banner
 const TZ         = 'America/Mexico_City'; // la misma que usa el servidor para "hoy"
-const FIRMA_DOM  = 'v5';
+const FIRMA_DOM  = 'v6';
 const TURNO_LARGO_H = 14;         // un turno abierto más de esto merece un aviso
 
 const MESES   = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -228,7 +228,6 @@ function derivar(data) {
         minutos,
         stale:        minutos > STALE_MIN,
         protegido:    !!data.protegido,
-        aviso:        avisoPremium(data.acceso, ahora.clave, data.negocio),
 
         ingresosHoy,
         ventasHoy, gananciaHoy, ticketsHoy, abonosHoy,
@@ -636,8 +635,6 @@ function montar() {
             </div>
         </div>
         <div class="banner" data-k="banner" role="status" hidden></div>
-        <div class="aviso-premium" data-k="avisoPremium" hidden><span data-k="avisoPremiumTexto"></span>
-            <a data-k="avisoPremiumLink" href="#" target="_blank" rel="noopener">Contratar Premium</a></div>
 
         <!-- ═════════ HOY ═════════ -->
         <section class="panel" id="panel-hoy" role="tabpanel" aria-labelledby="tab-hoy" data-panel="hoy">
@@ -896,12 +893,6 @@ function pintar(d) {
         : `POS actualizado ${tiempoRelativo(d.minutos)}`);
     setClass('syncBadge', 'stale', d.stale);
     setHidden('salir', !d.protegido);
-    setHidden('avisoPremium', !d.aviso);
-    if (d.aviso) {
-        setText('avisoPremiumTexto', d.aviso.texto);
-        const a = el('avisoPremiumLink');
-        if (a && a.getAttribute('href') !== d.aviso.url) a.setAttribute('href', d.aviso.url);
-    }
 
     // ── Hoy ──
     setText('ingresosHoy', formatMXN(d.ingresosHoy));
@@ -1465,6 +1456,7 @@ function alClic(ev) {
     else if (act === 'refrescar') { if (hwIdActual) fetchData(hwIdActual, false); }
     else if (act === 'salir') cerrarSesion();
     else if (act === 'compartir') compartirResumen();
+    else if (act === 'plan') elegirPlan(t.getAttribute('data-plan'));
     else if (act === 'masVentas') {
         ui.masVentas = !ui.masVentas;
         if (ultimoD) setHtml('ultimasVentas', htmlVentas(ultimoD.ventas, ui.masVentas));
@@ -1563,41 +1555,87 @@ async function enviarPin(ev) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// Premium: el panel es parte de la suscripción
+// Premium: el panel es parte de la suscripción, y se compra aquí mismo
 // ────────────────────────────────────────────────────────────────
+// Los planes de Premium (una tienda). Los precios que cuentan son los de /tienda/planes.php (se piden al mostrar el
+// muro); estos son para no esperar. Pagar abre /tienda/pagar.php con el ID del panel: el sitio sabe qué PC es y la
+// clave le llega sola al programa de la tienda (POS 3.5.0+; si no, el pago da un código para canjear).
+const PLANES_PREMIUM = [
+    { id: 'premium_mensual', nombre: 'Mensual',      precio: 14900,  periodo: 'al mes' },
+    { id: 'premium_anual',   nombre: 'Anual',        precio: 129000, periodo: 'al año' },
+    { id: 'premium_siempre', nombre: 'Para siempre', precio: 349000, periodo: 'pago único' },
+];
+let planElegido = 'premium_anual';
+
 function urlContratar(negocio) {
-    const texto = `Hola, quiero contratar Premium para el panel móvil de ${negocio || 'mi negocio'} (panel ${hwIdActual}).`;
+    const texto = `Hola, tengo una duda sobre Premium para el panel móvil de ${negocio || 'mi negocio'} (panel ${hwIdActual}).`;
     return `https://wa.me/${WHATSAPP_VENTAS}?text=${encodeURIComponent(texto)}`;
 }
 
-function diasHasta(desdeClave, hastaClave) {
-    const ms = k => { const [y, m, d] = k.split('-').map(Number); return Date.UTC(y, m - 1, d); };
-    return Math.round((ms(hastaClave) - ms(desdeClave)) / 86400000);
+function precioPlan(centavos) { return '$' + Math.round(centavos / 100).toLocaleString('es-MX'); }
+function urlPagar(plan) { return `/tienda/pagar.php?plan=${encodeURIComponent(plan)}&panel=${encodeURIComponent(hwIdActual || '')}`; }
+
+function htmlPlanes() {
+    const mensual = PLANES_PREMIUM.find(p => p.id === 'premium_mensual');
+    return PLANES_PREMIUM.map(p => {
+        let extra = p.id === 'premium_siempre' ? 'lo pagas una vez' : p.id === 'premium_mensual' ? 'se renueva sola' : '';
+        if (p.id === 'premium_anual' && mensual && mensual.precio * 12 > p.precio) extra = 'ahorras ' + precioPlan(mensual.precio * 12 - p.precio);
+        return `<button type="button" class="plan${p.id === planElegido ? ' sel' : ''}" data-act="plan" data-plan="${escHtml(p.id)}" aria-pressed="${p.id === planElegido}">
+            <span class="plan-nombre">${escHtml(p.nombre)}</span>
+            <b class="plan-precio">${escHtml(precioPlan(p.precio))}</b>
+            <span class="plan-periodo">${escHtml(p.periodo)}</span>
+            ${extra ? `<span class="plan-extra">${escHtml(extra)}</span>` : ''}
+        </button>`;
+    }).join('');
 }
 
-// Los días gratis (prueba de un panel nuevo, o el aviso a los paneles de antes). Con Premium, o con un servidor
-// sin la migración (estado «abierto»), no se dice nada.
-function avisoPremium(acceso, hoyClave, negocio) {
-    if (!acceso || acceso.estado !== 'prueba' || !/^\d{4}-\d{2}-\d{2}$/.test(acceso.hasta || '')) return null;
-    const quedan = diasHasta(hoyClave, acceso.hasta);
-    if (quedan < 0) return null;
-    const [, m, d] = acceso.hasta.split('-').map(Number);
-    const cuando = quedan === 0 ? 'Hoy es el último día gratis de tu panel.'
-        : quedan === 1 ? 'Tu panel es gratis hasta mañana.'
-        : `Tu panel es gratis hasta el ${d} ${MESES[m - 1]} (quedan ${quedan} días).`;
-    return { texto: cuando + ' Después necesitarás Premium.', url: urlContratar(negocio) };
+function pintarPlanes() {
+    setHtml('planes', htmlPlanes());
+    const plan = PLANES_PREMIUM.find(p => p.id === planElegido) || PLANES_PREMIUM[1];
+    const pagar = document.querySelector('[data-k="premiumPagar"]');
+    if (pagar) {
+        pagar.setAttribute('href', urlPagar(plan.id));
+        pagar.textContent = 'Pagar ' + precioPlan(plan.precio);
+    }
 }
 
-// Sin Premium ni días gratis: se explica qué pasó y se ofrece contratarlo.
+function elegirPlan(id) {
+    if (!PLANES_PREMIUM.some(p => p.id === id)) return;
+    planElegido = id;
+    pintarPlanes();
+}
+
+// Los precios vigentes del sitio; si no contesta, se quedan los de arriba
+async function cargarPlanes() {
+    try {
+        const r = await fetch('/tienda/planes.php', { cache: 'no-store' });
+        const j = await r.json();
+        const del_sitio = (j.planes || []).filter(p => p.tipo === 'premium');
+        if (del_sitio.length === 3) {
+            del_sitio.forEach(p => {
+                const local = PLANES_PREMIUM.find(x => x.id === p.id);
+                if (local && Number.isFinite(p.precio)) { local.precio = p.precio; local.periodo = p.periodo || local.periodo; }
+            });
+            pintarPlanes();
+        }
+    } catch (e) { /* sin conexión: precios incluidos */ }
+}
+
+// Sin Premium vigente (el panel es solo de Premium, sin días gratis): se explica y se ofrece comprarlo aquí mismo.
+// `desde` es el día en que venció la suscripción; null si nunca la tuvo. `compra_directa`: el programa de la tienda
+// ya es 3.5.0+ y la clave le llega sola.
 function showPremium(j) {
-    const firma = 'premium:' + (j.desde || '');
+    const firma = 'premium:' + (j.desde || '') + ':' + (j.compra_directa ? 1 : 0);
     if (estructura === firma) return;   // el refresco de cada minuto no vuelve a montar lo mismo
     const negocio = j.negocio || 'Tu negocio';
     let termino = '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(j.desde || '')) {
         const [y, m, d] = j.desde.split('-').map(Number);
-        termino = `Tus días gratis terminaron el ${d} ${MESES[m - 1]} ${y}. `;
+        termino = `Tu suscripción terminó el ${d} ${MESES[m - 1]} ${y}. `;
     }
+    const comoLlega = j.compra_directa
+        ? 'Pagas con tarjeta o en OXXO y Premium se activa solo en el programa de tu tienda.'
+        : 'Pagas con tarjeta o en OXXO y te damos un código. Actualiza el programa de tu tienda a la versión más reciente y escríbelo en Configuración › Premium.';
     document.getElementById('app').innerHTML = `
     <header class="top"><div class="top-in">
         <div class="bar">${MARCA}</div>
@@ -1607,14 +1645,18 @@ function showPremium(j) {
     <main class="sheet"><div class="sheet-in">
         <div class="premium-box" data-k="premiumBox">
             <h2>El panel móvil es parte de Premium</h2>
-            <p data-k="premiumTexto">${escHtml(termino)}Con Premium vuelves a ver desde el celular las ventas, la caja y el inventario de tu tienda.</p>
-            <a class="btn-solid" data-k="premiumContratar" href="${escHtml(urlContratar(negocio))}" target="_blank" rel="noopener">Contratar Premium por WhatsApp</a>
+            <p data-k="premiumTexto">${escHtml(termino)}Con Premium ves desde el celular las ventas, la caja y el inventario de tu tienda.</p>
+            <div class="planes" data-k="planes" role="group" aria-label="Planes de Premium"></div>
+            <a class="btn-solid" data-k="premiumPagar" href="#" target="_blank" rel="noopener">Pagar</a>
+            <p class="nota" data-k="premiumComo">${escHtml(comoLlega)}</p>
             <button type="button" class="btn-ghost" data-act="refrescar">Ya lo activé: volver a revisar</button>
-            <p class="nota">¿Ya tienes Premium? Actualiza el programa de tu tienda a la versión más reciente y abre el panel otra vez.</p>
+            <a class="foot-link" data-k="premiumDudas" href="${escHtml(urlContratar(negocio))}" target="_blank" rel="noopener">¿Dudas? Escríbenos por WhatsApp</a>
         </div>
     </div></main>`;
     estructura = firma;
     ultimoD = null;
+    pintarPlanes();
+    cargarPlanes();
 }
 
 // ────────────────────────────────────────────────────────────────

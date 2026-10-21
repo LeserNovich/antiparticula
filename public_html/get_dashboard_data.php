@@ -102,13 +102,16 @@ try {
     unset($row['pin_hash'], $row['clave_hash'], $row['pin_fallos'], $row['pin_bloqueo_hasta']);
     $row['protegido'] = $protegido;
 
-    // ── Puerta de Premium: sin suscripción ni días gratis, ni un dato (va DESPUÉS del PIN: a quien no
+    // ── Puerta de Premium: sin suscripción vigente, ni un dato (va DESPUÉS del PIN: a quien no
     // tiene el PIN no se le dice ni eso). Sin la migración 2026-10-20 el estado es «abierto», como antes.
     $acceso = dash_acceso($row, dash_hoy_mx());
-    unset($row['gratis_hasta'], $row['premium_hasta']);
+    // compra_directa: el programa de esta tienda es 3.5.0+ (mandó hw_licencia): lo que se compre desde el panel le
+    // llega solo. Si no, la compra da un código para canjear después de actualizar el programa.
+    $compra_directa = !empty($row['hw_licencia']);
+    unset($row['gratis_hasta'], $row['premium_hasta'], $row['hw_licencia']);
     if ($acceso['estado'] === 'vencido') {
         dash_responder(403, ['status' => 'premium_requerido', 'negocio' => $row['negocio'],
-                             'desde' => $acceso['hasta'], 'protegido' => $protegido]);
+                             'desde' => $acceso['hasta'], 'protegido' => $protegido, 'compra_directa' => $compra_directa]);
     }
     $row['acceso'] = $acceso;
 

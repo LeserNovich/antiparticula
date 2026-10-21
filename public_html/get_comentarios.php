@@ -25,10 +25,15 @@ try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->exec("SET time_zone = '-06:00'");
 
-    // Solo devuelve campos públicos — nunca email ni ip_address
+    // Solo devuelve campos públicos — nunca email ni ip_address.
+    // Solo las opiniones que alguien publicó desde el formulario de la página: ese formulario manda siempre
+    // «nombre» (vacío si no lo escribe) y las estrellas que eligió. La misma tabla recibe los mensajes de la
+    // ventana «Comentarios y sugerencias» del Punto de Venta, que nunca mandan nombre: son privados (dudas,
+    // fallas, contraseñas) y registrar_comentario.php les guarda 5 estrellas que nadie puso.
     $stmt = $conn->query(
         "SELECT id, comentario, nombre, tipo_negocio, calificacion, pais, ciudad, fecha_hora
          FROM comentarios_sugerencias
+         WHERE nombre IS NOT NULL
          ORDER BY fecha_hora DESC
          LIMIT 30"
     );

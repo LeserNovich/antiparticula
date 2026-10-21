@@ -1,12 +1,15 @@
 // Subir esta versión en CADA cambio del shell (html/css/js), si no los
 // clientes instalados siguen sirviendo la copia vieja desde caché.
-const CACHE_NAME = 'antiparticula-dashboard-v8';
+const CACHE_NAME = 'antiparticula-dashboard-v10';
+// El CDN de Hostinger guarda css y js 7 días: index.html los pide con ?v=<número de esta versión> y aquí se guardan con
+// esa misma dirección (sin ella, el SW nuevo podía precachear la copia vieja que tenía el CDN)
+const V = '?v=' + CACHE_NAME.replace('antiparticula-dashboard-v', '');
 
 const SHELL_FILES = [
     '/dashboard/index.html',
-    '/dashboard/dashboard.css',
-    '/dashboard/dashboard.js',
-    '/dashboard/tiendas.js',
+    '/dashboard/dashboard.css' + V,
+    '/dashboard/dashboard.js' + V,
+    '/dashboard/tiendas.js' + V,
     '/dashboard/manifest.json',
     '/dashboard/icon-192.png',
     '/dashboard/icon-512.png',

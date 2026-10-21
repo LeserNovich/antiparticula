@@ -12,6 +12,9 @@
 --   · public_html/sync_pos.php, get_dashboard_data.php, prueba_gratis.php
 --   · POS 3.4.0 (manda su clave premium firmada y el ID estable de la PC)
 --
+-- NOTA (2026-10-20, tarde): se corrió en producción ese día, pero esa misma tarde el panel pasó a ser SOLO de Premium:
+-- gratis_hasta ya no se consulta (dashboard_comun.php → dash_acceso). Se deja como estaba para no romper la idempotencia.
+--
 -- ¡OJO CON LA FECHA! Al correrla, CADA panel que ya existe recibe 30 días gratis contados
 -- desde HOY (el aviso a los clientes de antes). Córrela el MISMO DÍA en que subas el PHP y
 -- el panel nuevos: si la corres antes, esos días se descuentan del aviso.

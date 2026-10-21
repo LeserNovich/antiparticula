@@ -14,6 +14,8 @@ RewriteRule ^puntodeventa/?$ /paginas/puntodeventa.html [L,NC]
 # Historial de versiones. Va ANTES de la regla genérica de productos, que si no
 # se lleva /versiones a detail.html?slug=versiones
 RewriteRule ^versiones/?$ /paginas/versiones.html [L,NC]
+# A donde regresa Stripe después de pagar (tienda/pagar.php)
+RewriteRule ^compra/?$ /paginas/compra.html [QSA,L,NC]
 
 # Regla genérica para todos los productos
 RewriteCond %{REQUEST_FILENAME} !-f
