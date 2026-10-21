@@ -1,10 +1,33 @@
 {
-  "version": "3.4.0",
-  "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-  "changelog": "Panel móvil más completo y nuevo Premium",
-  "mandatory": false,
+"version": "3.5.1",
+"downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
+"changelog": "Elige pesos o euros, y tu Premium mensual se renueva solo en el programa",
+"mandatory": false,
 
   "historial": [
+     {
+  "version": "3.5.1",
+  "fecha": "2026-10-21",
+  "titulo": "Pesos o euros, y renovación sin pasos",
+  "cambios": [
+    "Elige si tus importes se muestran en pesos ($) o en euros (€) en Configuración > Cobro. Solo cambia el símbolo: tus precios no se modifican.",
+    "Con euros, el ticket impreso muestra «EUR», que todas las impresoras de tickets pueden imprimir.",
+    "Si pagas Premium cada mes, el programa revisa tu renovación cuando faltan pocos días y la activa sola, sin escribir ninguna clave."
+  ]
+},
+    {
+  "version": "3.5.0",
+  "fecha": "2026-10-21",
+  "titulo": "Compra Premium aquí mismo y actualizaciones automáticas",
+  "cambios": [
+    "Compra Premium desde Configuración > Premium: pagas con tarjeta o en efectivo en OXXO y se activa solo, sin esperar una clave.",
+    "Nuevos planes: Premium desde $149 al mes, $1,290 al año o $3,490 en un solo pago para siempre.",
+    "Varias sucursales ahora es su propio plan: crea tu negocio desde tu computadora y une tus tiendas sin esperar a soporte.",
+    "Si cambias de computadora, escribe el código de tu compra en la nueva y tu plan pasa con él.",
+    "Las actualizaciones se descargan e instalan dentro del programa, en Windows y en Mac: el programa se cierra y vuelve a abrirse solo."
+  ]
+},
+
     {
       "version": "3.4.0",
       "fecha": "2026-10-20",
