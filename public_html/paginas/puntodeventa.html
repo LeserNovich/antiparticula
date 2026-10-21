@@ -43,7 +43,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/paginas.css">
     <!-- ?v=: con el CSS anterior en caché, las cifras escondidas de la barra se verían vacías -->
-    <link rel="stylesheet" href="../css/puntodeventa.css?v=3">
+    <link rel="stylesheet" href="../css/puntodeventa.css?v=4">
     <link rel="stylesheet" href="../css/mensaje-exito.css?version=2">
 
     <!-- Datos estructurados Schema.org (rich snippets de Google).
@@ -441,10 +441,13 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                 <div class="pv-head">
                     <span class="pv-chip">Precios</span>
                     <h2>Simple y transparente</h2>
-                    <p>Vender es gratis para siempre. Premium agrega lo que le sirve al dueño, y el plan de varias sucursales une tus tiendas. Precios en pesos, IVA incluido.</p>
+                    <p>Vender es gratis para siempre. Premium agrega lo que le sirve al dueño, y el plan de varias sucursales une tus tiendas. <span data-fuera="Precios aproximados en tu moneda ({moneda}), al tipo de cambio de hoy; al pagar ves el monto exacto."
+                    data-fuera-mxn="Precios en pesos mexicanos (MXN); tu banco los convierte a tu moneda.">Precios en pesos, IVA incluido.</span></p>
                 </div>
                 <!-- Los botones abren tienda/pagar.php: el cobro de Stripe. Desde la página no se sabe la PC: el cliente recibe un
-                     código que escribe en el programa. Los precios viven en tienda_planes() (tienda_comun.php): si cambian, aquí también. -->
+                     código que escribe en el programa. Los precios viven en tienda_planes() (tienda_comun.php): si cambian, aquí también.
+                     Fuera de México, el script de abajo cambia cada «$N» de los precios (y de [data-precios]) por el aproximado en la
+                     moneda de quien visita (o le pone «MXN» donde Stripe no convierte), y esconde .pv-solo-mx (OXXO). -->
                 <div class="pv-planes">
                     <div class="pv-plan">
                         <h3>Versión Gratuita</h3>
@@ -510,7 +513,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         <p class="pv-garantia"><i class="fa-solid fa-shield-halved"></i> Garantía de devolución 7 días</p>
                     </div>
                 </div>
-                <p class="pv-nota-compra">Pagas con tarjeta o en efectivo en OXXO y recibes un código para activarlo en el programa
+                <p class="pv-nota-compra">Pagas con tarjeta<span class="pv-solo-mx"> o en efectivo en OXXO</span> y recibes un código para activarlo en el programa
                     (versión 3.5.0 o más reciente). ¿Ya tienes el programa? Cómpralo desde <strong>Configuración › Premium</strong>
                     y se activa solo.</p>
 
@@ -822,7 +825,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
                         ¿Puedo usarlo en varias computadoras del mismo negocio?
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
-                    <div class="faq-respuesta">
+                    <div class="faq-respuesta" data-precios>
                         Sí, con el plan de varias sucursales: une las computadoras de tus tiendas para compartir productos, precios e inventario, hacer traspasos y ver los tickets, cortes y reportes de todas. Cuesta $299 al mes o $2,990 al año por computadora e incluye todo lo de Premium.
                     </div>
                 </div>
@@ -1053,22 +1056,93 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <script src="../js/script.js"></script>
     <script src="../js/mensaje-exito.js?version=4"></script>
 
-    <!-- Precios: elegir mensual, anual o para siempre -->
+    <!-- Precios: elegir mensual, anual o para siempre, y verlos en la moneda de quien visita -->
     <script>
-        document.querySelectorAll('[data-plan-tienda]').forEach(function (tarjeta) {
-            tarjeta.addEventListener('click', function (ev) {
-                var b = ev.target.closest('.pv-periodo');
-                if (!b) return;
+        (function () {
+            var pais = null;   // fuera de México: el país (va a pagar.php para no ofrecer OXXO)
+
+            function mostrar(tarjeta, b) {
                 tarjeta.querySelectorAll('.pv-periodo').forEach(function (x) { x.classList.toggle('activo', x === b); });
-                var precio = tarjeta.querySelector('[data-precio]');
+                // Por clase: los botones también llevan data-precio y data-cobro, y '[data-precio]' encontraba el primer botón
+                var precio = tarjeta.querySelector('.pv-precio');
                 precio.textContent = b.getAttribute('data-precio') + ' ';
+                precio.classList.toggle('pv-precio--largo', b.getAttribute('data-precio').length > 8);
                 var unidad = document.createElement('span');
                 unidad.textContent = b.getAttribute('data-unidad');
                 precio.appendChild(unidad);
-                tarjeta.querySelector('[data-cobro]').textContent = b.getAttribute('data-cobro');
-                tarjeta.querySelector('[data-pagar]').setAttribute('href', '/tienda/pagar.php?plan=' + encodeURIComponent(b.getAttribute('data-plan')));
+                tarjeta.querySelector('.pv-cobro').textContent = b.getAttribute('data-cobro');
+                tarjeta.querySelector('[data-pagar]').setAttribute('href', '/tienda/pagar.php?plan=' + encodeURIComponent(b.getAttribute('data-plan'))
+                    + (pais ? '&pais=' + pais : ''));
+            }
+
+            document.querySelectorAll('[data-plan-tienda]').forEach(function (tarjeta) {
+                tarjeta.addEventListener('click', function (ev) {
+                    var b = ev.target.closest('.pv-periodo');
+                    if (b) mostrar(tarjeta, b);
+                });
             });
-        });
+
+            // El sitio deduce el país con la zona horaria y el idioma del navegador (tienda/planes.php). En México, o si no
+            // se sabe, todo se queda como está; si no, cada «$N» pasa al aproximado en su moneda (Stripe cobra en esa moneda)
+            // o, donde Stripe no convierte, dice «MXN» (en Argentina, Colombia o Chile «$» son otros pesos).
+            function enMxn(texto) {
+                return texto.replace(/\$[\d,]+(?:\.\d+)?/g, function (m) { return m === '$0' ? m : m + ' MXN'; });
+            }
+
+            function enMoneda(local, texto) {
+                return texto.replace(/\$([\d,]+(?:\.\d+)?)/g, function (_, n) {
+                    var v = parseFloat(n.replace(/,/g, '')) * local.por_peso;
+                    var dec = v === 0 || v >= 100 ? 0 : 2;
+                    var f;
+                    try {
+                        f = new Intl.NumberFormat('es-' + local.pais, { style: 'currency', currency: local.moneda,
+                            minimumFractionDigits: dec, maximumFractionDigits: dec }).format(v);
+                    } catch (e) {
+                        f = local.moneda + ' ' + v.toFixed(dec);
+                    }
+                    return v === 0 ? f : '≈ ' + f;
+                });
+            }
+
+            // Fuera de México: montos con convertir(texto), la nota de arriba y sin OXXO
+            function fuera(convertir, nota) {
+                document.querySelectorAll('.pv-periodo').forEach(function (b) {
+                    b.setAttribute('data-precio', convertir(b.getAttribute('data-precio')));
+                    b.setAttribute('data-cobro', convertir(b.getAttribute('data-cobro').replace(' u OXXO', '')));
+                });
+                document.querySelectorAll('[data-plan-tienda]').forEach(function (tarjeta) {
+                    var activo = tarjeta.querySelector('.pv-periodo.activo');
+                    if (activo) mostrar(tarjeta, activo);
+                });
+                document.querySelectorAll('.pv-precio').forEach(function (p) {   // la gratuita: «$0»
+                    if (p.closest('[data-plan-tienda]') || !p.firstChild) return;
+                    p.firstChild.textContent = convertir(p.firstChild.textContent);
+                    p.classList.toggle('pv-precio--largo', p.firstChild.textContent.trim().length > 8);
+                });
+                document.querySelectorAll('[data-precios]').forEach(function (el) { el.textContent = convertir(el.textContent); });
+                document.querySelectorAll('[data-fuera]').forEach(function (el) { el.textContent = nota(el); });
+                document.querySelectorAll('.pv-solo-mx').forEach(function (el) { el.hidden = true; });
+            }
+
+            var zona = '';
+            try { zona = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { }
+            var idioma = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']).join(',');
+            if (!window.fetch) return;
+            fetch('/tienda/planes.php?zona=' + encodeURIComponent(zona) + '&idioma=' + encodeURIComponent(idioma))
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    if (!j || !j.pais || j.pais === 'MX') return;
+                    pais = /^[A-Z]{2}$/.test(j.pais) ? j.pais : null;
+                    var l = j.local;
+                    if (l && l.por_peso > 0 && /^[A-Z]{3}$/.test(l.moneda)) {
+                        fuera(function (t) { return enMoneda(l, t); },
+                              function (el) { return el.getAttribute('data-fuera').replace('{moneda}', l.moneda); });
+                    } else {
+                        fuera(enMxn, function (el) { return el.getAttribute('data-fuera-mxn'); });
+                    }
+                })
+                .catch(function () { /* sin respuesta: pesos */ });
+        })();
     </script>
 
     <!-- FAQ Acordeón -->

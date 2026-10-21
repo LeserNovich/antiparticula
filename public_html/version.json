@@ -1,10 +1,19 @@
 {
-"version": "3.5.1",
+"version": "3.6.0",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "Elige pesos o euros, y tu Premium mensual se renueva solo en el programa",
+"changelog": "Ticket de apartado con lo que el cliente ha dado a cuenta, y Modo Informe para el administrador aunque el turno siga abierto",
 "mandatory": false,
 
   "historial": [
+    {
+      "version": "3.6.0",
+      "fecha": "2026-10-21",
+      "titulo": "Ticket de apartado y administrar sin cerrar la caja",
+      "cambios": [
+        "En Apartados puedes imprimir un ticket para el cliente con lo que lleva, lo que ha dado a cuenta y lo que le falta por pagar.",
+        "El administrador puede entrar en Modo Informe aunque el cajero tenga su turno abierto: agrega productos o revisa existencias sin cerrar la caja del cajero."
+      ]
+    },
      {
   "version": "3.5.1",
   "fecha": "2026-10-21",

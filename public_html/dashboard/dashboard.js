@@ -1565,20 +1565,49 @@ async function enviarPin(ev) {
 // Los planes de Premium (una tienda). Los precios que cuentan son los de /tienda/planes.php (se piden al mostrar el
 // muro); estos son para no esperar. Pagar abre /tienda/pagar.php con el ID del panel: el sitio sabe qué PC es y la
 // clave le llega sola al programa de la tienda (POS 3.5.0+; si no, el pago da un código para canjear).
+// Fuera de México (lo deduce planes.php por la zona horaria y el idioma del celular) los precios se ven aproximados en
+// su moneda, porque Stripe cobra en ella; donde Stripe no convierte, con «MXN». Y sin OXXO.
 const PLANES_PREMIUM = [
     { id: 'premium_mensual', nombre: 'Mensual',      precio: 14900,  periodo: 'al mes' },
     { id: 'premium_anual',   nombre: 'Anual',        precio: 129000, periodo: 'al año' },
     { id: 'premium_siempre', nombre: 'Para siempre', precio: 349000, periodo: 'pago único' },
 ];
 let planElegido = 'premium_anual';
+let monedaPlanes = null;   // { pais, moneda, por_peso } de planes.php: precios aproximados en esa moneda
+let paisPlanes = null;     // fuera de México: el país (va a pagar.php)
+let comoBase = '';         // el texto de cómo se paga, antes de quitarle OXXO
 
 function urlContratar(negocio) {
     const texto = `Hola, tengo una duda sobre Premium para el panel móvil de ${negocio || 'mi negocio'} (panel ${hwIdActual}).`;
     return `https://wa.me/${WHATSAPP_VENTAS}?text=${encodeURIComponent(texto)}`;
 }
 
-function precioPlan(centavos) { return '$' + Math.round(centavos / 100).toLocaleString('es-MX'); }
-function urlPagar(plan) { return `/tienda/pagar.php?plan=${encodeURIComponent(plan)}&panel=${encodeURIComponent(hwIdActual || '')}`; }
+// «$1,290»; fuera de México «$ 228.759» o, donde Stripe no convierte, «$1,290». Con completo (el botón de pagar; en las
+// tarjetas no cabe y lo dice la nota de abajo): «≈ $ 228.759» y «$1,290 MXN».
+function precioPlan(centavos, completo) {
+    const m = monedaPlanes;
+    if (!m) return '$' + Math.round(centavos / 100).toLocaleString('es-MX') + (paisPlanes && completo ? ' MXN' : '');
+    const v = centavos / 100 * m.por_peso;
+    const dec = v >= 100 ? 0 : 2;
+    let f;
+    try {
+        f = new Intl.NumberFormat('es-' + m.pais, { style: 'currency', currency: m.moneda, minimumFractionDigits: dec, maximumFractionDigits: dec }).format(v);
+    } catch (e) {
+        f = m.moneda + ' ' + v.toFixed(dec);
+    }
+    return (completo ? '≈ ' : '') + f;
+}
+function urlPagar(plan) {
+    return `/tienda/pagar.php?plan=${encodeURIComponent(plan)}&panel=${encodeURIComponent(hwIdActual || '')}` + (paisPlanes ? `&pais=${paisPlanes}` : '');
+}
+function pintarComo() {
+    const el = document.querySelector('[data-k="premiumComo"]');
+    if (!el) return;
+    if (!paisPlanes) { el.textContent = comoBase; return; }
+    el.textContent = comoBase.replace(' o en OXXO', '') + (monedaPlanes
+        ? ` Precios aproximados en tu moneda (${monedaPlanes.moneda}); al pagar ves el monto exacto.`
+        : ' Precios en pesos mexicanos (MXN); tu banco los convierte a tu moneda.');
+}
 
 function htmlPlanes() {
     const mensual = PLANES_PREMIUM.find(p => p.id === 'premium_mensual');
@@ -1594,13 +1623,24 @@ function htmlPlanes() {
     }).join('');
 }
 
+// Un monto largo (otra moneda: «$ 618.882», «$3,490 MXN») se achica hasta caber en su tarjeta, sin partirse
+function ajustarPrecios() {
+    document.querySelectorAll('.premium-box .plan-precio').forEach(el => {
+        let tam = 18;
+        el.style.fontSize = '';
+        while (el.scrollWidth > el.clientWidth + 1 && tam > 11) el.style.fontSize = (--tam) + 'px';
+    });
+}
+window.addEventListener('resize', ajustarPrecios);
+
 function pintarPlanes() {
     setHtml('planes', htmlPlanes());
+    ajustarPrecios();
     const plan = PLANES_PREMIUM.find(p => p.id === planElegido) || PLANES_PREMIUM[1];
     const pagar = document.querySelector('[data-k="premiumPagar"]');
     if (pagar) {
         pagar.setAttribute('href', urlPagar(plan.id));
-        pagar.textContent = 'Pagar ' + precioPlan(plan.precio);
+        pagar.textContent = 'Pagar ' + precioPlan(plan.precio, true);
     }
 }
 
@@ -1613,16 +1653,23 @@ function elegirPlan(id) {
 // Los precios vigentes del sitio; si no contesta, se quedan los de arriba
 async function cargarPlanes() {
     try {
-        const r = await fetch('/tienda/planes.php', { cache: 'no-store' });
+        let zona = '';
+        try { zona = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* sin zona */ }
+        const idioma = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']).join(',');
+        const r = await fetch(`/tienda/planes.php?zona=${encodeURIComponent(zona)}&idioma=${encodeURIComponent(idioma)}`, { cache: 'no-store' });
         const j = await r.json();
+        paisPlanes = /^[A-Z]{2}$/.test(j.pais || '') && j.pais !== 'MX' ? j.pais : null;
+        const l = j.local;
+        monedaPlanes = paisPlanes && l && l.por_peso > 0 && /^[A-Z]{3}$/.test(l.moneda || '') && /^[A-Z]{2}$/.test(l.pais || '') ? l : null;
+        pintarComo();
         const del_sitio = (j.planes || []).filter(p => p.tipo === 'premium');
         if (del_sitio.length === 3) {
             del_sitio.forEach(p => {
                 const local = PLANES_PREMIUM.find(x => x.id === p.id);
                 if (local && Number.isFinite(p.precio)) { local.precio = p.precio; local.periodo = p.periodo || local.periodo; }
             });
-            pintarPlanes();
         }
+        pintarPlanes();
     } catch (e) { /* sin conexión: precios incluidos */ }
 }
 
@@ -1638,7 +1685,7 @@ function showPremium(j) {
         const [y, m, d] = j.desde.split('-').map(Number);
         termino = `Tu suscripción terminó el ${d} ${MESES[m - 1]} ${y}. `;
     }
-    const comoLlega = j.compra_directa
+    comoBase = j.compra_directa
         ? 'Pagas con tarjeta o en OXXO y Premium se activa solo en el programa de tu tienda.'
         : 'Pagas con tarjeta o en OXXO y te damos un código. Actualiza el programa de tu tienda a la versión más reciente y escríbelo en Configuración › Premium.';
     document.getElementById('app').innerHTML = `
@@ -1653,7 +1700,7 @@ function showPremium(j) {
             <p data-k="premiumTexto">${escHtml(termino)}Con Premium ves desde el celular las ventas, la caja y el inventario de tu tienda.</p>
             <div class="planes" data-k="planes" role="group" aria-label="Planes de Premium"></div>
             <a class="btn-solid" data-k="premiumPagar" href="#" target="_blank" rel="noopener">Pagar</a>
-            <p class="nota" data-k="premiumComo">${escHtml(comoLlega)}</p>
+            <p class="nota" data-k="premiumComo"></p>
             <button type="button" class="btn-ghost" data-act="refrescar">Ya lo activé: volver a revisar</button>
             <a class="foot-link" data-k="premiumDudas" href="${escHtml(urlContratar(negocio))}" target="_blank" rel="noopener">¿Dudas? Escríbenos por WhatsApp</a>
         </div>
@@ -1661,6 +1708,7 @@ function showPremium(j) {
     estructura = firma;
     ultimoD = null;
     pintarPlanes();
+    pintarComo();
     cargarPlanes();
 }
 

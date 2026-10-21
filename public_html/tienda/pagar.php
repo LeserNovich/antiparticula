@@ -3,6 +3,7 @@
 //   ?plan=premium_anual&hw=<Hardware ID>&origen=pos   desde el programa: la clave llega sola a esa PC
 //   ?plan=premium_anual&panel=<ID del panel>          desde el panel del celular (se busca la PC del panel)
 //   ?plan=premium_anual                               desde la página: se entrega un código para canjear
+//   …&pais=ES   (opcional) el país de quien compra, como lo dio planes.php: fuera de México, sin OXXO (Stripe convierte)
 define('TIENDA_COMUN_OK', true);
 require __DIR__ . '/../tienda_comun.php';
 
@@ -30,6 +31,7 @@ if ($plan === null) pagar_pagina(404, 'Ese plan no existe', 'Elige uno de los pl
 
 $origen = isset($_GET['origen']) && in_array($_GET['origen'], ['pos', 'panel', 'web'], true) ? $_GET['origen'] : 'web';
 $hw = isset($_GET['hw']) ? strtoupper(trim((string) $_GET['hw'])) : '';
+$pais = isset($_GET['pais']) && preg_match('/^[A-Z]{2}$/', (string) $_GET['pais']) ? (string) $_GET['pais'] : null;
 
 try {
     list($conn, $cfg) = dash_conectar();
@@ -50,7 +52,7 @@ try {
         header('Location: ' . tienda_url($cfg) . '/compra?ya=siempre', true, 303);
         exit;
     }
-    $sesion = tienda_stripe($cfg, '/v1/checkout/sessions', tienda_parametros_sesion($cfg, $plan_id, $hw, $origen));
+    $sesion = tienda_stripe($cfg, '/v1/checkout/sessions', tienda_parametros_sesion($cfg, $plan_id, $hw, $origen, $pais));
 } catch (Exception $e) {
     error_log('tienda/pagar.php: ' . $e->getMessage());
     tienda_ultimo_error('error interno: ' . get_class($e));

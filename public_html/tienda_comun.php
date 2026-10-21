@@ -13,7 +13,7 @@
 //   tienda/canjear.php  el código de la compra: para quien pagó en la página (no se sabe su PC)
 //                       y para cambiar de PC (uno automático cada 12 meses)
 //   tienda/estado.php   lo que muestra /compra después de pagar
-//   tienda/planes.php   precios y beneficios (programa, panel y página)
+//   tienda/planes.php   precios y beneficios (programa, panel y página), y la moneda de quien pregunta
 //
 // config_db.php (fuera del webroot) trae, además de la base:
 //   'stripe_secreto'          sk_live_… (basta una llave restringida con «Checkout Sessions: escritura»)
@@ -22,6 +22,8 @@
 //   'tienda_url'              opcional; https://www.antiparticula.com
 //   'tienda_correo_de'        opcional; ventas@antiparticula.com
 //   'stripe_api', 'correo_archivo'   solo pruebas (otra API de Stripe; correos a un archivo)
+//   'tasas_urls', 'tasas_archivo'    solo pruebas (otra fuente de tipos de cambio; dónde guardarlos)
+// Los tipos de cambio del día se guardan en tasas_mxn.json, junto a config_db.php (PHP debe poder escribir ahí).
 // ────────────────────────────────────────────────────────────────────────────
 if (!defined('TIENDA_COMUN_OK')) {
     http_response_code(404);
@@ -93,6 +95,164 @@ function tienda_plan($id) {
 
 function tienda_url(array $cfg) {
     return rtrim(isset($cfg['tienda_url']) ? $cfg['tienda_url'] : 'https://www.antiparticula.com', '/');
+}
+
+// config_db.php sin abrir la base (planes.php no la necesita); [] si no está
+function tienda_config() {
+    $ruta = dirname(__DIR__) . '/config_db.php';
+    $cfg = file_exists($ruta) ? require $ruta : [];
+    return is_array($cfg) ? $cfg : [];
+}
+
+// ── La moneda de quien ve los precios ───────────────────────────────────────
+// Se cobra en pesos y Stripe convierte al pagar («Adaptive Pricing», encendido en el panel de Stripe): cada cliente paga
+// en su moneda y aquí llegan pesos. La página, el programa y el panel enseñan el precio APROXIMADO en esa moneda.
+// El país sale de lo que el equipo dice de sí mismo, sin servicios de geolocalización (pistas, de más a menos confiable):
+//   region  el «País o región» de Windows (lo manda el programa)
+//   zona    la zona horaria del navegador o del sistema (Europe/Madrid)
+//   idioma  las regiones del idioma del navegador o del programa (es-ES,en-US)
+// México gana si cualquier pista lo dice: es el precio real. Sin país, o fuera de los mercados donde Stripe convierte,
+// se queda en pesos.
+const TIENDA_CONVERSION     = 1.03; // Stripe le suma al cliente 2–4 % al convertir: el aproximado usa el punto medio
+const TIENDA_TASAS_HORAS    = 12;   // cada cuánto se piden tipos de cambio nuevos
+const TIENDA_TASAS_REINTENTO = 1800; // si la fuente no contestó, no volver a intentar antes de esto (segundos)
+const TIENDA_TASAS_VIGENCIA = 7;    // días que sirve el último tipo de cambio si la fuente no contesta
+
+// Los mercados donde Stripe convierte (docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing, 2026-10-21)
+// y su moneda. Panamá cobra en dólares.
+function tienda_monedas_por_pais() {
+    return [
+        // América del Norte y el Caribe
+        'AG' => 'XCD', 'AW' => 'AWG', 'BS' => 'BSD', 'BB' => 'BBD', 'BZ' => 'BZD', 'BM' => 'BMD', 'CA' => 'CAD',
+        'KY' => 'KYD', 'CR' => 'CRC', 'DM' => 'XCD', 'DO' => 'DOP', 'GD' => 'XCD', 'GT' => 'GTQ', 'HT' => 'HTG',
+        'HN' => 'HNL', 'MX' => 'MXN', 'JM' => 'JMD', 'PA' => 'USD', 'KN' => 'XCD', 'LC' => 'XCD', 'VC' => 'XCD',
+        'TT' => 'TTD', 'US' => 'USD',
+        // América del Sur
+        'BR' => 'BRL', 'BO' => 'BOB', 'CO' => 'COP', 'CL' => 'CLP', 'FK' => 'FKP', 'GY' => 'GYD', 'PY' => 'PYG',
+        'PE' => 'PEN', 'UY' => 'UYU',
+        // Europa
+        'AL' => 'ALL', 'AD' => 'EUR', 'AT' => 'EUR', 'BE' => 'EUR', 'BA' => 'BAM', 'HR' => 'EUR', 'CY' => 'EUR',
+        'CZ' => 'CZK', 'DK' => 'DKK', 'EE' => 'EUR', 'FI' => 'EUR', 'FR' => 'EUR', 'DE' => 'EUR', 'GI' => 'GIP',
+        'GR' => 'EUR', 'HU' => 'HUF', 'IS' => 'ISK', 'IE' => 'EUR', 'IT' => 'EUR', 'LV' => 'EUR', 'LT' => 'EUR',
+        'LU' => 'EUR', 'MT' => 'EUR', 'MC' => 'EUR', 'MD' => 'MDL', 'ME' => 'EUR', 'NL' => 'EUR', 'MK' => 'MKD',
+        'NO' => 'NOK', 'PL' => 'PLN', 'PT' => 'EUR', 'RO' => 'RON', 'SM' => 'EUR', 'RS' => 'RSD', 'SK' => 'EUR',
+        'SI' => 'EUR', 'ES' => 'EUR', 'SE' => 'SEK', 'CH' => 'CHF', 'UA' => 'UAH', 'GB' => 'GBP', 'VA' => 'EUR',
+        // Asia
+        'AF' => 'AFN', 'AM' => 'AMD', 'AZ' => 'AZN', 'BD' => 'BDT', 'BN' => 'BND', 'KH' => 'KHR', 'CN' => 'CNY',
+        'GE' => 'GEL', 'HK' => 'HKD', 'IN' => 'INR', 'ID' => 'IDR', 'IL' => 'ILS', 'JP' => 'JPY', 'KZ' => 'KZT',
+        'KG' => 'KGS', 'MO' => 'MOP', 'MY' => 'MYR', 'MV' => 'MVR', 'MN' => 'MNT', 'NP' => 'NPR', 'PK' => 'PKR',
+        'PH' => 'PHP', 'QA' => 'QAR', 'SA' => 'SAR', 'SG' => 'SGD', 'KR' => 'KRW', 'LK' => 'LKR', 'TW' => 'TWD',
+        'TJ' => 'TJS', 'TH' => 'THB', 'TR' => 'TRY', 'AE' => 'AED', 'UZ' => 'UZS', 'VN' => 'VND', 'YE' => 'YER',
+        // Oceanía
+        'AU' => 'AUD', 'PF' => 'XPF', 'NC' => 'XPF', 'NZ' => 'NZD', 'WF' => 'XPF',
+        // África
+        'AO' => 'AOA', 'DZ' => 'DZD', 'BJ' => 'XOF', 'BW' => 'BWP', 'BF' => 'XOF', 'BI' => 'BIF', 'CM' => 'XAF',
+        'CV' => 'CVE', 'CF' => 'XAF', 'TD' => 'XAF', 'CI' => 'XOF', 'DJ' => 'DJF', 'GQ' => 'XAF', 'GA' => 'XAF',
+        'GM' => 'GMD', 'GN' => 'GNF', 'GW' => 'XOF', 'KE' => 'KES', 'LR' => 'LRD', 'MG' => 'MGA', 'ML' => 'XOF',
+        'MU' => 'MUR', 'MA' => 'MAD', 'MZ' => 'MZN', 'NA' => 'NAD', 'NE' => 'XOF', 'CG' => 'XAF', 'RW' => 'RWF',
+        'SH' => 'SHP', 'ST' => 'STN', 'SN' => 'XOF', 'ZA' => 'ZAR', 'TZ' => 'TZS', 'TG' => 'XOF', 'UG' => 'UGX',
+        'ZM' => 'ZMW',
+    ];
+}
+
+// El país de una zona horaria. Chrome (ICU) y Java todavía dan nombres viejos que getLocation() no ubica.
+function tienda_pais_de_zona($zona) {
+    if (!is_string($zona) || !preg_match('#^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$#', $zona)) return null;
+    $viejas = ['Asia/Calcutta' => 'IN', 'Asia/Katmandu' => 'NP', 'Asia/Saigon' => 'VN', 'Asia/Dacca' => 'BD',
+               'Asia/Ulan_Bator' => 'MN', 'Asia/Macao' => 'MO', 'Asia/Istanbul' => 'TR', 'Asia/Tel_Aviv' => 'IL',
+               'Europe/Kiev' => 'UA', 'Europe/Belfast' => 'GB', 'America/Indianapolis' => 'US',
+               'America/Louisville' => 'US', 'America/Fort_Wayne' => 'US', 'America/Coral_Harbour' => 'CA',
+               'America/Montreal' => 'CA'];
+    if (isset($viejas[$zona])) return $viejas[$zona];
+    foreach (['US/' => 'US', 'Canada/' => 'CA', 'Mexico/' => 'MX', 'Australia/' => 'AU', 'Brazil/' => 'BR', 'Chile/' => 'CL'] as $prefijo => $pais) {
+        if (strpos($zona, $prefijo) === 0) return $pais;
+    }
+    try {
+        $lugar = (new DateTimeZone($zona))->getLocation();
+    } catch (Exception $e) {
+        return null;
+    }
+    return is_array($lugar) && isset($lugar['country_code']) && preg_match('/^[A-Z]{2}$/', $lugar['country_code']) ? $lugar['country_code'] : null;
+}
+
+// El país de quien pide, con las pistas de la petición (region, zona, idioma). null si ninguna sirve.
+// Dos zonas piden que otra pista confirme el país: muchas computadoras de México quedaron con la de Centroamérica
+// (Guatemala) o la del centro de EE. UU. cuando se quitó el horario de verano.
+function tienda_pais_de(array $q) {
+    $region = isset($q['region']) && is_string($q['region']) && preg_match('/^[A-Za-z]{2}$/', $q['region']) ? strtoupper($q['region']) : null;
+    $idiomas = [];
+    if (isset($q['idioma']) && is_string($q['idioma'])) {
+        foreach (array_slice(explode(',', $q['idioma']), 0, 6) as $etiqueta) {
+            if (preg_match('/^[a-z]{2,3}[-_]([A-Za-z]{2})$/i', trim($etiqueta), $m)) $idiomas[] = strtoupper($m[1]);
+        }
+    }
+    $zona = isset($q['zona']) && is_string($q['zona']) ? $q['zona'] : '';
+    $de_zona = tienda_pais_de_zona($zona);
+    if (in_array($zona, ['America/Guatemala', 'America/Chicago'], true) && $region !== $de_zona && !in_array($de_zona, $idiomas, true)) {
+        $de_zona = null;
+    }
+    $pistas = array_values(array_filter(array_merge([$region, $de_zona], $idiomas)));
+    if (in_array('MX', $pistas, true)) return 'MX';
+    return $pistas ? $pistas[0] : null;
+}
+
+// GET de un JSON con tiempo límite corto (alguien espera la página). null si falla.
+function tienda_bajar_json($url) {
+    if (!function_exists('curl_init')) return null;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_TIMEOUT => 5,
+                            CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 2]);
+    $cuerpo = curl_exec($ch);
+    $codigo = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $json = $codigo === 200 && is_string($cuerpo) ? json_decode($cuerpo, true) : null;
+    return is_array($json) ? $json : null;
+}
+
+// Cuánto vale un peso en cada moneda, del día: ['fecha' => Y-m-d, 'tasas' => ['EUR' => 0.0483, …]] o null.
+// Fuente gratuita y sin llave (github.com/fawazahmed0/exchange-api, CC0), en dos espejos. Se guarda junto a
+// config_db.php para no pedirla en cada visita; si la fuente no contesta, sirve la guardada hasta TIENDA_TASAS_VIGENCIA días.
+function tienda_tasas(array $cfg) {
+    $archivo = isset($cfg['tasas_archivo']) ? $cfg['tasas_archivo'] : dirname(__DIR__) . '/tasas_mxn.json';
+    $guardadas = is_readable($archivo) ? json_decode((string) @file_get_contents($archivo), true) : null;
+    if (!is_array($guardadas)) $guardadas = [];
+    $bajadas = isset($guardadas['bajadas']) ? (int) $guardadas['bajadas'] : 0;
+    $intento = isset($guardadas['intento']) ? (int) $guardadas['intento'] : 0;
+    $vigentes = $bajadas > 0 && isset($guardadas['tasas']) && is_array($guardadas['tasas'])
+              && time() - $bajadas < TIENDA_TASAS_VIGENCIA * 86400 ? $guardadas : null;
+    if (time() - $bajadas < TIENDA_TASAS_HORAS * 3600 || time() - $intento < TIENDA_TASAS_REINTENTO) return $vigentes;
+
+    $urls = isset($cfg['tasas_urls']) ? $cfg['tasas_urls'] : [
+        'https://latest.currency-api.pages.dev/v1/currencies/mxn.json',
+        'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/mxn.json',
+    ];
+    foreach ($urls as $url) {
+        $j = tienda_bajar_json($url);
+        if (!$j || !isset($j['mxn']) || !is_array($j['mxn']) || !isset($j['date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $j['date'])) continue;
+        $tasas = [];
+        foreach ($j['mxn'] as $moneda => $tasa) {
+            if (is_string($moneda) && preg_match('/^[a-z]{3}$/', $moneda) && is_numeric($tasa) && $tasa > 0) $tasas[strtoupper($moneda)] = (float) $tasa;
+        }
+        if (count($tasas) < 20 || !isset($tasas['USD'], $tasas['EUR'])) continue;
+        $nuevas = ['fecha' => $j['date'], 'bajadas' => time(), 'tasas' => $tasas];
+        if (@file_put_contents($archivo, json_encode($nuevas), LOCK_EX) === false) error_log('tienda: no se pudo guardar ' . $archivo);
+        return $nuevas;
+    }
+    error_log('tienda: no se pudieron bajar los tipos de cambio');
+    @file_put_contents($archivo, json_encode(array_merge($guardadas, ['intento' => time()])), LOCK_EX);
+    return $vigentes;
+}
+
+// Lo que necesita quien enseña precios en otra moneda: ['pais', 'moneda', 'por_peso' (con la conversión de Stripe),
+// 'fecha']. null = enseñar pesos (México, país desconocido, fuera de los mercados de Stripe o sin tipo de cambio).
+function tienda_moneda_local(array $cfg, $pais) {
+    $monedas = tienda_monedas_por_pais();
+    if (!is_string($pais) || !isset($monedas[$pais]) || $monedas[$pais] === 'MXN') return null;
+    $tasas = tienda_tasas($cfg);
+    $moneda = $monedas[$pais];
+    if ($tasas === null || empty($tasas['tasas'][$moneda])) return null;
+    return ['pais' => $pais, 'moneda' => $moneda, 'por_peso' => round($tasas['tasas'][$moneda] * TIENDA_CONVERSION, 8),
+            'fecha' => $tasas['fecha']];
 }
 
 // ── Fechas (Y-m-d, sin hora) ────────────────────────────────────────────────
@@ -505,12 +665,16 @@ function tienda_stripe(array $cfg, $ruta, array $params) {
 }
 
 // Los parámetros de la sesión de cobro de un plan. $hw puede ser null (compra desde la página: se entrega un código).
-function tienda_parametros_sesion(array $cfg, $plan_id, $hw, $origen) {
+// $pais: el de quien compra, si se sabe. Fuera de México no se ofrece OXXO: solo cobra en pesos y en México, y Stripe
+// no convierte a la moneda local una sesión que lo incluya.
+function tienda_parametros_sesion(array $cfg, $plan_id, $hw, $origen, $pais = null) {
     $plan = tienda_plan($plan_id);
     $url = tienda_url($cfg);
     $precio = ['currency' => 'mxn', 'unit_amount' => $plan['precio'], 'product_data' => ['name' => $plan['nombre']]];
     if ($plan['modo'] === 'suscripcion') $precio['recurring'] = ['interval' => 'month'];
     $meta = ['plan' => $plan_id, 'hw' => $hw === null ? '' : $hw, 'origen' => $origen];
+    $extranjero = is_string($pais) && preg_match('/^[A-Z]{2}$/', $pais) && $pais !== 'MX';
+    if ($extranjero) $meta['pais'] = $pais;
     $p = [
         'mode'                 => $plan['modo'] === 'suscripcion' ? 'subscription' : 'payment',
         'line_items'           => [['price_data' => $precio, 'quantity' => 1]],
@@ -525,6 +689,8 @@ function tienda_parametros_sesion(array $cfg, $plan_id, $hw, $origen) {
         // OXXO no permite cobros automáticos: la mensualidad es con tarjeta
         $p['payment_method_types'] = ['card'];
         $p['subscription_data'] = ['metadata' => $meta];
+    } elseif ($extranjero) {
+        $p['payment_method_types'] = ['card'];
     } else {
         $p['payment_method_types'] = ['card', 'oxxo'];
         $p['payment_method_options'] = ['oxxo' => ['expires_after_days' => 3]];

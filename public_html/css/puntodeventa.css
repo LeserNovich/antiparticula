@@ -657,6 +657,12 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--pg-title);
+  /* El monto y su unidad lado a lado; si no caben (otra moneda), la unidad baja sin el alto de renglón del monto */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  white-space: nowrap;
 }
 
 .pv-precio span {
@@ -664,6 +670,12 @@
   font-weight: 600;
   letter-spacing: 0;
   color: var(--pg-muted);
+  white-space: nowrap;
+}
+
+/* Un precio largo (en otra moneda: «≈ $ 618.890», «$1,290 MXN») cabe en un renglón */
+.pv-precio--largo {
+  font-size: 34px;
 }
 
 .pv-page .pv-cobro {
