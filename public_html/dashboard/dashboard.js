@@ -88,14 +88,19 @@ function nombreDiaSemana(clave) {
     return new Date(clave + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', timeZone: 'UTC' });
 }
 
-// ── Formato de pesos ────────────────────────────────────────────
+// ── Formato de dinero ───────────────────────────────────────────
+// El símbolo lo elige la tienda en su POS (Configuración › Cobro: pesos o euros). Solo cambia lo que
+// se ve, no convierte nada. render() lo toma de `extra.moneda` en cada foto; sin el dato (POS anterior), pesos.
+let simboloMoneda = '$';
+function fijarMoneda(codigo) { simboloMoneda = codigo === 'EUR' ? '€' : '$'; }
+
 // MEDIO-05 fix: maneja NaN, null y valores negativos
 function formatMXN(centavos) {
     const num = Number(centavos);
     const val = isNaN(num) ? 0 : num / 100;
     const abs = Math.abs(val);
     // U+202F (espacio fino sin salto): el signo no se separa de la cifra al partir renglón
-    const formatted = '$\u202f' + abs.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatted = simboloMoneda + '\u202f' + abs.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return val < 0 ? '-' + formatted : formatted;
 }
 
@@ -103,10 +108,10 @@ function formatMXN(centavos) {
 function compacto(centavos) {
     const v = Math.max(0, Number(centavos) || 0) / 100;
     // Los umbrales son los del valor YA redondeado: 9,999.67 es "$10k", no "$10.0k"
-    if (v >= 999500) return '$' + (v / 1e6).toFixed(1) + 'M';
-    if (v >= 9950)   return '$' + Math.round(v / 1000) + 'k';
-    if (v >= 1000)   return '$' + (v / 1e3).toFixed(1) + 'k';
-    return '$' + Math.round(v);
+    if (v >= 999500) return simboloMoneda + (v / 1e6).toFixed(1) + 'M';
+    if (v >= 9950)   return simboloMoneda + Math.round(v / 1000) + 'k';
+    if (v >= 1000)   return simboloMoneda + (v / 1e3).toFixed(1) + 'k';
+    return simboloMoneda + Math.round(v);
 }
 
 // Existencias: PRODUCTOS.CANTIDAD va en milésimas. Negativo = existencia real por debajo de cero
@@ -935,7 +940,7 @@ function pintar(d) {
     const pctGan = Math.min(100, Math.max(0, d.margenPct));
     setVar('splitGan', 'width', pctGan.toFixed(1) + '%');
     setText('splitTxt', d.ventasHoy > 0
-        ? `De cada $100 vendidos, $${pctGan.toFixed(2)} son ganancia y $${(100 - pctGan).toFixed(2)} costo`
+        ? `De cada ${simboloMoneda}100 vendidos, ${simboloMoneda}${pctGan.toFixed(2)} son ganancia y ${simboloMoneda}${(100 - pctGan).toFixed(2)} costo`
         : 'Sin ventas todavía');
 
     setText('ticketsHoy',  String(d.ticketsHoy));
@@ -1747,6 +1752,7 @@ function guardarCache(hwId, data) {
 // Render
 // ────────────────────────────────────────────────────────────────
 function render(data) {
+    fijarMoneda(data && data.extra && typeof data.extra === 'object' ? data.extra.moneda : null);   // antes de derivar: arma textos con importes
     const d = derivar(data);
     if (estructura !== FIRMA_DOM) {
         montar();

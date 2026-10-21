@@ -228,6 +228,10 @@ function dash_sanear_extra($e) {
     if (array_key_exists('meta_diaria', $e)) {
         $out['meta_diaria'] = dash_monto0($e['meta_diaria']);   // 0 = sin meta
     }
+    // Moneda que se ve (POS 3.5.1, Configuración › Cobro): solo el símbolo, los importes no cambian
+    if (array_key_exists('moneda', $e)) {
+        $out['moneda'] = $e['moneda'] === 'EUR' ? 'EUR' : 'MXN';
+    }
     return $out;
 }
 

@@ -42,7 +42,7 @@ Ambos scripts salen con código 0 si todo pasa.
 PHP real contra MariaDB real, todo en contenedores (no instala nada, no toca producción):
 
 ```bash
-tests/correr_api.sh              # base migrada: 212 comprobaciones; cada migración se aplica dos veces
+tests/correr_api.sh              # base migrada: 214 comprobaciones; cada migración se aplica dos veces
 tests/correr_api.sh sin-migrar   # solo la línea base: lo viejo funciona y lo nuevo se omite con aviso (38)
 PUBLIC_HTML=/ruta/a/otra/copia tests/correr_api.sh   # probar una copia (mutaciones)
 ```
@@ -50,7 +50,7 @@ PUBLIC_HTML=/ruta/a/otra/copia tests/correr_api.sh   # probar una copia (mutacio
 Cubre `sync_pos.php`, `get_dashboard_data.php` y `dashboard_auth.php` por HTTP: `extra`, `dias`, `meses`,
 límites de tamaño, PIN completo (activar, leer con y sin token, escribir con y sin clave, cambiar, quitar,
 reconectar, bloqueo a los 8 fallos, tokens alterados/vencidos/de otro panel) y que nunca se filtren
-`pin_hash`, `clave_hash` ni `extra_json`. `test_dashboard.js` ahora tiene 380 comprobaciones (pestañas,
+`pin_hash`, `clave_hash` ni `extra_json`. `test_dashboard.js` ahora tiene 403 comprobaciones (pestañas,
 caja, inventario, cancelaciones, comparativos, mes, PIN, caché del teléfono, Premium).
 
 **Premium (2026-10-20)** — el panel es solo de Premium: con la base migrada **cada panel de prueba lleva su propia clave firmada**

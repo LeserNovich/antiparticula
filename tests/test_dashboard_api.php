@@ -190,6 +190,7 @@ if ($MIGRADO) {
         'presupuestos' => ['vigentes' => 4, 'monto' => 900000, 'por_vencer' => 2, 'vencidos' => 1],
         'gastos' => ['hoy' => 15000, 'mes' => 420000],
         'meta_diaria' => 1500000,
+        'moneda' => 'EUR',
         'clave_desconocida' => 'no debe pasar',
     ];
     $r = sync(base(['hardware_id' => $id, 'extra' => json_encode($e2)]));
@@ -209,6 +210,7 @@ if ($MIGRADO) {
     eq($e['presupuestos']['por_vencer'] ?? null, 2, 'presupuestos por vencer');
     eq($e['gastos']['mes'] ?? null, 420000, 'gastos del mes');
     eq($e['meta_diaria'] ?? null, 1500000, 'meta diaria');
+    eq($e['moneda'] ?? null, 'EUR', 'moneda: euros');
     ok(!isset($e['clave_desconocida']), 'lo desconocido se descarta');
 
     // Valores malos
@@ -216,6 +218,8 @@ if ($MIGRADO) {
     $e = leer($id)['json']['extra'] ?? [];
     ok(es_null($e, 'sesion'), '«cerrada» como texto no cuenta: solo un true de verdad');
     eq($e['meta_diaria'] ?? null, 0, 'una meta negativa se acota a 0 (= sin meta)');
+    sync(base(['hardware_id' => $id, 'extra' => json_encode(['moneda' => '<b>USD</b>'])]));
+    eq(leer($id)['json']['extra']['moneda'] ?? null, 'MXN', 'una moneda desconocida se guarda como pesos');
     sync(base(['hardware_id' => $id, 'extra' => json_encode(['sesion' => ['cerrada' => true, 'desde' => 'ayer por la tarde']])]));
     eq(leer($id)['json']['extra']['sesion']['desde'] ?? 'x', '', 'una fecha de sesión que no tiene el formato queda vacía');
 

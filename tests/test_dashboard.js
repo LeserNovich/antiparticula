@@ -694,6 +694,28 @@ clic(boton); await tick(); await tick();
 eq(abiertas.length, 1, 'si «compartir» falla por otra causa, se cae a WhatsApp');
 delete win.navigator.share;
 
+// ── Moneda: la tienda eligió euros en su POS ──
+await cargar(b => { b.extra.moneda = 'EUR'; });
+eq(q('ingresosHoy').textContent, '€' + NBSP + '4,520.50', 'con euros, los importes llevan «€»');
+eq(q('metaValor').textContent, '€' + NBSP + '6,000.00', '…también la meta');
+ok(/^1\. Pila AA € 200\.00/.test(leer(q('topLista'))), '…y lo más vendido', leer(q('topLista')));
+eq(G('compacto(1234500)'), '€12k', 'los rótulos compactos de las gráficas');
+const textoEur = G('textoResumen(ultimoD)');
+ok(textoEur.split('\n').includes('Ingresos: € 4,520.50') && !/\$/.test(textoEur), 'el resumen para compartir no lleva ningún «$»', textoEur);
+{
+    // Lo que se ve: un elemento oculto puede guardar el texto de una foto anterior (no se repinta mientras no aplica)
+    const visible = doc.getElementById('app').cloneNode(true);
+    visible.querySelectorAll('[hidden]').forEach(n => n.remove());
+    ok(!/\$\s?\d/.test(leer(visible)), 'en lo que se ve no queda un «$» junto a una cifra', (leer(visible).match(/.{30}\$\s?\d.{10}/) || [])[0]);
+}
+await cargar(b => { b.extra.moneda = 'MXN'; });
+eq(q('ingresosHoy').textContent, money('4,520.50'), 'de vuelta a pesos');
+await cargar(b => { b.extra.moneda = 'EUR'; });
+await cargar(b => { delete b.extra.moneda; });
+eq(q('ingresosHoy').textContent, money('4,520.50'), 'un POS anterior (sin el dato) se ve en pesos, aunque antes hubiera euros');
+await cargar(b => { b.extra.moneda = 'USD'; });
+eq(q('ingresosHoy').textContent, money('4,520.50'), 'un valor desconocido se ve en pesos');
+
 // Se deja el estado como lo esperan las secciones que siguen
 clic(doc.querySelector('[data-top="hoy"]'));
 estado.body = sinExtra;
@@ -911,7 +933,7 @@ const shell = [...SW.matchAll(/'(\/dashboard\/[^']+)'/g)].map(m => m[1]);
 ok(shell.length >= 5, 'el service worker lista su shell', shell.join(', '));
 shell.forEach(f => ok(fs.existsSync(PUB + f), 'existe ' + f));
 ok(/cache:\s*'reload'/.test(SW), 'el SW precachea saltando la caché HTTP');
-eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v10', 'versión del caché subida');
+eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v11', 'versión del caché subida');
 // El CDN de Hostinger guarda css/js 7 días: cada publicación los pide con ?v=<versión> (el número de CACHE_NAME)
 {
     const ver = (SW.match(/CACHE_NAME = 'antiparticula-dashboard-v(\d+)'/) || [])[1];

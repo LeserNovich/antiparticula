@@ -165,6 +165,10 @@ El lado del POS (qué manda, cada cuánto, la bitácora de cancelaciones) está 
 Más claves opcionales dentro de `extra`: `sesion {cerrada:true, desde}` (salió del POS dejando el turno abierto; `null` = no),
 `top_productos {hoy,semana,mes}` (≤ 5 por importe), `por_cajero` (≤ 10, hoy), `apartados {activos,por_cobrar,vencidos}`,
 `presupuestos {vigentes,monto,por_vencer,vencidos}`, `gastos {hoy,mes}`, `meta_diaria` (centavos, 0 = sin meta).
+Desde el POS 3.5.1 (panel sw v11): `moneda` (`EUR` o `MXN`; otra cosa se guarda como `MXN`) = el símbolo que la tienda eligió en
+Configuración › Cobro. Solo cambia lo que se ve: `render()` llama `fijarMoneda()` **antes** de `derivar()` (que ya arma textos con
+importes) y `formatMXN`/`compacto` usan `simboloMoneda`. Sin el dato (POS anterior), pesos. Los precios de Premium del muro de
+planes siguen en `$` (se cobran en pesos) y el panel de todas las tiendas (`tiendas.js`) también: el servidor de sucursales no lo sabe.
 - **`dash_guardar_extra` FUSIONA** por clave de primer nivel (`array_replace`, lectura y escritura en una transacción): una clave
   ausente conserva lo guardado y un `null` explícito lo reemplaza. Por eso el POS manda **siempre** todas las claves.
 - Saneado en `dash_sanear_extra` (topes, `strip_tags`, negativos a 0, lo desconocido se descarta; `sesion` solo con `true` real).
