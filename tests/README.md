@@ -50,7 +50,7 @@ PUBLIC_HTML=/ruta/a/otra/copia tests/correr_api.sh   # probar una copia (mutacio
 Cubre `sync_pos.php`, `get_dashboard_data.php` y `dashboard_auth.php` por HTTP: `extra`, `dias`, `meses`,
 límites de tamaño, PIN completo (activar, leer con y sin token, escribir con y sin clave, cambiar, quitar,
 reconectar, bloqueo a los 8 fallos, tokens alterados/vencidos/de otro panel) y que nunca se filtren
-`pin_hash`, `clave_hash` ni `extra_json`. `test_dashboard.js` ahora tiene 403 comprobaciones (pestañas,
+`pin_hash`, `clave_hash` ni `extra_json`. `test_dashboard.js` ahora tiene 412 comprobaciones (pestañas,
 caja, inventario, cancelaciones, comparativos, mes, PIN, caché del teléfono, Premium).
 
 **Premium (2026-10-20)** — el panel es solo de Premium: con la base migrada **cada panel de prueba lleva su propia clave firmada**
@@ -67,7 +67,20 @@ OXXO pendiente → pagado → correo, para siempre, varias sucursales, canjear y
 de ventas Stripe reintente. La migración se aplica dos veces y con `information_schema` activa.
 
 ```bash
-tests/correr_tienda.sh              # 102 comprobaciones
+tests/correr_tienda.sh              # 150 comprobaciones (también la moneda de quien compra)
 tests/correr_tienda.sh /tmp/ejemplo # además deja /tmp/ejemplo/clave_tienda.json para PruebaClavesDeLaTienda del POS
+```
+
+## Página privada de datos (`/admin/`) — `correr_admin.sh` y `test_admin.php`
+
+MariaDB y PHP reales en contenedores. Aplica las migraciones (la de `/admin/` dos veces), crea las tablas que nunca se versionaron
+(`admin_tablas_viejas.sql`, en otra intercalación a propósito), siembra datos inventados relativos a hoy (`sembrar_admin.php`) y compara
+cada cifra de la API con una consulta escrita aparte: entrada, cookie, freno, cada sección, apartar un equipo, tablas que faltan.
+
+```bash
+tests/correr_admin.sh        # 133 comprobaciones
+tests/correr_admin.sh ver    # la deja abierta en http://localhost:8099/admin/ (clave: clave de prueba 2026)
+DB_IMG=mysql:8.0 tests/correr_admin.sh                   # contra otro servidor (también mariadb:11.8…)
+DB_MODO="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES" tests/correr_admin.sh   # con otro sql_mode
 ```
 

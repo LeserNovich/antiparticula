@@ -57,6 +57,11 @@ try {
     $tipo_sesion = $_POST['tipo_sesion'] ?? null;
     $negocio = $_POST['negocio'] ?? null;
     $hardware_id = $_POST['hardware_id'] ?? null;
+    // La versión del programa (el POS posterior a 3.6.0 la manda). Una ilegible no tumba el evento: se guarda sin ella.
+    $version = $_POST['version'] ?? null;
+    if (!is_string($version) || !preg_match('/^\d{1,3}(\.\d{1,3}){1,3}$/', $version)) {
+        $version = null;
+    }
 
     // Validaciones
     $errores = [];
@@ -150,16 +155,7 @@ try {
         $ubicacion_texto = 'Local/Testing';
     }
 
-    // Preparar statement SQL
-    $sql = "INSERT INTO uso_punto_venta
-            (tipo_evento, usuario, rol, tipo_sesion, negocio, hardware_id, ip_address, pais, ciudad, fecha_hora)
-            VALUES
-            (:tipo_evento, :usuario, :rol, :tipo_sesion, :negocio, :hardware_id, :ip_address, :pais, :ciudad, NOW())";
-
-    $stmt = $pdo->prepare($sql);
-
-    // Ejecutar insert
-    $stmt->execute([
+    $datos = [
         ':tipo_evento' => $tipo_evento,
         ':usuario' => $usuario,
         ':rol' => $rol,
@@ -169,7 +165,24 @@ try {
         ':ip_address' => $ip_address,
         ':pais' => $pais,
         ':ciudad' => $ciudad
-    ]);
+    ];
+    try {
+        $stmt = $pdo->prepare("INSERT INTO uso_punto_venta
+            (tipo_evento, usuario, rol, tipo_sesion, negocio, hardware_id, version_pos, ip_address, pais, ciudad, fecha_hora)
+            VALUES
+            (:tipo_evento, :usuario, :rol, :tipo_sesion, :negocio, :hardware_id, :version_pos, :ip_address, :pais, :ciudad, NOW())");
+        $stmt->execute($datos + [':version_pos' => $version]);
+    } catch (PDOException $e) {
+        // 42S22 = columna desconocida: el PHP se subió antes que sql/2026-10-26_version_pos.sql. Se guarda el evento
+        // sin la versión, en vez de perder toda la telemetría hasta que alguien lo note.
+        if ($e->getCode() !== '42S22') throw $e;
+        error_log('registrar_uso.php: falta la columna version_pos (correr sql/2026-10-26_version_pos.sql)');
+        $stmt = $pdo->prepare("INSERT INTO uso_punto_venta
+            (tipo_evento, usuario, rol, tipo_sesion, negocio, hardware_id, ip_address, pais, ciudad, fecha_hora)
+            VALUES
+            (:tipo_evento, :usuario, :rol, :tipo_sesion, :negocio, :hardware_id, :ip_address, :pais, :ciudad, NOW())");
+        $stmt->execute($datos);
+    }
 
     // Obtener ID del registro insertado
     $id_insertado = $pdo->lastInsertId();

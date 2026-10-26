@@ -804,6 +804,7 @@
         }
         var cards = [];
         if (d.cohortes) cards.push(tarjeta('¿Lo siguen usando?', 'Por mes en que empezaron: qué parte lo abrió cada mes después', tablaCohortes(d.cohortes), { ancha: true }));
+        if (d.versiones && d.versiones.filas.length) cards.push(tarjetaVersiones(d.versiones));
         if (contadas.length) {
             var viejas = contadas.filter(function (f) { return diasDesde(f.primera) > 30; });
             var tramos = [['Un solo día', 1, 1], ['2 a 3 días', 2, 3], ['4 a 7 días', 4, 7], ['8 a 30 días', 8, 30], ['Más de 30 días', 31, 1e9]];
@@ -845,7 +846,44 @@
         if (d.lista) out.push(tarjeta('Todas las computadoras', 'Toca una para ver todo lo que se sabe de ella', tablaEquipos(lista), { ancha: true }));
         return out;
     }
+    // Las de hasta 3.6.0 no mandaban la versión: un evento sin ella es de una de esas
+    var ULTIMA_SIN_VERSION = '3.6.0';
+    function textoVersion(v) { return v === '' ? ULTIMA_SIN_VERSION + ' o anterior' : v; }
+    // Como número, parte por parte: la 3.10.0 es más nueva que la 3.9.0
+    function compararVersion(a, b) {
+        var x = String(a).split('.'), y = String(b).split('.');
+        for (var i = 0; i < Math.max(x.length, y.length); i++) {
+            var dif = (parseInt(x[i], 10) || 0) - (parseInt(y[i], 10) || 0);
+            if (dif) return dif;
+        }
+        return 0;
+    }
+    // Junto a la versión de una computadora: si es la publicada, una más nueva (la de pruebas) o cuál es la publicada
+    function notaVersion(v, publicada) {
+        if (!publicada) return null;
+        if (v === publicada) return 'la publicada';
+        if (v !== '' && compararVersion(v, publicada) > 0) return 'más nueva que la publicada (' + publicada + ')';
+        return 'la publicada es la ' + publicada;
+    }
+    function tarjetaVersiones(V) {
+        var total = V.filas.reduce(function (a, f) { return a + n(f.n); }, 0);
+        var sub = 'Las que lo usaron en este periodo, con la versión con que entraron la última vez';
+        if (V.publicada) {
+            sub += '. La publicada es la ' + V.publicada;
+            // Mientras la publicada sea una de las que no mandan su versión no se puede saber quién la tiene
+            if (compararVersion(V.publicada, ULTIMA_SIN_VERSION) > 0) {
+                var alDia = V.filas.filter(function (f) { return f.version !== '' && compararVersion(f.version, V.publicada) >= 0; })
+                                   .reduce(function (a, f) { return a + n(f.n); }, 0);
+                sub += ': ' + (alDia === total ? 'todas la tienen' : num(alDia) + ' de ' + num(total) + ' la tienen');
+            }
+        }
+        return tarjeta('En qué versión están', sub, listaBarras(V.filas.map(function (f) {
+            return { etiqueta: textoVersion(f.version), valor: n(f.n), nota: (f.version === V.publicada ? 'la publicada · ' : '') + pct(n(f.n) / total) };
+        })));
+    }
+
     function tablaEquipos(lista) {
+        var conVersion = lista.some(function (f) { return f.version !== null && f.version !== undefined; });
         return tabla([
             { clave: 'negocio', titulo: 'Negocio', valor: function (f) { return nombreEquipo(f.negocio, f.id); },
               buscar: function (f) { return (f.negocio || '') + ' ' + f.id + ' ' + (f.ciudad || ''); },
@@ -857,11 +895,12 @@
             { clave: 'dias', titulo: 'Días', num: true },
             { clave: 'inicios', titulo: 'Inicios', num: true },
             { clave: 'usuarios', titulo: 'Usuarios', num: true },
+            conVersion ? { clave: 'version', titulo: 'Versión', valor: function (f) { return f.version === null ? '' : textoVersion(f.version); } } : null,
             { clave: 'panel', titulo: 'Panel', valor: function (f) { return f.panel ? 'Sí' : ''; } },
             { clave: 'premium', titulo: 'Premium', valor: function (f) { return f.premium || ''; },
               fmt: function (f) { return f.premium ? (f.premium >= hoy ? venceTexto(f.premium) : 'Venció ' + fecha(f.premium)) : ''; } },
             { clave: 'id', titulo: 'ID', clase: 'mono' }
-        ], lista, {
+        ].filter(Boolean), lista, {
             buscar: 'Buscar negocio, ciudad o ID', csv: 'computadoras.csv', orden: { clave: 'ultima', desc: true },
             filtros: [
                 { etiqueta: 'Todas', fn: function (f) { return !f.oculto; } },
@@ -1050,6 +1089,12 @@
         return out;
     }
 
+    // Número para wa.me: solo dígitos y con lada del país; uno de 10 dígitos es mexicano (52)
+    function waNumero(tel) {
+        var d = String(tel).replace(/\D/g, '');
+        return d.length === 10 ? '52' + d : d;
+    }
+
     function vistaComentarios(d) {
         var P = d.periodo, out = [];
         var lista = d.lista;
@@ -1076,7 +1121,7 @@
         function pintar() {
             cont.textContent = '';
             var vis = lista.filter(filtros[filtro][1]).filter(function (c) {
-                return !q || [c.comentario, c.email, c.nombre, c.ciudad, c.pais, c.tipo_negocio].some(function (v) { return v && String(v).toLowerCase().indexOf(q) >= 0; });
+                return !q || [c.comentario, c.email, c.telefono, c.nombre, c.ciudad, c.pais, c.tipo_negocio].some(function (v) { return v && String(v).toLowerCase().indexOf(q) >= 0; });
             });
             if (!vis.length) { cont.appendChild(vacio(q ? 'Nada coincide con «' + q + '».' : 'Sin mensajes.')); return; }
             vis.slice(0, limite).forEach(function (c) {
@@ -1091,6 +1136,9 @@
                     h('p', { class: 'mensaje-txt', text: c.comentario }),
                     h('div', { class: 'mensaje-pie' }, [
                         h('span', { class: 'nota', text: meta }),
+                        // El teléfono va primero: es por donde se responde (el correo casi nadie lo lee)
+                        c.telefono ? h('a', { href: 'https://wa.me/' + waNumero(c.telefono), target: '_blank', rel: 'noopener', text: 'Responder por WhatsApp · ' + c.telefono }) : null,
+                        c.telefono ? h('a', { href: 'tel:' + c.telefono, text: 'Llamar' }) : null,
                         c.email ? h('a', { href: 'mailto:' + c.email + '?subject=' + encodeURIComponent('Tu mensaje a Antipartícula'), text: 'Responder a ' + c.email }) : null
                     ])
                 ]));
@@ -1147,10 +1195,12 @@
         out.push(cab);
         if (u) {
             var r = u.resumen;
+            var V = d.versiones;
             out.push(fila([
                 dato('Empezó', fecha(r.primera)), dato('Última vez', hace(r.ultima), { nota: fechaHora(r.ultima) }),
-                dato('Días de uso', num(r.dias)), dato('Inicios de sesión', num(r.inicios)), dato('Cortes de turno', num(r.cortes))
-            ], 'datos'));
+                dato('Días de uso', num(r.dias)), dato('Inicios de sesión', num(r.inicios)), dato('Cortes de turno', num(r.cortes)),
+                V && V.actual !== null ? dato('Versión', textoVersion(V.actual), { nota: notaVersion(V.actual, V.publicada) }) : null
+            ].filter(Boolean), 'datos'));
             out.push(tarjeta('Cuándo lo usó', 'El último año', calendario(u.dias), { ancha: true }));
             var cards = [
                 tarjeta('Quiénes entran', null, tabla([
@@ -1165,6 +1215,11 @@
                     { clave: 'ultima', titulo: 'Última vez', fmt: function (x) { return fecha(x.ultima); }, descPrimero: true }
                 ], u.lugares, { orden: { clave: 'ultima', desc: true }, porPagina: 10 }))
             ];
+            if (V && V.historial.length > 1) cards.push(tarjeta('Versiones que ha tenido', 'Desde que el programa la manda (después de la 3.6.0)', tabla([
+                { clave: 'version', titulo: 'Versión' },
+                { clave: 'desde', titulo: 'Desde', fmt: function (x) { return fecha(x.desde); } },
+                { clave: 'hasta', titulo: 'Hasta', fmt: function (x) { return fecha(x.hasta); }, descPrimero: true }
+            ], V.historial, { orden: { clave: 'hasta', desc: true } })));
             if (u.negocios.length > 1) cards.push(tarjeta('Nombres que ha tenido', null, tabla([
                 { clave: 'negocio', titulo: 'Negocio' }, { clave: 'ultima', titulo: 'Hasta', fmt: function (x) { return fecha(x.ultima); } }
             ], u.negocios, { orden: { clave: 'ultima', desc: true } })));

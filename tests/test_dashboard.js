@@ -933,7 +933,7 @@ const shell = [...SW.matchAll(/'(\/dashboard\/[^']+)'/g)].map(m => m[1]);
 ok(shell.length >= 5, 'el service worker lista su shell', shell.join(', '));
 shell.forEach(f => ok(fs.existsSync(PUB + f), 'existe ' + f));
 ok(/cache:\s*'reload'/.test(SW), 'el SW precachea saltando la caché HTTP');
-eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v11', 'versión del caché subida');
+eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v12', 'versión del caché subida');
 // El CDN de Hostinger guarda css/js 7 días: cada publicación los pide con ?v=<versión> (el número de CACHE_NAME)
 {
     const ver = (SW.match(/CACHE_NAME = 'antiparticula-dashboard-v(\d+)'/) || [])[1];
@@ -996,6 +996,31 @@ ok(/se activa solo en el programa de tu tienda/.test(EA.q('premiumComo').textCon
 eq(EA.q('planes').textContent.indexOf('$169') !== -1 && EA.q('planes').textContent.indexOf('$1,390') !== -1, true,
    'los precios del sitio reemplazan a los incluidos');
 ok(/ahorras \$638/.test(EA.q('planes').textContent), '…y el ahorro se calcula con ellos');
+ok(EA.estado.llamadas.some(l => /^\/tienda\/planes\.php\?zona=[^&]*&idioma=/.test(l.url)), 'pide los planes con la zona horaria y el idioma del celular');
+// Fuera de México (lo dice planes.php): precios aproximados en su moneda, sin OXXO, y el país va al cobro
+EA.estado.planes.pais = 'ES';
+EA.estado.planes.local = { pais: 'ES', moneda: 'EUR', por_peso: 0.04, fecha: '2026-10-21' };
+EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina', desde: '2026-09-02', protegido: false, compra_directa: true };
+await EA.refrescar(); await EA.tick();
+const enPlanes = EA.q('planes').textContent.replace(/\s/g, ' ');
+ok(/55,60 €/.test(enPlanes) && /6,76 €/.test(enPlanes) && /140 €/.test(enPlanes), 'desde España: los planes en euros (1,390 × 0.04 = 55,60 €)', enPlanes);
+ok(/ahorras 25,52 €/.test(enPlanes), '…y el ahorro también', enPlanes);
+eq(EA.q('premiumPagar').textContent.replace(/\s/g, ' '), 'Pagar ≈ 6,76 €', 'el botón dice «≈» (el monto exacto lo da Stripe)');
+eq(EA.q('premiumPagar').getAttribute('href'), '/tienda/pagar.php?plan=premium_mensual&panel=TEST123&pais=ES', '…y el cobro sabe el país (sin OXXO)');
+ok(!/OXXO/.test(EA.q('premiumComo').textContent) && /aproximados en tu moneda \(EUR\)/.test(EA.q('premiumComo').textContent),
+   'sin OXXO, y dice que son aproximados', EA.q('premiumComo').textContent);
+// Donde Stripe no convierte: pesos mexicanos, dicho así
+EA.estado.planes.pais = 'AR';
+EA.estado.planes.local = null;
+EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina', desde: '2026-09-03', protegido: false, compra_directa: true };
+await EA.refrescar(); await EA.tick();
+ok(/\$169/.test(EA.q('planes').textContent) && EA.q('premiumPagar').textContent === 'Pagar $169 MXN', 'desde Argentina: «Pagar $169 MXN» («$» allá son otros pesos)');
+ok(/pesos mexicanos \(MXN\)/.test(EA.q('premiumComo').textContent) && !/OXXO/.test(EA.q('premiumComo').textContent), '…y lo explica, sin OXXO');
+// De vuelta en México: como siempre
+EA.estado.planes.pais = 'MX';
+EA.estado.body = { status: 'premium_requerido', negocio: 'Abarrotes La Esquina', desde: '2026-09-04', protegido: false, compra_directa: true };
+await EA.refrescar(); await EA.tick();
+ok(EA.q('premiumPagar').textContent === 'Pagar $169' && /OXXO/.test(EA.q('premiumComo').textContent), 'desde México: pesos y con OXXO');
 EA.estado.planes = null;
 // Al pagar, el panel vuelve solo
 EA.estado.status = 200;

@@ -75,6 +75,7 @@ function tienda_beneficios() {
             'Panel móvil: ventas, caja e inventario en el celular',
             'Resumen completo: meses, años y comparaciones',
             'Usuarios sin límite (administradores y cajeros)',
+            'Encabezado del ticket con todas las líneas que quieras',
             'Opción de quitar la marca Antiparticula del ticket',
             'Soporte y actualizaciones',
         ],

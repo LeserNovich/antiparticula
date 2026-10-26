@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Antipartícula is a business website for a software development consultancy based in Mexico. The site showcases IT services, custom software development, and includes a product page for their point-of-sale (POS) software. The project is a traditional multi-page website built with HTML, CSS, and vanilla JavaScript, served via Apache with PHP backend functionality.
 
+**PHP en producción (Hostinger):** 8.3 desde el 2026-10-21 (antes 8.1.34, rama sin parches desde 2026; se cambió por PHP2Shell,
+CVE-2026-109618/109619, corregidas en 8.3.36). La versión se elige en hPanel › Avanzado › Configuración de PHP; Hostinger sube los
+parches dentro de la rama, pero **no cambia de rama solo**. Para ver la exacta: `curl -sI https://www.antiparticula.com/get_stats.php`
+(cabecera `x-powered-by`). Las pruebas de `tests/` corren en PHP 8.3; el código sigue siendo compatible con 7.2.
+
 ## Architecture
 
 ### File Structure
@@ -54,7 +59,7 @@ antiparticula.com/
 **Download Tracking System**
 - Frontend: `public_html/js/mensaje-exito.js` contains `descargarPrueba()` and `descargarFuncional()`
 - Backend: `registrar_descarga.php` logs downloads to MySQL database
-- Database table: `registros_descargas` (fields: ip_address, pais, ciudad, timestamp)
+- Database table: `registros_descargas` (fields: id, fecha_hora, ip_address, pais, ciudad; la fecha es `fecha_hora`, no `timestamp`)
 - Uses ip-api.com for geolocation from IP addresses
 - Downloads trigger POST to `/registrar_descarga.php` via fetch API
 
@@ -259,7 +264,7 @@ y `dashboard/*` · **3.** publicar el POS 3.3.0. Volver atrás = re-subir los ar
 #### Pruebas
 
 ```bash
-NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 380 comprobaciones del panel (jsdom)
+NODE_PATH=<carpeta con jsdom> node tests/test_dashboard.js   # 412 comprobaciones del panel (jsdom)
 php tests/test_sync.php                                       # parseo de ultimas_ventas (29)
 tests/correr_api.sh                # PHP + MariaDB REALES en contenedores: 212 (migrado, con Premium)
 tests/correr_api.sh sin-migrar     # lo viejo funciona y lo nuevo se omite con aviso: 38
@@ -391,6 +396,12 @@ oscuro por sistema, oscuro fijado a mano).
     recibe los mensajes de «Comentarios y sugerencias» del POS (dudas, fallas, contraseñas):
     son privados y `registrar_comentario.php` les guarda 5 estrellas que nadie puso. Una
     opinión sin calificación se enseña sin estrellas; sin opiniones, la página lo dice.
+  - **Teléfono en los mensajes del POS (2026-10-24):** `registrar_comentario.php` acepta `telefono` (solo dígitos y un `+` opcional, 8 a 15;
+    limpia espacios/guiones/paréntesis y rechaza con 400 lo demás) y el POS lo pone como primera opción de contacto, porque las respuestas por
+    correo casi nadie las leía. Columna `comentarios_sugerencias.telefono`: `sql/2026-10-24_comentarios_telefono.sql` (idempotente). Sin la
+    columna el endpoint no falla: guarda el mensaje con «Teléfono: …» al final del texto. `/admin/` → Comentarios muestra «Responder por
+    WhatsApp» (`wa.me`; 10 dígitos → se antepone 52) y «Llamar». Orden: subir los PHP/JS, correr el SQL y después publicar el POS (un endpoint
+    viejo ignora `telefono` sin avisar). Cubierto en `tests/correr_admin.sh`.
 - **Capturas de la app** en `img/pos/`: `resumen|vender|busqueda|inventario` ×
   `claro|oscuro`, cada una en tres anchos: `-2x` (2860 px, pantallas de alta
   densidad), sin sufijo (1430 px) y `-720` (celular), todas WebP **sin pérdida**
@@ -405,6 +416,15 @@ oscuro por sistema, oscuro fijado a mano).
   `-Dawt.useSystemAAFontSettings=on` y la red bloqueada por proxy
   (`-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=9`), para que la app no mande
   telemetría ni sincronice datos de ejemplo al servidor. Nunca contra la base real.
+- **Celular de «Vigila tus ventas desde donde estés»** (`#dashboard-web`): una sola imagen,
+  `img/panel-movil-hoy.webp` (780 × 3836, WebP con pérdida calidad 90: ~190 KB), dentro del marco
+  `.pv-telefono` (ventana de 540 px que desplaza por dentro). Es el panel REAL (`public_html/dashboard/`)
+  fotografiado con Playwright contra una API de imitación y el mismo negocio de ejemplo; **hay que
+  regenerarla cada vez que cambie el aspecto del panel** (se quedó en el diseño de febrero hasta el
+  2026-10-24). `NODE_PATH=<playwright y sharp> node herramientas/capturas-panel/capturar_panel.js <salida>`
+  y copiar el `.webp` a `public_html/img/`. Recorta justo bajo «Ventas por hora» a propósito: una imagen más
+  larga atrapa la rueda del ratón dentro del celular. `img/dashboard_parteSuperior|Inferior.png` ya no los
+  usa la página; `dashboard_horizontal.png` sigue como `og:image` de `versiones.html` (diseño viejo).
 
 ### Tienda de Premium (`tienda_comun.php`, `tienda/*.php`; 2026-10-21, POS 3.5.0)
 
@@ -442,9 +462,69 @@ repite en la sección de precios y en sus datos estructurados: si cambian, cambi
   `dashboard_comun.php`, `sync_pos.php`, `get_dashboard_data.php`, `.htaccess`, `paginas/compra.html`) y el panel (`dashboard/*`, sw v10)
   · 4) servidor de sucursales 1.6.0 · 5) publicar el POS 3.5.0 · 6) **al final** la página de precios (`paginas/puntodeventa.html`,
   `css/puntodeventa.css`, `products.json`): un código comprado en la página se canjea en el programa 3.5.0.
-- **Pruebas:** `tests/correr_tienda.sh [carpeta]` (MariaDB real + Stripe de imitación, `tests/stripe_falso.php`; 102 comprobaciones; con
+- **Moneda de quien compra (2026-10-21):** se cobra en pesos y **Stripe convierte** al pagar (*Adaptive Pricing*, encendido en
+  *Settings › Adaptive Pricing* del dashboard; el aviso sigue trayendo `amount_total` en pesos, así que las cuentas no cambian). La
+  página, el panel y el programa (3.5.2+) enseñan el precio **aproximado** en la moneda local: `tienda/planes.php?zona=…&idioma=…[&region=…]`
+  devuelve `pais` y `local` = {`moneda`, `por_peso` (tipo del día × 1.03, lo que Stripe suma al convertir), `fecha`}. El país sale de lo
+  que el equipo dice de sí mismo, sin geolocalizar (`tienda_pais_de`): la región de Windows (programa) › la zona horaria › el idioma;
+  **México gana si cualquier pista lo dice**, y las zonas de Guatemala y del centro de EE. UU. piden otra pista (muchas PCs de México
+  las tienen). Solo los mercados donde Stripe convierte (`tienda_monedas_por_pais()`); fuera de ellos, «$1,290 MXN». Tipos de cambio:
+  fawazahmed0/exchange-api (gratis, sin llave, dos espejos), guardados en `tasas_mxn.json` junto a `config_db.php` (cada 12 h; si la
+  fuente cae, sirven 7 días; luego, pesos). `pagar.php?…&pais=XX` fuera de México quita OXXO: solo cobra en pesos y en México, y con él
+  en la sesión Stripe no convierte. En la página, el script de precios cambia cada «$N» (botones, `[data-precios]`, la gratuita),
+  usa `data-fuera`/`data-fuera-mxn` para la nota y esconde `.pv-solo-mx`.
+- **Pruebas:** `tests/correr_tienda.sh [carpeta]` (MariaDB real + Stripe de imitación, `tests/stripe_falso.php`, que también sirve
+  tipos de cambio falsos; 150 comprobaciones; con
   carpeta deja `clave_tienda.json` para que el POS compruebe que acepta las claves del PHP: `PruebaClavesDeLaTienda`). Con Stripe de
   verdad: modo de prueba (`sk_test_…`, tarjeta 4242…), y para el aviso local `stripe listen --forward-to …/tienda/webhook.php`.
+
+### Tu página privada de datos (`/admin/`, 2026-10-21)
+
+Para el dueño: todo lo que guarda la base del sitio, con gráficas, en vez de consultas a mano en phpMyAdmin.
+`https://www.antiparticula.com/admin/` → clave → seis pestañas con un solo selector de periodo (7 · 30 · 90 días · 12 meses · Todo,
+contra el periodo anterior del mismo largo): **Resumen** (lo del periodo, quién lo usa hoy/7/30 días, qué pasa con las computadoras
+nuevas, pendientes), **Descargas** (por día, país, ciudad, hora y día de la semana), **Computadoras** (activas y nuevas, cohortes
+«¿lo siguen usando?», días de uso, mapa de calor de inicios de sesión, cómo entran, dónde están, las que se fueron y la lista de todas),
+**Tiendas** (lo que mandan al panel del celular: ventas entre todas, cómo les pagan, a qué hora venden, qué funciones usan), **Premium**
+(ingresos, planes, origen, OXXO, quién lo tiene, vencen pronto / se les venció, prueba de Excel, avisos de Stripe, compras) y
+**Comentarios** (los del programa, privados, y las opiniones de la página). Cada computadora tiene su ficha (`#equipo/<ID>`): telemetría,
+calendario de uso, usuarios, lugares, su panel, sus compras, sus claves (para reenviarlas) y su prueba de Excel.
+
+- **Archivos:** `admin_comun.php` (clave, sesión, conexión; no es endpoint), `admin/index.php` (entrada o la página), `admin/api.php`
+  (JSON por sección), `admin/admin.js`, `admin/admin.css`. Sin librerías ni CDN: gráficas SVG/HTML propias (como el panel).
+- **Clave:** `'admin_clave_hash'` en `config_db.php`, generado con `php herramientas/clave_admin.php` (pide la clave dos veces, ≥ 12
+  caracteres; no la guarda). La sesión es una **cookie firmada** (HMAC, 7 días, `HttpOnly`, `SameSite=Strict`, `Path=/admin/`), no una
+  sesión de PHP (el hosting borra esas a los 24 min). Cambiar la clave cierra todas las sesiones. Freno: 10 claves malas por IP y hora, o
+  60 de todas las IPs juntas (`admin_intentos`); **sin esa tabla no se entra**. CSP sin nada en línea: los anchos van por `el.style`.
+- **Solo lee**, salvo `admin_ocultos`: «No contarla en las cifras» en la ficha aparta un equipo (los tuyos, `TEST1234567890AB` de
+  `test_telemetria.sh`, el de desarrollo, que también manda telemetría) de todas las sumas; la lista lo sigue mostrando como «apartada».
+- **Dos IDs de computadora:** el de la telemetría y el panel (`uso_punto_venta.hardware_id` = `dashboard_pos.hardware_id`,
+  `getIdParaServicios()` del POS) y el de la licencia (`tienda_*`, `pruebas_equipo`, `getHardwareID()`). Los une
+  `dashboard_pos.hw_licencia` (POS 3.5.0 con el panel); sin ella, una compra no se puede atar a su ficha.
+- **Nada de JOIN entre tablas de distinto origen:** `uso_punto_venta`, `registros_descargas` y `comentarios_sugerencias` se crearon a
+  mano y pueden tener otra intercalación; MySQL rechaza comparar sus columnas con las de las migraciones. `api.php` cruza en PHP y
+  aparta equipos con literales (`PDO::quote`). La prueba usa a propósito `utf8mb4_general_ci` en esas tres tablas.
+- **Cada bloque es independiente** (`adm_bloque`): si falta una tabla o columna, ese bloque sale `null`, su nombre va en `faltan` y la
+  página no lo enseña ni lo pone en cero; abajo dice qué faltó y, plegado en «Lo que respondió MySQL», el mensaje exacto (`errores`
+  en la respuesta; solo lo ve quien entró con la clave). Así se diagnostica una tabla de producción que no tiene la forma esperada.
+- **Cuentas que no se inventan:** ingresos sin compras `cs_test_`; una renovación vale el precio de su plan (`tienda_planes()`, no se
+  guarda el importe). Las sumas de ventas de las tiendas son **solo en pesos** (una tienda en euros no entra; su ficha sí va en €). El
+  `premium_hasta` del panel sale de las mismas claves con 3 días de gracia: solo cuenta como Premium aparte si llega más lejos que eso.
+  «Activa» = cualquier evento (inicio, corte o salida); la cifra pública de `get_stats.php` cuenta solo inicios de sesión.
+- **Versión del programa (2026-10-26):** el POS posterior a 3.6.0 manda `version` en cada evento (`registrar_uso.php` → columna
+  `uso_punto_venta.version_pos`, `sql/2026-10-26_version_pos.sql`; una ilegible se guarda NULL sin tumbar el evento). Un evento sin
+  versión es de un POS de hasta 3.6.0: la página lo dice «3.6.0 o anterior». Computadoras trae «En qué versión están» (las activas
+  del periodo, por la versión de su último evento; «al día» = la de `version.json` o una más nueva, y solo se cuenta cuando la
+  publicada ya es posterior a 3.6.0), la columna Versión de la lista y, en la ficha, la versión y «Versiones que ha tenido». Todo en
+  bloques `uso_punto_venta.version_pos`: sin la columna no se enseña. **Si el PHP se sube antes que el SQL, `registrar_uso.php`
+  reintenta sin la versión** (SQLSTATE 42S22) en vez de perder la telemetría. Orden: SQL → `registrar_uso.php` y `admin/` → POS.
+- **Lo que no se puede saber hoy:** el sistema operativo de cada PC (la telemetría no lo manda), y el método de pago de una compra
+  pagada (tarjeta u OXXO; solo se ve el OXXO sin pagar o vencido).
+- **Despliegue:** 1) `sql/2026-10-21_admin.sql` en phpMyAdmin · 2) la línea de `clave_admin.php` en `config_db.php` · 3) subir
+  `admin_comun.php` y `admin/`. Volver atrás: borrar `admin/` (las dos tablas no estorban).
+- **Pruebas:** `tests/correr_admin.sh` (MariaDB + PHP reales, datos inventados de `tests/sembrar_admin.php`; 149 comprobaciones, cada
+  cifra contra una consulta escrita aparte; mutaciones comprobadas). `tests/correr_admin.sh ver` deja la página con esos datos en
+  `http://localhost:8099/admin/` (clave «clave de prueba 2026») para mirarla.
 
 ## Contact Information
 - Business email: contacto@antiparticula.com

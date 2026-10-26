@@ -1,10 +1,25 @@
 {
-"version": "3.6.0",
+"version": "3.7.0",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "Ticket de apartado con lo que el cliente ha dado a cuenta, y Modo Informe para el administrador aunque el turno siga abierto",
+"changelog": "Desglose de IVA, productos en dos renglones en el ticket, encabezado con más líneas y pantallas renovadas",
 "mandatory": false,
 
   "historial": [
+    {
+  "version": "3.7.0",
+  "fecha": "2026-10-26",
+  "titulo": "Desglose de IVA, ticket más claro y pantallas renovadas",
+  "cambios": [
+    "Desglosa el IVA que ya incluyen tus precios: en el ticket (por producto y al final), en los presupuestos, en el historial de ventas y en el resumen del negocio. Elige dónde en Configuración > Cobro > IVA.",
+    "En el ticket cada producto va en dos renglones: arriba su nombre completo y abajo la cantidad, el precio y el importe. En papel de 58 mm la descripción ya no se corta.",
+    "Escribe todas las líneas que quieras en el encabezado del ticket: la 1 y la 2 son gratis y de la 3 en adelante son de Premium. Si ya usabas la 3, la 4 o la 5, las conservas gratis.",
+    "Configuración se renovó: un menú a la izquierda (Ticket, Cobro, Sucursales, Panel móvil y Premium) y todo a la vista en la misma pantalla.",
+    "Todas las pantallas tienen un diseño más limpio: los botones de un producto o un ticket aparecen al elegirlo, y una lista vacía te dice qué hacer.",
+    "En Ventas cada botón muestra su tecla rápida, y el total dice cuántos productos lleva el ticket.",
+    "En Comentarios y sugerencias puedes dejar tu teléfono para que te respondamos por WhatsApp.",
+    "Correcciones: los importes muy grandes ya se ven completos en el historial de ventas, una línea larga del encabezado ya no se encima en el ticket y los avisos del programa se leen mejor."
+  ]
+},
     {
       "version": "3.6.0",
       "fecha": "2026-10-21",

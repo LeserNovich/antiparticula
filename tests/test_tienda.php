@@ -42,9 +42,12 @@ $cfg_prueba['stripe_webhook_secreto'] = 'whsec_prueba';
 $cfg_prueba['stripe_api']             = 'http://127.0.0.1:8090';
 $cfg_prueba['tienda_url']             = 'https://www.antiparticula.com';
 $cfg_prueba['correo_archivo']         = '/tmp/correos.txt';
+$cfg_prueba['tasas_urls']             = ['http://127.0.0.1:8090/tasas_404.json', 'http://127.0.0.1:8090/tasas.json'];
+$cfg_prueba['tasas_archivo']          = '/tmp/tasas_mxn.json';
 file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg_prueba, true) . ';');
 $cfg = $cfg_prueba;
 @unlink('/tmp/correos.txt');
+@unlink('/tmp/tasas_mxn.json'); @unlink('/tmp/tasas_pedidas'); @unlink('/tmp/tasas_caidas');
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────
 function http($metodo, $url, $cuerpo = null, $cabeceras = []) {
@@ -152,6 +155,67 @@ eq([$porId['premium_mensual']['renovable'], $porId['premium_mensual']['oxxo']], 
 eq([$porId['premium_anual']['renovable'], $porId['premium_anual']['oxxo']], [false, true], 'anual: un pago, también con OXXO');
 
 // ═════════════════════════════════════════════════════════════════════════════
+titulo('2b. La moneda de quien ve los precios');
+eq([tienda_pais_de_zona('Europe/Madrid'), tienda_pais_de_zona('America/Mexico_City'), tienda_pais_de_zona('Atlantic/Canary')],
+   ['ES', 'MX', 'ES'], 'zona → país (Madrid, Ciudad de México, Canarias)');
+eq([tienda_pais_de_zona('Asia/Calcutta'), tienda_pais_de_zona('Europe/Kiev'), tienda_pais_de_zona('US/Eastern'), tienda_pais_de_zona('Mexico/General')],
+   ['IN', 'UA', 'US', 'MX'], '... también los nombres viejos de Chrome y Java');
+eq([tienda_pais_de_zona('UTC'), tienda_pais_de_zona('No/Existe'), tienda_pais_de_zona('../../etc/passwd'), tienda_pais_de_zona(['x'])],
+   [null, null, null, null], '... y nada con UTC, una zona inventada o basura');
+$casos = [
+    [['zona' => 'Europe/Madrid'], 'ES', 'Madrid'],
+    [['zona' => 'America/Bogota', 'idioma' => 'es-419,es'], 'CO', 'Bogotá, con el español latino de Chrome'],
+    [['zona' => 'America/Mexico_City', 'idioma' => 'en-US,en'], 'MX', 'en México con el navegador en inglés de EE. UU.: México'],
+    [['zona' => 'Europe/Madrid', 'idioma' => 'es-MX'], 'MX', 'cualquier pista de México gana (es el precio real)'],
+    [['zona' => 'America/Guatemala', 'idioma' => 'es-419,es'], null, 'zona de Centroamérica sin otra pista: no se sabe (tantas PCs de México la tienen)'],
+    [['zona' => 'America/Guatemala', 'idioma' => 'es-GT'], 'GT', '... con el idioma de Guatemala: Guatemala'],
+    [['zona' => 'America/Chicago'], null, 'zona del centro de EE. UU. sola: no se sabe'],
+    [['zona' => 'America/Chicago', 'idioma' => 'en-US'], 'US', '... con inglés de EE. UU.: EE. UU.'],
+    [['zona' => 'America/Bogota', 'region' => 'PE'], 'PE', 'el programa en Perú: Java dice Bogotá, Windows dice Perú'],
+    [['zona' => 'Europe/Madrid', 'region' => 'MX'], 'MX', 'Windows dice México: México'],
+    [['zona' => 'UTC', 'idioma' => 'en-GB'], 'GB', 'sin zona útil, el idioma'],
+    [[], null, 'sin pistas: no se sabe'],
+    [['zona' => ['x'], 'region' => 'MEX', 'idioma' => str_repeat('es-MX,', 50)], 'MX', 'basura en los parámetros no rompe'],
+];
+foreach ($casos as $c) eq(tienda_pais_de($c[0]), $c[1], 'país: ' . $c[2]);
+
+$r = http('GET', "$BASE/tienda/planes.php");
+eq([$r['json']['pais'], $r['json']['local']], [null, null], 'planes.php sin pistas: pesos');
+ok(!file_exists('/tmp/tasas_pedidas'), '... y no pide tipos de cambio');
+$r = http('GET', "$BASE/tienda/planes.php?zona=America/Mexico_City&idioma=es-419");
+eq([$r['json']['pais'], $r['json']['local']], ['MX', null], 'desde México: pesos');
+$r = http('GET', "$BASE/tienda/planes.php?zona=Europe/Madrid&idioma=es-ES,es");
+$l = $r['json']['local'];
+eq([$r['json']['pais'], $l['pais'], $l['moneda'], $l['fecha']], ['ES', 'ES', 'EUR', '2026-10-21'], 'desde España: euros, con la fecha del tipo de cambio');
+eq($l['por_peso'], round(0.05 * TIENDA_CONVERSION, 8), '... un peso = tasa del día + lo que suma Stripe al convertir (3 %)');
+eq(count(file('/tmp/tasas_pedidas')), 1, '... el primer espejo no contestó (404) y salió del segundo');
+$r = http('GET', "$BASE/tienda/planes.php?zona=America/Lima");
+eq([$r['json']['local']['moneda'], count(file('/tmp/tasas_pedidas'))], ['PEN', 1], 'desde Perú: soles, sin volver a pedir los tipos de cambio');
+$r = http('GET', "$BASE/tienda/planes.php?zona=America/Argentina/Buenos_Aires");
+eq([$r['json']['pais'], $r['json']['local']], ['AR', null], 'Argentina (Stripe no convierte ahí): pesos mexicanos');
+$r = http('GET', "$BASE/tienda/planes.php?zona=Asia/Bangkok");
+eq([$r['json']['pais'], $r['json']['local']], ['TH', null], 'una moneda que la fuente no trajo (baht): pesos');
+// Viejos: se piden otra vez; si la fuente no contesta, sirven los guardados 7 días
+$t = json_decode(file_get_contents('/tmp/tasas_mxn.json'), true);
+$t['bajadas'] = time() - 13 * 3600;
+file_put_contents('/tmp/tasas_mxn.json', json_encode($t));
+touch('/tmp/tasas_caidas');
+$r = http('GET', "$BASE/tienda/planes.php?zona=Europe/Paris");
+eq($r['json']['local']['moneda'], 'EUR', 'con 13 h y la fuente caída: sirven los guardados');
+$t = json_decode(file_get_contents('/tmp/tasas_mxn.json'), true);
+ok(isset($t['intento']) && time() - $t['intento'] < 60, '... anota el intento (no reintenta en cada visita)');
+$t['bajadas'] = time() - 8 * 86400; $t['intento'] = 0;
+file_put_contents('/tmp/tasas_mxn.json', json_encode($t));
+$r = http('GET', "$BASE/tienda/planes.php?zona=Europe/Paris");
+eq([$r['json']['pais'], $r['json']['local']], ['FR', null], 'con 8 días y la fuente caída: pesos (no un tipo de cambio viejo)');
+unlink('/tmp/tasas_caidas');
+$t = json_decode(file_get_contents('/tmp/tasas_mxn.json'), true);
+$t['intento'] = 0;
+file_put_contents('/tmp/tasas_mxn.json', json_encode($t));
+$r = http('GET', "$BASE/tienda/planes.php?zona=Europe/Paris");
+eq($r['json']['local']['moneda'], 'EUR', 'la fuente vuelve: euros otra vez');
+
+// ═════════════════════════════════════════════════════════════════════════════
 titulo('3. Abrir el cobro (pagar.php)');
 $r = pagar('plan=no_existe');
 eq($r['codigo'], 404, 'un plan que no existe: 404');
@@ -187,6 +251,20 @@ $q = stripe_pedido()['params'];
 eq([$q['client_reference_id'], $q['metadata']['origen']], [$hwPanel, 'panel'], 'desde el panel del celular: la PC que mandó el programa');
 pagar('plan=premium_anual&panel=NO_EXISTE');
 eq(isset(stripe_pedido()['params']['client_reference_id']), false, '... un panel sin PC conocida: como la página (con código)');
+pagar("plan=premium_anual&hw=$hw&origen=pos&pais=ES");
+$q = stripe_pedido()['params'];
+ok($q['payment_method_types'] === ['card'] && !isset($q['payment_method_options']) && $q['metadata']['pais'] === 'ES',
+   'desde España: solo tarjeta (OXXO es de México y no deja que Stripe convierta) y el país va en los datos', json_encode($q));
+eq([$q['line_items'][0]['price_data']['currency'], $q['line_items'][0]['price_data']['unit_amount']], ['mxn', '129000'],
+   '... el precio sigue en pesos: Stripe lo convierte al pagar');
+pagar("plan=premium_mensual&hw=$hw&origen=pos&pais=ES");
+$q = stripe_pedido()['params'];
+eq([$q['payment_method_types'], $q['subscription_data']['metadata']['pais']], [['card'], 'ES'], '... la mensualidad igual');
+foreach (['MX', 'es', 'ESP', ''] as $p) {
+    pagar("plan=premium_anual&hw=$hw&origen=pos&pais=$p");
+    $q = stripe_pedido()['params'];
+    ok($q['payment_method_types'] === ['card', 'oxxo'] && !isset($q['metadata']['pais']), "pais=«{$p}»: con OXXO, como siempre");
+}
 touch('/tmp/stripe_caido');
 $r = pagar("plan=premium_anual&hw=$hw");
 unlink('/tmp/stripe_caido');

@@ -590,7 +590,7 @@ console.log('\n\x1b[1m20. Dónde está el servidor, ids que no son de tiendas, e
 console.log('\n\x1b[1m21. Archivos del service worker y sin errores JS\x1b[0m');
 {
     ok(/'\/dashboard\/tiendas\.js'/.test(SW), 'tiendas.js está en el shell del service worker');
-    eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v11', 'versión del caché subida');
+    eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v12', 'versión del caché subida');
     ok(/<script src="\/dashboard\/tiendas\.js(\?v=\d+)?" defer><\/script>/.test(HTML), 'index.html carga tiendas.js después de dashboard.js');
     ok(HTML.indexOf('dashboard.js') < HTML.indexOf('tiendas.js'), 'y en ese orden');
     ok(fs.existsSync(PUB + '/dashboard/tiendas.js'), 'existe el archivo');

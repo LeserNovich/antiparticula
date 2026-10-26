@@ -31,6 +31,7 @@ $dbname     = $cfg['dbname'];
 // --- 3. OBTENER DATOS DEL FORMULARIO ---
 $comentario   = isset($_POST['comentario'])   ? trim($_POST['comentario'])                  : '';
 $email        = isset($_POST['email'])        ? trim($_POST['email'])                       : null;
+$telefono     = isset($_POST['telefono'])     ? trim($_POST['telefono'])                    : null;
 $nombre       = isset($_POST['nombre'])       ? substr(trim($_POST['nombre']), 0, 100)      : null;
 $tipo_negocio = isset($_POST['tipo_negocio']) ? substr(trim($_POST['tipo_negocio']), 0, 100): null;
 $calificacion = isset($_POST['calificacion']) ? max(1, min(5, intval($_POST['calificacion']))): 5;
@@ -95,6 +96,23 @@ if (!empty($email)) {
     }
 }
 
+// Validar teléfono si se proporcionó: se guarda solo con dígitos y un + opcional al inicio
+// (el POS ya lo manda así; aquí se limpia igual por si llega de otro lado). 8 a 15 dígitos.
+if ($telefono !== null && $telefono !== '') {
+    $telefono = preg_replace('/[\s().\-]+/', '', $telefono);
+    if (!preg_match('/^\+?\d{8,15}$/', $telefono)) {
+        http_response_code(400);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'El teléfono no tiene un formato válido'
+        ]);
+        exit;
+    }
+} else {
+    $telefono = null;
+}
+
 // --- 5. OBTENER DATOS DEL CLIENTE (IP y Geolocalización) ---
 $ip_address = $_SERVER['REMOTE_ADDR'];
 
@@ -141,22 +159,35 @@ try {
         exit;
     }
 
-    // Insertar
-    $stmt = $conn->prepare("
-        INSERT INTO comentarios_sugerencias
-        (comentario, email, nombre, tipo_negocio, calificacion, ip_address, pais, ciudad, fecha_hora)
-        VALUES
-        (:comentario, :email, :nombre, :tipo_negocio, :calificacion, :ip_address, :pais, :ciudad, NOW())
-    ");
-    $stmt->bindParam(':comentario',   $comentario,   PDO::PARAM_STR);
-    $stmt->bindParam(':email',        $email,        PDO::PARAM_STR);
-    $stmt->bindParam(':nombre',       $nombre,       PDO::PARAM_STR);
-    $stmt->bindParam(':tipo_negocio', $tipo_negocio, PDO::PARAM_STR);
-    $stmt->bindParam(':calificacion', $calificacion, PDO::PARAM_INT);
-    $stmt->bindParam(':ip_address',   $ip_address,   PDO::PARAM_STR);
-    $stmt->bindParam(':pais',         $pais,         PDO::PARAM_STR);
-    $stmt->bindParam(':ciudad',       $ciudad,       PDO::PARAM_STR);
-    $stmt->execute();
+    // Insertar. Si la columna `telefono` todavía no existe (falta correr sql/2026-10-24_comentarios_telefono.sql),
+    // el mensaje se guarda igual y el teléfono viaja al final del comentario: así no se pierde ni se rechaza el mensaje.
+    $sql = 'INSERT INTO comentarios_sugerencias
+            (comentario, email, %snombre, tipo_negocio, calificacion, ip_address, pais, ciudad, fecha_hora)
+            VALUES
+            (:comentario, :email, %s:nombre, :tipo_negocio, :calificacion, :ip_address, :pais, :ciudad, NOW())';
+    $datos = [
+        ':comentario'   => $comentario,
+        ':email'        => $email,
+        ':nombre'       => $nombre,
+        ':tipo_negocio' => $tipo_negocio,
+        ':calificacion' => $calificacion,
+        ':ip_address'   => $ip_address,
+        ':pais'         => $pais,
+        ':ciudad'       => $ciudad,
+    ];
+    try {
+        $stmt = $conn->prepare(sprintf($sql, 'telefono, ', ':telefono, '));
+        $stmt->execute($datos + [':telefono' => $telefono]);
+    } catch (PDOException $e) {
+        if (!isset($e->errorInfo[1]) || (int)$e->errorInfo[1] !== 1054) { // 1054 = columna desconocida
+            throw $e;
+        }
+        if ($telefono !== null) {
+            $datos[':comentario'] = $comentario . "\n\nTeléfono: " . $telefono;
+        }
+        $stmt = $conn->prepare(sprintf($sql, '', ''));
+        $stmt->execute($datos);
+    }
 
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');

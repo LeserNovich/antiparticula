@@ -301,6 +301,25 @@ function adm_lista_equipos(PDO $c) {
     return $filas;
 }
 
+// La versión con que entró cada computadora la última vez: [ID => '3.7.0', o '' si ese evento no la trajo: los POS de
+// hasta 3.6.0 no la mandan]. $donde es el FROM … WHERE de la consulta. Va en su propio bloque (uso_punto_venta.version_pos):
+// sin la columna, lo demás de la página sigue.
+function adm_versiones(PDO $c, $donde, array $par = []) {
+    $m = [];
+    foreach (adm_todos($c, "SELECT hardware_id AS id,
+                SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(version_pos, '') ORDER BY fecha_hora DESC SEPARATOR '\n'), '\n', 1) AS v
+                $donde GROUP BY hardware_id", $par) as $f) {
+        $m[$f['id']] = (string) $f['v'];
+    }
+    return $m;
+}
+
+// La versión publicada (la cabecera de version.json, la que el POS ofrece al actualizar); null si no se puede leer
+function adm_version_publicada() {
+    $j = @json_decode((string) @file_get_contents(dirname(__DIR__) . '/version.json'), true);
+    return is_array($j) && isset($j['version']) && is_string($j['version']) ? $j['version'] : null;
+}
+
 // ── Secciones ───────────────────────────────────────────────────────────────
 function sec_resumen(PDO $c, $p) {
     $ocultos = adm_ocultos($c);
@@ -549,13 +568,30 @@ function sec_computadoras(PDO $c, $p) {
         return array_values($cohortes);
     });
 
+    // En qué versión están: las que lo usaron en el periodo, por la versión con que entraron la última vez
+    $r['versiones'] = adm_bloque('uso_punto_venta.version_pos', function () use ($c, $EN, $par) {
+        $cuenta = [];
+        foreach (adm_versiones($c, $EN, $par) as $v) $cuenta[$v] = (isset($cuenta[$v]) ? $cuenta[$v] : 0) + 1;
+        $filas = [];
+        foreach ($cuenta as $v => $n) $filas[] = ['version' => (string) $v, 'n' => $n];
+        // De la más nueva a la más vieja; las que no la mandan («3.6.0 o anterior») al final
+        usort($filas, function ($a, $b) {
+            if ($a['version'] === '' || $b['version'] === '') return $a['version'] === '' ? 1 : -1;
+            return version_compare($b['version'], $a['version']);
+        });
+        return ['filas' => $filas, 'publicada' => adm_version_publicada()];
+    });
+
     $paneles = adm_paneles($c);
     $licencias = adm_licencias($c, $paneles);
     $premium = [];
     foreach ($licencias as $l) {
         if ($l['equipo'] && (!isset($premium[$l['equipo']]) || $l['vence'] > $premium[$l['equipo']])) $premium[$l['equipo']] = $l['vence'];
     }
-    $r['lista'] = adm_bloque('uso_punto_venta', function () use ($c, $paneles, $premium, $ocultos) {
+    $versiones = adm_bloque('uso_punto_venta.version_pos', function () use ($c) {
+        return adm_versiones($c, "FROM uso_punto_venta WHERE hardware_id IS NOT NULL AND hardware_id NOT IN ('', 'UNKNOWN')");
+    });
+    $r['lista'] = adm_bloque('uso_punto_venta', function () use ($c, $paneles, $premium, $ocultos, $versiones) {
         $lista = adm_lista_equipos($c);
         foreach ($lista as &$f) {
             $id = $f['id'];
@@ -564,6 +600,8 @@ function sec_computadoras(PDO $c, $p) {
             if ($f['panel'] && !$f['negocio']) $f['negocio'] = $paneles[$id]['negocio'];
             $f['premium'] = isset($premium[$id]) ? $premium[$id] : null;
             $f['oculto'] = isset($ocultos[$id]);
+            // null = no se sabe (falta la columna); '' = la mandó un POS de hasta 3.6.0
+            $f['version'] = $versiones === null ? null : (isset($versiones[$id]) ? $versiones[$id] : '');
         }
         return $lista;
     });
@@ -805,12 +843,18 @@ function sec_comentarios(PDO $c, $p) {
     $r = ['periodo' => $P];
     $r['lista'] = adm_bloque('comentarios_sugerencias', function () use ($c) {
         try {
-            return adm_todos($c, 'SELECT id, comentario, email, nombre, tipo_negocio, calificacion, pais, ciudad, fecha_hora
+            return adm_todos($c, 'SELECT id, comentario, email, telefono, nombre, tipo_negocio, calificacion, pais, ciudad, fecha_hora
                                   FROM comentarios_sugerencias ORDER BY fecha_hora DESC, id DESC LIMIT 1000');
         } catch (PDOException $e) {
-            // La tabla de antes del formulario de opiniones de la página: todo vino del programa
-            return adm_todos($c, 'SELECT id, comentario, email, NULL AS nombre, NULL AS tipo_negocio, NULL AS calificacion, pais, ciudad, fecha_hora
-                                  FROM comentarios_sugerencias ORDER BY fecha_hora DESC, id DESC LIMIT 1000');
+            // Sin la columna `telefono` (falta sql/2026-10-24_comentarios_telefono.sql)
+            try {
+                return adm_todos($c, 'SELECT id, comentario, email, NULL AS telefono, nombre, tipo_negocio, calificacion, pais, ciudad, fecha_hora
+                                      FROM comentarios_sugerencias ORDER BY fecha_hora DESC, id DESC LIMIT 1000');
+            } catch (PDOException $e2) {
+                // La tabla de antes del formulario de opiniones de la página: todo vino del programa
+                return adm_todos($c, 'SELECT id, comentario, email, NULL AS telefono, NULL AS nombre, NULL AS tipo_negocio, NULL AS calificacion, pais, ciudad, fecha_hora
+                                      FROM comentarios_sugerencias ORDER BY fecha_hora DESC, id DESC LIMIT 1000');
+            }
         }
     });
     return $r;
@@ -852,6 +896,18 @@ function sec_equipo(PDO $c, $id, $lic) {
                                          WHERE hardware_id = :id AND fecha_hora >= :desde GROUP BY d", $par + [':desde' => adm_dia($hoy, -370)]),
                 'negocios' => adm_todos($c, "SELECT negocio, MAX(fecha_hora) AS ultima FROM uso_punto_venta
                                              WHERE hardware_id = :id AND negocio IS NOT NULL AND negocio <> '' GROUP BY negocio ORDER BY ultima DESC", $par),
+            ];
+        });
+
+        // Las versiones que ha tenido, de la más reciente a la más vieja (sin las de hasta 3.6.0, que no la mandaban)
+        $r['versiones'] = adm_bloque('uso_punto_venta.version_pos', function () use ($c, $par) {
+            $actual = adm_versiones($c, 'FROM uso_punto_venta WHERE hardware_id = :id', $par);
+            return [
+                'actual' => isset($actual[$par[':id']]) ? $actual[$par[':id']] : null,
+                'historial' => adm_todos($c, 'SELECT version_pos AS version, MIN(fecha_hora) AS desde, MAX(fecha_hora) AS hasta
+                                              FROM uso_punto_venta WHERE hardware_id = :id AND version_pos IS NOT NULL
+                                              GROUP BY version_pos ORDER BY hasta DESC', $par),
+                'publicada' => adm_version_publicada(),
             ];
         });
 
