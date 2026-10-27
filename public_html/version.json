@@ -1,10 +1,19 @@
 {
-"version": "3.7.0",
+"version": "3.7.1",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "Desglose de IVA, productos en dos renglones en el ticket, encabezado con más líneas y pantallas renovadas",
+"changelog": "El inicio de sesión ya no se corta cuando el nombre del negocio es largo",
 "mandatory": false,
 
   "historial": [
+    {
+  "version": "3.7.1",
+  "fecha": "2026-10-26",
+  "titulo": "Corrección menor",
+  "cambios": [
+    "La pantalla de inicio de sesión ya no se corta cuando el nombre de tu negocio es largo: el nombre se acomoda en dos renglones y todos los botones se ven completos.",
+    "Si la ventana es más baja que la pantalla de inicio, ahora puedes desplazarte en vez de que se corte."
+  ]
+},
     {
   "version": "3.7.0",
   "fecha": "2026-10-26",
