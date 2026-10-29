@@ -187,6 +187,8 @@ if ($MIGRADO) {
         'top_productos' => ['hoy' => $mas(8), 'semana' => $mas(2), 'mes' => [['nombre' => 'Neg', 'importe' => -5, 'cantidad' => -1, 'unidad' => 1]], 'anio' => $mas(1)],
         'por_cajero' => array_map(function ($i) { return ['cajero' => "Cajero $i<script>", 'tickets' => $i, 'ventas' => 100 * $i]; }, range(1, 14)),
         'apartados' => ['activos' => 3, 'por_cobrar' => 125000, 'vencidos' => 1],
+        'clientes' => ['por_cobrar' => 245050, 'deben' => 4, 'atrasado' => -9, 'atrasados' => 2, 'abonado_hoy' => 30000,
+                       'abonado_mes' => 90000, 'nombre' => '<script>'],
         'presupuestos' => ['vigentes' => 4, 'monto' => 900000, 'por_vencer' => 2, 'vencidos' => 1],
         'gastos' => ['hoy' => 15000, 'mes' => 420000],
         'meta_diaria' => 1500000,
@@ -207,6 +209,11 @@ if ($MIGRADO) {
     eq(count($e['por_cajero'] ?? []), 10, 'por cajero: tope de 10');
     ok(strpos(json_encode($e['por_cajero']), 'script') === false, 'el nombre del cajero sale sin HTML');
     eq($e['apartados']['por_cobrar'] ?? null, 125000, 'apartados por cobrar');
+    eq($e['clientes']['por_cobrar'] ?? null, 245050, 'fiado: lo que deben los clientes');
+    eq($e['clientes']['deben'] ?? null, 4, 'fiado: cuántos deben');
+    eq($e['clientes']['atrasado'] ?? null, 0, 'fiado: un monto negativo se acota a 0');
+    eq($e['clientes']['abonado_mes'] ?? null, 90000, 'fiado: lo abonado en el mes');
+    ok(!isset($e['clientes']['nombre']), 'fiado: lo desconocido dentro de la clave se descarta');
     eq($e['presupuestos']['por_vencer'] ?? null, 2, 'presupuestos por vencer');
     eq($e['gastos']['mes'] ?? null, 420000, 'gastos del mes');
     eq($e['meta_diaria'] ?? null, 1500000, 'meta diaria');

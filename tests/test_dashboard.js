@@ -630,6 +630,23 @@ ok(q('cobrarCuerpo').hidden, 'cifras absurdas se vuelven cero y la tarjeta no ap
 // ── Utilidad del mes (Historial → Mes) ──
 await cargar();
 ok(!q('utilidadTile').hidden, 'con gastos aparece «Utilidad del mes»');
+
+// ── Clientes con fiado (en Caja) ──
+await cargar(b => { b.extra.clientes = { por_cobrar: 245050, deben: 4, atrasado: 150000, atrasados: 2, abonado_hoy: 30000, abonado_mes: 90000 }; });
+const cf = leer(q('cobrarCuerpo'));
+ok(/Te deben \(fiado\) 2 atrasados \$ 2,450\.50 4 clientes deben · \$ 1,500\.00 con más de 30 días · hoy abonaron \$ 300\.00/.test(cf),
+    'fiado: lo que deben, cuántos, los atrasados y lo abonado hoy', cf);
+await cargar(b => { b.extra.clientes = { por_cobrar: 5000, deben: 1, atrasado: 0, atrasados: 0, abonado_hoy: 0, abonado_mes: 0 }; });
+const cf1 = leer(q('cobrarCuerpo'));
+ok(/Te deben \(fiado\) \$ 50\.00 1 cliente debe/.test(cf1) && !/atrasad/.test(cf1) && !/abonaron/.test(cf1), 'fiado: singular, sin chip ni abonos', cf1);
+await cargar(b => { b.extra.clientes = { por_cobrar: 0, deben: 0, atrasado: 0, atrasados: 0, abonado_hoy: 0, abonado_mes: 0 }; });
+ok(!/Te deben/.test(leer(q('cobrarCuerpo'))), 'quien no fía no ve la tarjeta');
+await cargar(b => { delete b.extra.apartados; delete b.extra.presupuestos; delete b.extra.gastos;
+    b.extra.clientes = { por_cobrar: 'x', deben: -2, atrasado: null, atrasados: -1, abonado_hoy: -5 }; });
+ok(q('cobrarCuerpo').hidden, 'fiado con cifras absurdas: ceros y la sección no aparece');
+await cargar(b => { delete b.extra.apartados; delete b.extra.presupuestos; delete b.extra.gastos;
+    b.extra.clientes = { por_cobrar: 1000, deben: 1, atrasado: 0, atrasados: 0, abonado_hoy: 0 }; });
+ok(!q('cobrarCuerpo').hidden && /Te deben/.test(leer(q('cobrarCuerpo'))), 'solo con fiado la sección aparece');
 eq(q('utilidadValor').textContent, money('150.00'), 'ganancia del mes (1,350.00) menos gastos del mes (1,200.00)');
 ok(q('utilidadValor').classList.contains('c-ganancia') && !q('utilidadValor').classList.contains('c-alerta'), 'en verde si es positiva');
 ok(/Ganancia \$ 1,350\.00 . gastos \$ 1,200\.00/.test(norm(q('utilidadSub').textContent)), 'muestra la resta', q('utilidadSub').textContent);
@@ -933,7 +950,7 @@ const shell = [...SW.matchAll(/'(\/dashboard\/[^']+)'/g)].map(m => m[1]);
 ok(shell.length >= 5, 'el service worker lista su shell', shell.join(', '));
 shell.forEach(f => ok(fs.existsSync(PUB + f), 'existe ' + f));
 ok(/cache:\s*'reload'/.test(SW), 'el SW precachea saltando la caché HTTP');
-eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v12', 'versión del caché subida');
+eq((SW.match(/CACHE_NAME = '([^']+)'/) || [])[1], 'antiparticula-dashboard-v13', 'versión del caché subida');
 // El CDN de Hostinger guarda css/js 7 días: cada publicación los pide con ?v=<versión> (el número de CACHE_NAME)
 {
     const ver = (SW.match(/CACHE_NAME = 'antiparticula-dashboard-v(\d+)'/) || [])[1];

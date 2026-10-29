@@ -61,6 +61,44 @@ try {
     error_log('registrar_descarga.php PDO error: ' . $e->getMessage());
 }
 
+// --- 4. AVISO A TIKTOK ---
+// Solo si la página mandó event_id (el mismo que lleva el Pixel: TikTok cuenta uno). Si la descarga viene de un
+// link personal de /gratis (código en el POST o en la cookie ap_reg), se anota que ese registro descargó y el
+// evento lleva su WhatsApp y el clic de su anuncio: así TikTok une la descarga en la computadora con el anuncio
+// que vio en el celular. Ya se contestó al navegador; nada de esto cambia la respuesta.
+if (isset($_POST['event_id']) && is_string($_POST['event_id']) && $_POST['event_id'] !== '') {
+    define('GRATIS_COMUN_OK', true);
+    require_once __DIR__ . '/gratis_comun.php';
+    ignore_user_abort(true);
+    if (function_exists('litespeed_finish_request')) litespeed_finish_request();
+    elseif (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+
+    $persona = gratis_visitante();
+    $sistema = isset($_POST['sistema']) && in_array($_POST['sistema'], ['windows', 'macArm', 'macIntel'], true) ? $_POST['sistema'] : null;
+    $codigo  = gratis_codigo_valido(isset($_POST['codigo']) && $_POST['codigo'] !== '' ? $_POST['codigo']
+                                    : (isset($_COOKIE['ap_reg']) ? $_COOKIE['ap_reg'] : ''));
+    if ($codigo !== null && isset($conn) && $conn instanceof PDO) {
+        try {
+            $st = $conn->prepare('SELECT telefono, ttclid FROM registros_gratis WHERE codigo = :c');
+            $st->execute([':c' => $codigo]);
+            $reg = $st->fetch(PDO::FETCH_ASSOC);
+            if ($reg) {
+                $conn->prepare('UPDATE registros_gratis SET descargo_en = COALESCE(descargo_en, NOW()), sistema = COALESCE(sistema, :s)
+                                WHERE codigo = :c')->execute([':s' => $sistema, ':c' => $codigo]);
+                $persona['telefono'] = $reg['telefono'];
+                $persona['codigo']   = $codigo;
+                if ($reg['ttclid'] !== null) $persona['ttclid'] = $reg['ttclid'];
+            }
+        } catch (PDOException $e) {
+            // Sin la tabla (falta sql/2026-10-27_registros_gratis.sql): el evento sale sin los datos del registro
+            error_log('registrar_descarga.php registro de /gratis: ' . $e->getMessage());
+        }
+    }
+    tiktok_evento($cfg, 'Download', gratis_event_id($_POST['event_id']), $persona,
+                  ['content_name' => $sistema !== null ? $sistema : 'instalador'],
+                  gratis_url(isset($_POST['url']) ? $_POST['url'] : ''));
+}
+
 // Cerrar la conexión
 $conn = null;
 ?>

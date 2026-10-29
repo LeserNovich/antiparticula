@@ -208,6 +208,19 @@ function dash_sanear_extra($e) {
         ];
     }
 
+    // Clientes con fiado (POS con «Clientes y crédito», 2026-10-28): lo que deben hoy, cuántos, los atrasados (> 30 días) y lo abonado hoy y en el mes
+    if (isset($e['clientes']) && is_array($e['clientes'])) {
+        $cl = $e['clientes'];
+        $out['clientes'] = [
+            'por_cobrar'  => dash_monto0(isset($cl['por_cobrar']) ? $cl['por_cobrar'] : 0),
+            'deben'       => dash_int(isset($cl['deben']) ? $cl['deben'] : 0, 0, 100000000),
+            'atrasado'    => dash_monto0(isset($cl['atrasado']) ? $cl['atrasado'] : 0),
+            'atrasados'   => dash_int(isset($cl['atrasados']) ? $cl['atrasados'] : 0, 0, 100000000),
+            'abonado_hoy' => dash_monto0(isset($cl['abonado_hoy']) ? $cl['abonado_hoy'] : 0),
+            'abonado_mes' => dash_monto0(isset($cl['abonado_mes']) ? $cl['abonado_mes'] : 0),
+        ];
+    }
+
     if (isset($e['presupuestos']) && is_array($e['presupuestos'])) {
         $pr = $e['presupuestos'];
         $out['presupuestos'] = [

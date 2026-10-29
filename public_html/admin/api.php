@@ -2,11 +2,13 @@
 // ────────────────────────────────────────────────────────────────────────────
 // Los datos de tu página privada (/admin/), en JSON. Solo con la sesión de la clave (cookie de admin/index.php).
 //
-//   GET  api.php?s=resumen|descargas|computadoras|tiendas|premium|comentarios&p=7|30|90|365|todo
+//   GET  api.php?s=resumen|descargas|registros|computadoras|tiendas|premium|comentarios&p=7|30|90|365|todo
 //   GET  api.php?s=equipo&id=<ID del panel y la telemetría>   (o &lic=<Hardware ID de la licencia>)
 //   POST api.php  (cabecera X-Admin: 1)   accion=ocultar&id=…&nota=…  |  accion=contar&id=…  |  accion=salir
+//                                         accion=escrito|baja|quitar_baja|borrar_registro&id=<id de registros_gratis>
 //
-// Solo LEE la base, salvo admin_ocultos (los equipos que no cuentan). Cada bloque es independiente: si falta una
+// Solo LEE la base, salvo admin_ocultos (los equipos que no cuentan) y el seguimiento de registros_gratis (a quién le
+// escribiste, quién pidió BAJA y borrar a quien pida que se borren sus datos). Cada bloque es independiente: si falta una
 // tabla o una columna, ese bloque sale null y su nombre va en `faltan`; la página no lo enseña (nunca un cero
 // inventado). Las cruces entre tablas de distinto origen (telemetría, panel, tienda) se hacen aquí en PHP y no con
 // JOIN: las tablas creadas a mano en phpMyAdmin pueden tener otra intercalación y MySQL rechazaría la comparación.
@@ -19,6 +21,9 @@ require __DIR__ . '/../admin_comun.php';
 // Los planes y sus precios viven solo en tienda_planes() (y con ella llega dashboard_comun.php)
 define('TIENDA_COMUN_OK', true);
 require_once __DIR__ . '/../tienda_comun.php';
+// Los giros de /gratis y el link personal de cada registro viven en gratis_comun.php
+define('GRATIS_COMUN_OK', true);
+require_once __DIR__ . '/../gratis_comun.php';
 
 $cfg = admin_config();
 admin_cabeceras(false);
@@ -452,6 +457,10 @@ function sec_resumen(PDO $c, $p) {
         return adm_uno($c, 'SELECT MAX(recibido) FROM tienda_eventos') ?: null;
     });
     $pend['se_fueron'] = $r['equipos'] ? $r['equipos']['se_fueron'] : null;
+    // Quien pidió el link en /gratis y todavía no le escribes (ni pidió BAJA)
+    $pend['registros'] = adm_bloque('registros_gratis.seguimiento', function () use ($c) {
+        return (int) adm_uno($c, 'SELECT COUNT(*) FROM registros_gratis WHERE contactado_en IS NULL AND baja_en IS NULL');
+    });
     $r['pendientes'] = $pend;
     $r['ocultos'] = count($ocultos);
     return $r;
@@ -502,6 +511,67 @@ function sec_descargas(PDO $c, $p) {
         return (int) adm_uno($c, "SELECT COUNT(*) FROM (SELECT MIN(fecha_hora) AS f FROM $USO GROUP BY hardware_id) t WHERE f >= :d AND f < :f",
                              [':d' => $P['desde'], ':f' => $P['fin']]);
     });
+    return $r;
+}
+
+// Quien dejó su WhatsApp en /gratis (los anuncios de TikTok): cuántos, cuántos descargaron, de qué giro, y la lista
+// para darles seguimiento. La lista es de siempre (no del periodo): lo pendiente no caduca. Sin las columnas del
+// seguimiento (contactado_en, baja_en: la segunda versión de la migración) la lista sale igual, 'seguimiento' = false y
+// 'registros_gratis.seguimiento' va en faltan: la página no enseña los botones que las escriben.
+function sec_registros(PDO $c, $p) {
+    $minimo = adm_bloque('registros_gratis', function () use ($c) {
+        return adm_uno($c, 'SELECT MIN(creado) FROM registros_gratis');
+    });
+    $P = adm_periodo($p, $minimo);
+    $r = ['periodo' => $P, 'giros' => GRATIS_GIROS];
+    $W = 'FROM registros_gratis WHERE creado >= :d AND creado < :f';
+    $par = [':d' => $P['desde'], ':f' => $P['fin']];
+    $r['datos'] = adm_bloque('registros_gratis', function () use ($c, $P, $W, $par) {
+        $contar = function ($d, $f) use ($c) {
+            return adm_todos($c, 'SELECT COUNT(*) AS n, COUNT(descargo_en) AS descargaron, COALESCE(SUM(ttclid IS NOT NULL), 0) AS de_anuncio
+                                  FROM registros_gratis WHERE creado >= :d AND creado < :f', [':d' => $d, ':f' => $f])[0];
+        };
+        $act = $contar($P['desde'], $P['fin']);
+        $ant = $P['antes_desde'] ? $contar($P['antes_desde'], $P['antes_fin']) : null;
+        $b = adm_bucket('creado', $P['gran']);
+        $serie = adm_todos($c, "SELECT $b AS k, COUNT(*) AS n, COUNT(descargo_en) AS descargaron $W GROUP BY k", $par);
+        // Cuánto tardan en descargar desde que se registran: dice cuándo conviene escribirles
+        $tramos = [0, 0, 0, 0];   // menos de 1 h · 1 a 24 h · 1 a 3 días · más de 3 días
+        foreach (adm_todos($c, "SELECT TIMESTAMPDIFF(MINUTE, creado, descargo_en) AS m $W AND descargo_en IS NOT NULL", $par) as $f) {
+            $m = (int) $f['m'];
+            $tramos[$m < 60 ? 0 : ($m < 1440 ? 1 : ($m < 4320 ? 2 : 3))]++;
+        }
+        return [
+            'actual' => (int) $act['n'], 'anterior' => $ant ? (int) $ant['n'] : null,
+            'descargaron' => (int) $act['descargaron'], 'de_anuncio' => (int) $act['de_anuncio'],
+            'total' => (int) adm_uno($c, 'SELECT COUNT(*) FROM registros_gratis'),
+            'serie' => adm_serie($serie, $P['claves'], 'n'),
+            'serie_descargaron' => adm_serie($serie, $P['claves'], 'descargaron'),
+            'giros' => adm_todos($c, "SELECT giro, COUNT(*) AS n, COUNT(descargo_en) AS descargaron $W GROUP BY giro ORDER BY n DESC, giro", $par),
+            'tardanza' => $tramos,
+        ];
+    });
+    $seguimiento = true;
+    $r['lista'] = adm_bloque('registros_gratis', function () use ($c, &$seguimiento) {
+        global $FALTAN, $ERRORES;
+        $cols = 'id, codigo, telefono, nombre, giro, ttclid IS NOT NULL AS de_anuncio, creado, descargo_en, sistema';
+        try {
+            $filas = adm_todos($c, "SELECT $cols, contactado_en, baja_en FROM registros_gratis ORDER BY creado DESC, id DESC LIMIT " . ADM_LISTA_MAX);
+        } catch (PDOException $e) {
+            // La tabla de la primera versión de la migración: sin el seguimiento
+            $seguimiento = false;
+            $FALTAN[] = 'registros_gratis.seguimiento';
+            $ERRORES['registros_gratis.seguimiento'] = $e->getMessage();
+            $filas = adm_todos($c, "SELECT $cols, NULL AS contactado_en, NULL AS baja_en FROM registros_gratis ORDER BY creado DESC, id DESC LIMIT " . ADM_LISTA_MAX);
+        }
+        foreach ($filas as &$f) {
+            $f['id'] = (int) $f['id'];
+            $f['de_anuncio'] = (bool) $f['de_anuncio'];
+            $f['link'] = gratis_link($f['codigo']);
+        }
+        return $filas;
+    });
+    $r['seguimiento'] = $r['lista'] !== null && $seguimiento;
     return $r;
 }
 
@@ -991,6 +1061,33 @@ function sec_equipo(PDO $c, $id, $lic) {
     return $r;
 }
 
+// ── Escrituras: el seguimiento de /gratis ───────────────────────────────────
+// escrito: le escribiste por WhatsApp (no a quien pidió BAJA: 409) · baja / quitar_baja · borrar_registro: borra sus
+// datos para siempre (quien lo pida, como promete el aviso de privacidad). id = el número del registro.
+$SEGUIMIENTO = [
+    'escrito'         => 'UPDATE registros_gratis SET contactado_en = NOW() WHERE id = :id AND baja_en IS NULL',
+    'baja'            => 'UPDATE registros_gratis SET baja_en = COALESCE(baja_en, NOW()) WHERE id = :id',
+    'quitar_baja'     => 'UPDATE registros_gratis SET baja_en = NULL WHERE id = :id',
+    'borrar_registro' => 'DELETE FROM registros_gratis WHERE id = :id',
+];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($SEGUIMIENTO[$accion])) {
+    $rid = isset($_POST['id']) ? (string) $_POST['id'] : '';
+    if (!preg_match('/^[0-9]{1,10}$/', $rid)) admin_json(400, ['status' => 'error', 'message' => 'ID inválido']);
+    try {
+        $existe = adm_uno($conn, 'SELECT COUNT(*) FROM registros_gratis WHERE id = :id', [':id' => (int) $rid]);
+        if (!(int) $existe) admin_json(404, ['status' => 'error', 'message' => 'Ese registro ya no existe']);
+        $st = $conn->prepare($SEGUIMIENTO[$accion]);
+        $st->execute([':id' => (int) $rid]);
+        if ($accion === 'escrito' && $st->rowCount() === 0) {
+            admin_json(409, ['status' => 'error', 'message' => 'Pidió que no le escribieran más (BAJA)']);
+        }
+    } catch (PDOException $e) {
+        error_log('admin/api (seguimiento): ' . $e->getMessage());
+        admin_json(500, ['status' => 'error', 'message' => 'Falta correr sql/2026-10-27_registros_gratis.sql']);
+    }
+    admin_json(200, ['status' => 'ok', 'ahora' => date('Y-m-d H:i:s')]);
+}
+
 // ── Escrituras: apartar o volver a contar un equipo ─────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = isset($_POST['id']) ? (string) $_POST['id'] : '';
@@ -1019,6 +1116,7 @@ try {
     switch ($s) {
         case 'resumen':      $datos = sec_resumen($conn, $p); break;
         case 'descargas':    $datos = sec_descargas($conn, $p); break;
+        case 'registros':    $datos = sec_registros($conn, $p); break;
         case 'computadoras': $datos = sec_computadoras($conn, $p); break;
         case 'tiendas':      $datos = sec_tiendas($conn, $p); break;
         case 'premium':      $datos = sec_premium($conn, $p); break;

@@ -204,5 +204,27 @@ $c->prepare('INSERT INTO tienda_eventos (id, tipo, recibido) VALUES (?, ?, ?)')-
 $c->prepare('INSERT INTO tienda_eventos (id, tipo, recibido) VALUES (?, ?, ?)')->execute(['evt_2', 'invoice.paid', momento(1, 12, 0)]);
 $c->prepare('INSERT INTO tienda_intentos (ip, hora, fallos) VALUES (?, ?, ?)')->execute(['5.5.5.5', date('Y-m-d H', time() - 3600), 4]);
 
+// ── Registros de /gratis: 30 en dos meses; unos descargaron (a distintos ritmos), a unos ya les escribiste, uno pidió BAJA ──
+$giros = ['abarrotes', 'ferreteria', 'farmacia', 'papeleria', 'ropa', 'comida', 'otro'];
+$insG = $c->prepare('INSERT INTO registros_gratis (codigo, telefono, nombre, giro, ttclid, ttp, ip, user_agent, creado, descargo_en, sistema, contactado_en, baja_en)
+                     VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?)');
+$ahora = time();
+$registros = [];
+for ($i = 0; $i < 30; $i++) {
+    $creado = strtotime(momento($i * 2, mt_rand(8, 21), mt_rand(0, 59)));
+    if ($creado > $ahora) $creado = $ahora - 600;
+    $tarda = [5, 60, 90, 1440, 2000, 4320, 6000][$i % 7];   // minutos hasta descargar (60, 1440 y 4320: justo en el borde de cada tramo)
+    $descargo = ($i % 5 !== 3 && $creado + $tarda * 60 <= $ahora) ? $creado + $tarda * 60 : null;
+    $escrito = ($i % 4 === 0 && $creado + 86400 <= $ahora) ? $creado + 86400 : null;
+    $baja = $i === 7 ? $creado + 2 * 86400 : null;
+    $f = function ($t) { return $t === null ? null : date('Y-m-d H:i:s', $t); };
+    $insG->execute(['TST' . sprintf('%02d', $i), '+5255' . sprintf('%08d', 20000000 + $i), $i % 6 === 5 ? null : elegir(['Ana', 'Beto', 'Carla Ruiz', 'Don José']),
+                    $giros[$i % 7], $i % 3 === 0 ? null : 'E.C.P.anuncio' . $i, '10.0.0.' . $i, $f($creado), $f($descargo),
+                    $descargo ? elegir(['windows', 'macArm', 'macIntel']) : null, $f($escrito), $f($baja)]);
+    $registros[$i] = (int) $c->lastInsertId();
+}
+$hechos['registro_baja'] = $registros[7];
+$hechos['registro_pendiente'] = $registros[1];
+
 $hechos += ['equipos' => $equipos, 'prueba' => $prueba, 'euro' => $euro, 'tiendas' => $tiendas, 'licencias' => $licencias];
 echo json_encode($hechos);

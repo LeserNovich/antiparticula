@@ -78,9 +78,27 @@ MariaDB y PHP reales en contenedores. Aplica las migraciones (la de `/admin/` do
 cada cifra de la API con una consulta escrita aparte: entrada, cookie, freno, cada sección, apartar un equipo, tablas que faltan.
 
 ```bash
-tests/correr_admin.sh        # 133 comprobaciones
+tests/correr_admin.sh        # 177 comprobaciones (también Registros de /gratis: cifras, seguimiento, BAJA, borrar)
 tests/correr_admin.sh ver    # la deja abierta en http://localhost:8099/admin/ (clave: clave de prueba 2026)
 DB_IMG=mysql:8.0 tests/correr_admin.sh                   # contra otro servidor (también mariadb:11.8…)
 DB_MODO="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES" tests/correr_admin.sh   # con otro sql_mode
 ```
 
+
+## Página de los anuncios (`/gratis`) — `correr_gratis.sh`, `test_gratis.php` y `test_gratis_pagina.js`
+
+`correr_gratis.sh`: MariaDB y PHP reales en contenedores con una Events API de TikTok de imitación (`tiktok_falso.php`, que anota
+cada evento en `/tmp/tiktok_eventos.jsonl` y con `/tmp/tiktok_caido` contesta error). Cubre `registrar_gratis.php` (WhatsApp en
+E.164, giro, aceptación, campo de robots, misma persona = mismo código sin contar doble, freno por IP, sin la tabla), lo que le llega a
+TikTok (evento, event_id, Pixel, teléfono y código cifrados, ttclid, `_ttp`), el aviso de descargas de `registrar_descarga.php`
+(con y sin código, cookie `ap_reg`, la primera descarga no se pisa, sin la tabla) y que el formulario, `gratis.js`, el Pixel de las
+páginas y el `.htaccess` digan lo mismo que `gratis_comun.php`. La migración se aplica dos veces y con `information_schema` activa.
+
+`test_gratis_pagina.js`: la página en un Chromium de verdad (Playwright), como iPhone y como computadora con Windows, con el servidor
+contestado por la prueba: qué ve cada aparato, errores del formulario, lo que se manda al servidor y a la cola del Pixel (mismo event_id),
+el link personal, `?c=`, la cookie `ap_reg`, la descarga, las cifras reales, las preguntas y el aviso de privacidad sin scroll de lado.
+
+```bash
+tests/correr_gratis.sh                                                     # 132 comprobaciones
+NODE_PATH=<carpeta con playwright> node tests/test_gratis_pagina.js [capturas]   # 54; con carpeta deja capturas de cada estado
+```

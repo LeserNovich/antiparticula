@@ -39,8 +39,7 @@ antiparticula.com/
 │   │   ├── script.js           # Swiper carousel, WhatsApp integration
 │   │   └── mensaje-exito.js    # Download tracking & success modals
 │   ├── img/                    # Images and graphics
-│   ├── downloads/              # Downloadable files
-│   │   └── BD/                 # Database files (.sqbpro)
+│   ├── downloads/              # Instaladores (.exe y los dos .dmg): se suben a mano, están en .gitignore
 │   ├── products.json           # Product catalog data
 │   └── .htaccess               # Apache URL rewriting rules
 ├── parciales/                  # Menú y footer compartidos (fuente única, no se publica)
@@ -183,6 +182,17 @@ planes siguen en `$` (se cobran en pesos) y el panel de todas las tiendas (`tien
   (`navigator.share`, si no `wa.me/?text=`).
 - Cerrar la ventana del programa NO es «sesión cerrada» (el latido se detiene y el panel dice «sin datos del POS»).
 - Pruebas: `test_dashboard.js` 361, `correr_api.sh migrado` 153. Orden de despliegue: PHP → `dashboard/*` → POS.
+
+#### Fiado: `clientes` en `extra` (2026-10-28, `sw.js` → `antiparticula-dashboard-v13`; sin migración SQL)
+
+El POS con **Clientes y crédito** (Premium) manda siempre `clientes {por_cobrar, deben, atrasado, atrasados, abonado_hoy, abonado_mes}`
+(centavos; atrasado = de los clientes cuya compra más vieja sin pagar tiene más de 30 días). `dash_sanear_extra` lo acota (negativos a 0,
+lo desconocido dentro de la clave se descarta) y el panel lo enseña en **Caja** como «Te deben (fiado)», con chip de atrasados y lo
+abonado hoy; sin nadie que deba ni abonos de hoy, la tarjeta no aparece. Los abonos del cliente en efectivo ya vienen sumados en
+`caja.efectivo_ventas`. `tienda_beneficios()` lleva el renglón nuevo primero (igual que `Premium.INCLUYE`) y la página del Punto de Venta
+lo lista en la tarjeta de Premium y en la pregunta «¿Es gratis?». **Orden:** `dashboard_comun.php` y `dashboard/*` antes de publicar el POS
+(un PHP viejo descarta la clave sin avisar); `tienda_comun.php` y `paginas/puntodeventa.html` **junto con** el POS (anuncian la función).
+Pruebas: `test_dashboard.js` 417, `test_tiendas.js` 171, `correr_api.sh` 219, `correr_tienda.sh` 151.
 
 #### Panel de TODAS las tiendas (`/dashboard/T-<código>`, `tiendas.js`; POS 3.4.0 + servidor 1.5.0)
 
@@ -426,6 +436,37 @@ oscuro por sistema, oscuro fijado a mano).
   larga atrapa la rueda del ratón dentro del celular. `img/dashboard_parteSuperior|Inferior.png` ya no los
   usa la página; `dashboard_horizontal.png` sigue como `og:image` de `versiones.html` (diseño viejo).
 
+### Anuncios de TikTok: `/gratis`, el Pixel y la Events API (2026-10-27)
+
+El plan de campaña está en `Configuración de TikTok Ads para el punto de venta.md` (raíz). El anuncio se ve en el **celular**, pero el
+programa se instala en la **computadora**: `/gratis` (`paginas/gratis.html`, `css/gratis.css` prefijo `gr-`, `js/gratis.js`; `noindex`)
+pide el WhatsApp en el celular y da un **link personal** (`antiparticula.com/d/CODIGO`, `.htaccess` → `/gratis?c=CODIGO`) para abrirlo
+en la computadora; en la computadora enseña la descarga directa. Recorrido completo en el encabezado de `gratis_comun.php`.
+- **Pixel `DBG6JEBC77U8I4RJ0MD0`** (el anterior `D607G4BC77U18F03M6A0` ya no se usa) en `puntodeventa.html` y `gratis.html`; si cambia,
+  cambiar también `GRATIS_PIXEL` (hay prueba). Eventos: `CompleteRegistration` (registro **nuevo** en /gratis) y `Download`, cada uno
+  desde el Pixel **y** desde el servidor (Events API) con el **mismo `event_id`**: TikTok cuenta uno. `registrar_descarga.php` solo avisa
+  a TikTok si la página mandó `event_id` (el JavaScript viejo no: contaría doble).
+- **Events API:** `tiktok_evento()` en `gratis_comun.php`; token en `config_db.php` → `'tiktok_token'` (solo en el servidor; sin él no
+  se manda nada). `'tiktok_prueba' => 'TEST…'` manda todo a «Probar eventos» en vez de a las cifras: **quitarlo** al terminar de probar.
+  Se contesta al navegador antes de llamar a TikTok (`litespeed_finish_request`); si TikTok falla queda en el registro de errores.
+- **Unir celular y computadora:** `registros_gratis` guarda WhatsApp (E.164), giro, nombre, `ttclid` y `_ttp`. Cookies propias
+  (`mensaje-exito.js`, dominio `antiparticula.com` para servir con y sin www): `ap_ttclid` (30 días, el `?ttclid=` del anuncio) y `ap_reg`
+  (90 días, el código del link). La descarga con código lleva el WhatsApp cifrado y el `ttclid` **del registro**. Teléfono y código viajan
+  en SHA-256; nunca legibles. Un WhatsApp ya registrado recibe el mismo código y no cuenta otra vez. Freno: 10 registros por IP y hora.
+- **Giros:** `GRATIS_GIROS` y el `<select>` de `gratis.html` (hay prueba de que coinciden).
+- **Aviso de privacidad** `paginas/privacidad.html` (`/privacidad`, enlazado en el pie y en el formulario): responsable Erick Ricardo
+  Gonzalez Manuel. **Si el sitio o el programa empiezan a recabar otro dato o a usar otro proveedor, actualizarlo** (y su fecha).
+  Quien pida borrar sus datos o responda «BAJA»: botones en `/admin/` → Registros.
+- **El link NO sale del número del dueño:** la página se lo da a cada quien («Mandármelo por WhatsApp» abre su propio WhatsApp).
+  El seguimiento sí es a mano: `/admin/` → **Registros** arma el mensaje en `wa.me` (firma `FIRMA` de `admin.js`, «Erick») y anota
+  `contactado_en` al dar clic; `baja_en` = pidió BAJA (ya no se le puede anotar otro mensaje: 409). Mandarlo solo desde el número del
+  dueño necesitaría la API de WhatsApp Business (Meta: verificación, plantillas aprobadas y cobro por conversación).
+- **Pendiente:** la compra de Premium aún no se le avisa a TikTok (sería desde `tienda/webhook.php`, con `ap_reg` leído en `pagar.php`).
+- **Despliegue:** 1) `sql/2026-10-27_registros_gratis.sql` · 2) `gratis_comun.php`, `registrar_gratis.php`, `registrar_descarga.php`,
+  `.htaccess`, `paginas/gratis.html`, `paginas/privacidad.html`, `css/gratis.css`, `css/paginas.css`, `js/gratis.js`, `js/mensaje-exito.js`
+  y las páginas con el pie nuevo. Sin la tabla, `/gratis` responde 503 con «escríbenos por WhatsApp» y las descargas siguen como siempre.
+- **Pruebas:** `tests/correr_gratis.sh` (132) y `tests/test_gratis_pagina.js` (54, Playwright), en `tests/README.md`.
+
 ### Tienda de Premium (`tienda_comun.php`, `tienda/*.php`; 2026-10-21, POS 3.5.0)
 
 Cobro con **Stripe Checkout** (tarjeta y OXXO) y **la clave firmada llega sola** al programa. Planes y precios (IVA incluido) en
@@ -444,6 +485,15 @@ repite en la sección de precios y en sus datos estructurados: si cambian, cambi
 - `tienda/claves.php` (el POS pregunta, POST hw + sus claves: las verificadas de la consola se anotan en `tienda_reportados` para
   sumar desde ahí; las de la llave 2 no, ya están sin la gracia), `tienda/canjear.php` (código; un cambio de PC automático cada 12
   meses; 20 fallos por IP y hora → 429), `tienda/estado.php` (lo que pinta `/compra` = `paginas/compra.html`, regla en `.htaccess`).
+- **El celular que incluye cada Premium de PC (2026-10-29, app de Android):** `tienda/celular.php` (POST codigo, hw) vincula
+  **un** teléfono (su `ANDROID_ID`, 16 hex) a la compra de una PC (`tienda_celulares`, `sql/2026-10-29_celular.sql`) y le firma una
+  clave de Premium **de a lo más 35 días** (`TIENDA_CELULAR_DIAS`), hasta donde llegue la PC. Se renueva sola mientras siga vinculado y
+  la PC tenga plan: al pagar la PC (`tienda_aplicar`) y cuando el teléfono pregunta en `claves.php` y a la suya le quedan menos de 25
+  días. Por eso cambiar de celular (uno cada 30 días) no deja a los dos con Premium: el anterior deja de renovarse. Para siempre o de
+  varias sucursales en la PC: el celular igual, 35 días renovables. Sin PC (compra de la página sin canjear) o vencida, no vincula. **El
+  plan propio del celular ($49/mes, $449/año) se cobra con Google Play** (en México no hay cobro alternativo), no aquí. Sin la migración
+  todo sigue igual. Beneficio nuevo en las tres listas (`tienda_beneficios`, `Premium.INCLUYE`, la página): «La app de punto de venta en
+  un celular, incluida». Pruebas: sección 14 de `test_tienda.php`.
 - **Firma:** llave privada número **2** (solo de ventas automáticas) en el PEM de `config_db.php` → `'llave_ventas'`, **fuera de
   `public_html`**. `tienda_firmar` verifica con la pública antes de entregar. Una clave vence 3 días después de lo pagado (gracia de
   la renovación); cada pago se suma desde lo más lejano entre hoy y lo que esa PC ya tenía de ese plan. Para siempre = 2199-06-06.
@@ -481,9 +531,10 @@ repite en la sección de precios y en sus datos estructurados: si cambian, cambi
 ### Tu página privada de datos (`/admin/`, 2026-10-21)
 
 Para el dueño: todo lo que guarda la base del sitio, con gráficas, en vez de consultas a mano en phpMyAdmin.
-`https://www.antiparticula.com/admin/` → clave → seis pestañas con un solo selector de periodo (7 · 30 · 90 días · 12 meses · Todo,
+`https://www.antiparticula.com/admin/` → clave → siete pestañas con un solo selector de periodo (7 · 30 · 90 días · 12 meses · Todo,
 contra el periodo anterior del mismo largo): **Resumen** (lo del periodo, quién lo usa hoy/7/30 días, qué pasa con las computadoras
-nuevas, pendientes), **Descargas** (por día, país, ciudad, hora y día de la semana), **Computadoras** (activas y nuevas, cohortes
+nuevas, pendientes), **Descargas** (por día, país, ciudad, hora y día de la semana), **Registros** (quien dejó su WhatsApp en
+`/gratis`: cuántos, cuántos descargaron, por giro, cuánto tardan, y la lista para escribirles, marcar BAJA o borrar sus datos), **Computadoras** (activas y nuevas, cohortes
 «¿lo siguen usando?», días de uso, mapa de calor de inicios de sesión, cómo entran, dónde están, las que se fueron y la lista de todas),
 **Tiendas** (lo que mandan al panel del celular: ventas entre todas, cómo les pagan, a qué hora venden, qué funciones usan), **Premium**
 (ingresos, planes, origen, OXXO, quién lo tiene, vencen pronto / se les venció, prueba de Excel, avisos de Stripe, compras) y
@@ -522,7 +573,7 @@ calendario de uso, usuarios, lugares, su panel, sus compras, sus claves (para re
   pagada (tarjeta u OXXO; solo se ve el OXXO sin pagar o vencido).
 - **Despliegue:** 1) `sql/2026-10-21_admin.sql` en phpMyAdmin · 2) la línea de `clave_admin.php` en `config_db.php` · 3) subir
   `admin_comun.php` y `admin/`. Volver atrás: borrar `admin/` (las dos tablas no estorban).
-- **Pruebas:** `tests/correr_admin.sh` (MariaDB + PHP reales, datos inventados de `tests/sembrar_admin.php`; 149 comprobaciones, cada
+- **Pruebas:** `tests/correr_admin.sh` (MariaDB + PHP reales, datos inventados de `tests/sembrar_admin.php`; 177 comprobaciones, cada
   cifra contra una consulta escrita aparte; mutaciones comprobadas). `tests/correr_admin.sh ver` deja la página con esos datos en
   `http://localhost:8099/admin/` (clave «clave de prueba 2026») para mirarla.
 
@@ -536,5 +587,5 @@ calendario de uso, usuarios, lugares, su panel, sus compras, sus claves (para re
 ## Common File Paths Referenced
 - Logo: `img/A.png` or `../img/A.png` (depending on page location)
 - POS installer: `downloads/Instalador_Antiparticula_Punto_Venta.exe`
-- Full version installer: `downloads/Antiparticua_PuntoDeVenta.exe`
-- Database files: `downloads/BD/datos.sqbpro`, `downloads/BD/datosNuevo.sqbpro`
+- Mac installers: `downloads/Antiparticula_Punto_Venta_Mac_AppleSilicon.dmg`, `downloads/Antiparticula_Punto_Venta_Mac_Intel.dmg`
+- `downloads/BD/` (datos.db y .sqbpro) se quitó del local el 2026-10-27 para igualarlo al servidor, que no los tenía; siguen en git

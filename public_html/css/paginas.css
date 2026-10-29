@@ -436,3 +436,27 @@
     width: 100%;
   }
 }
+
+/* ----- Listas dentro de una fila (aviso de privacidad) ----- */
+.pg-row-body .pg-lista {
+  margin: 0 0 20px;
+  padding-left: 22px;
+  list-style: disc;
+}
+
+.pg-row-body .pg-lista li {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--pg-text);
+  margin-bottom: 8px;
+}
+
+.pg-legal .pg-row-body strong {
+  color: var(--pg-title);
+}
+
+.pg-legal .pg-row-body a {
+  color: var(--pg-steel);
+  font-weight: 700;
+  text-decoration: underline;
+}

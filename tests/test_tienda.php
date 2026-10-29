@@ -85,6 +85,7 @@ function nueva_sesion($prueba = false) { return ($prueba ? 'cs_test_' : 'cs_live
 function equipo() { return strtoupper(bin2hex(random_bytes(8))); }
 function claves($hw, $mias = '') { global $BASE; return http('POST', "$BASE/tienda/claves.php", ['hw' => $hw, 'claves' => $mias]); }
 function canjear($codigo, $hw) { global $BASE; return http('POST', "$BASE/tienda/canjear.php", ['codigo' => $codigo, 'hw' => $hw]); }
+function celular($codigo, $hw) { global $BASE; return http('POST', "$BASE/tienda/celular.php", ['codigo' => $codigo, 'hw' => $hw]); }
 function compra($sesion) {
     global $pdo;
     $st = $pdo->prepare('SELECT * FROM tienda_compras WHERE stripe_sesion = :s');
@@ -148,7 +149,9 @@ eq($ids, ['premium_mensual', 'premium_anual', 'premium_siempre', 'multi_mensual'
 $precios = array_column($r['json']['planes'], 'precio', 'id');
 eq([$precios['premium_mensual'], $precios['premium_anual'], $precios['premium_siempre'], $precios['multi_mensual'], $precios['multi_anual']],
    [14900, 129000, 349000, 29900, 299000], 'precios elegidos por el dueño: 149 · 1,290 · 3,490 · 299 · 2,990');
-eq(count($r['json']['beneficios']['premium']), 6, 'beneficios de Premium (los mismos que Premium.INCLUYE del POS)');
+eq(count($r['json']['beneficios']['premium']), 9, 'beneficios de Premium (los mismos que Premium.INCLUYE del POS)');
+eq($r['json']['beneficios']['premium'][0] ?? null, 'Clientes y crédito: fiado con límite, abonos y cobro por WhatsApp',
+   'el primero es el fiado, como en el POS');
 eq($r['json']['beneficios']['multi'][0], 'Todo lo de Premium', 'el de sucursales incluye Premium');
 $porId = []; foreach ($r['json']['planes'] as $p) $porId[$p['id']] = $p;
 eq([$porId['premium_mensual']['renovable'], $porId['premium_mensual']['oxxo']], [true, false], 'mensual: se renueva sola y sin OXXO');
@@ -462,6 +465,65 @@ eq(compra($s11), null, '... y no queda una compra a medias');
 file_put_contents('/app/config_db.php', '<?php return ' . var_export($cfg, true) . ';');
 eq(aviso($e11)['codigo'], 200, 'con la llave de vuelta, el reintento sale bien');
 eq(compra($s11)['estado'], 'pagada', '... y la compra queda pagada');
+
+titulo('14. El celular que incluye el Premium de la PC');
+$pdo->exec('DELETE FROM tienda_intentos');   // la sección 10 dejó bloqueada esta IP
+$pcC = equipo(); $tel = equipo(); $tel2 = equipo();
+$sC = nueva_sesion();
+aviso(evento('checkout.session.completed', sesion($sC, 'premium_anual', $pcC)));
+$cC = compra($sC);
+$r = celular(strtolower(tienda_codigo_mostrar($cC['codigo'])), $tel);
+eq([$r['codigo'], $r['json']['ok'], $r['json']['motivo'], count($r['json']['claves'])], [200, true, 'ok', 1],
+   'el código de la compra de la PC vincula el celular y le da su clave');
+$l = lic($r['json']['claves'][0]);
+eq([$l['plan'], $l['hw'], $l['vence']], ['premium', $tel, tienda_sumar_dias($HOY, TIENDA_CELULAR_DIAS)],
+   '... de Premium, atada al teléfono, por 35 días (no lo que tiene la PC)');
+eq(claves($tel)['json']['claves'], $r['json']['claves'], 'el celular pregunta en claves.php: la misma, no se firma otra');
+eq(celular($cC['codigo'], $tel)['json']['ok'], true, 'vincular otra vez el mismo celular: bien');
+eq(cuantas_claves($tel), 1, '... sin otra clave');
+eq(count(claves($pcC)['json']['claves']), 1, 'la PC sigue con su clave y nada más');
+$r = celular($cC['codigo'], $tel2);
+eq([$r['json']['ok'], $r['json']['motivo'], $r['json']['claves']], [false, 'cambio_reciente', []], 'otro celular antes de 30 días: no');
+$pdo->exec("UPDATE tienda_celulares SET vinculado = NOW() - INTERVAL 31 DAY WHERE compra_id = {$cC['id']}");
+$r = celular($cC['codigo'], $tel2);
+eq([$r['json']['ok'], count($r['json']['claves'])], [true, 1], 'pasados 30 días sí cambia, y el nuevo trae su clave');
+$pdo->exec("UPDATE tienda_claves SET vence = '" . tienda_sumar_dias($HOY, 5) . "' WHERE hardware_id = '$tel'");
+claves($tel);
+eq(cuantas_claves($tel), 1, 'el celular anterior ya no recibe claves (la suya se acaba sola)');
+$pdo->exec("UPDATE tienda_claves SET vence = '" . tienda_sumar_dias($HOY, 10) . "' WHERE hardware_id = '$tel2'");
+$r = claves($tel2);
+eq([cuantas_claves($tel2), lic($r['json']['claves'][0])['vence']], [2, tienda_sumar_dias($HOY, TIENDA_CELULAR_DIAS)],
+   'al vinculado, con menos de 25 días, claves.php le firma otra por 35 días');
+claves($tel2);
+eq(cuantas_claves($tel2), 2, '... y no una en cada pregunta');
+
+$pcM = equipo(); $telM = equipo(); $sM = nueva_sesion();
+aviso(evento('checkout.session.completed', sesion($sM, 'premium_mensual', $pcM, 'paid', ['subscription' => 'sub_cel', 'amount_total' => 14900])));
+$r = celular(compra($sM)['codigo'], $telM);
+eq(lic($r['json']['claves'][0])['vence'], mas($HOY, 1), 'con la mensualidad, el celular llega hasta donde llega la PC');
+$pdo->exec("UPDATE tienda_claves SET vence = '" . tienda_sumar_dias($HOY, 10) . "' WHERE hardware_id = '$telM'");
+aviso(evento('invoice.paid', ['id' => 'in_cel1', 'billing_reason' => 'subscription_cycle', 'subscription' => 'sub_cel']));
+eq(cuantas_claves($telM), 2, 'la PC renueva su mes y el celular recibe la suya en el mismo aviso');
+eq(lic(claves($telM)['json']['claves'][0])['vence'], tienda_sumar_dias($HOY, TIENDA_CELULAR_DIAS), '... por 35 días');
+
+$pcF = equipo(); $sF = nueva_sesion();
+aviso(evento('checkout.session.completed', sesion($sF, 'premium_siempre', $pcF, 'paid', ['amount_total' => 349000])));
+eq(lic(celular(compra($sF)['codigo'], equipo())['json']['claves'][0])['vence'], tienda_sumar_dias($HOY, TIENDA_CELULAR_DIAS),
+   'Premium para siempre en la PC: el celular, 35 días que se renuevan (nunca para siempre)');
+$pcX = equipo(); $sX = nueva_sesion();
+aviso(evento('checkout.session.completed', sesion($sX, 'multi_anual', $pcX, 'paid', ['amount_total' => 299000])));
+eq(lic(celular(compra($sX)['codigo'], equipo())['json']['claves'][0])['plan'], 'premium', 'varias sucursales también incluye un celular (con Premium)');
+$sW = nueva_sesion();
+aviso(evento('checkout.session.completed', sesion($sW, 'premium_anual', null)));
+eq(celular(compra($sW)['codigo'], equipo())['json']['motivo'], 'sin_pc', 'comprado en la página y aún sin PC: primero la computadora');
+$pdo->exec("UPDATE tienda_claves SET vence = '2020-01-01', vence_pagado = '2020-01-01' WHERE compra_id = {$cC['id']} AND hardware_id = '$pcC'");
+eq(celular($cC['codigo'], equipo())['json']['motivo'], 'vencida', 'con el Premium de la PC vencido: no');
+$pdo->exec("UPDATE tienda_claves SET vence = '" . tienda_sumar_dias($HOY, 3) . "' WHERE hardware_id = '$tel2'");
+claves($tel2);
+eq(cuantas_claves($tel2), 2, '... y el celular ya no se renueva');
+eq(celular('AP-AAAA-BBBB-CCCC', equipo())['json']['motivo'], 'no_existe', 'un código que no existe');
+eq(http('POST', "$BASE/tienda/celular.php", ['codigo' => 'X', 'hw' => 'no-es-un-id'])['codigo'], 400, 'sin un ID válido: 400');
+eq(http('GET', "$BASE/tienda/celular.php")['codigo'], 405, 'GET: 405');
 
 // ── Ejemplo para el POS: claves firmadas aquí, que Java debe aceptar ──────────
 if (is_dir('/ejemplo')) {

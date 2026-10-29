@@ -1,10 +1,25 @@
 {
-"version": "3.7.1",
+"version": "3.8.0",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "El inicio de sesión ya no se corta cuando el nombre del negocio es largo",
+"changelog": "Nuevo en Premium: lleva el fiado de tus clientes en el programa",
 "mandatory": false,
 
   "historial": [
+    {
+ "version": "3.8.0",
+ "fecha": "2026-10-28",
+ "titulo": "Clientes y crédito: el fiado, en el programa",
+ "cambios": [
+  "Nuevo en Premium: fía a tus clientes desde el cobro con «A cuenta de un cliente». Pueden dejar una parte en efectivo y el resto se anota en su cuenta.",
+  "En Ventas > Clientes ves cuánto te debe cada uno y desde cuándo, registras sus abonos en efectivo, tarjeta o transferencia e imprimes su estado de cuenta.",
+  "Ponle un límite de crédito a cada cliente: si una venta lo rebasa, la autoriza un administrador.",
+  "Cóbrales por WhatsApp con un mensaje que ya dice cuánto deben.",
+  "El ticket dice a quién se le fió, cuánto debía y cuánto debe ahora. Si cancelas o devuelves una venta a cuenta, su deuda baja sola.",
+  "El corte de caja y Control de dinero cuentan los abonos de tus clientes, y lo fiado no se suma al efectivo.",
+  "Con varias sucursales, cada tienda lleva sus clientes y en Sucursales ves cuánto te deben en cada una. El panel del celular muestra la tarjeta «Te deben (fiado)».",
+  "Si tu Premium vence, no pierdes las cuentas: las sigues viendo y cobrando abonos."
+ ]
+},
     {
   "version": "3.7.1",
   "fecha": "2026-10-26",

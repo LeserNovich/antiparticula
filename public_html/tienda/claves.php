@@ -1,5 +1,5 @@
 <?php
-// El programa pregunta por sus claves (POST hw, claves). Responde las que la tienda le entregó a esa PC (el
+// El programa (o la app del celular) pregunta por sus claves (POST hw, claves). Responde las que la tienda le entregó a esa PC (el
 // programa activa las que no tenga) y las compras de OXXO que esperan pago. De paso anota lo que la PC ya tenía
 // (claves verificadas), para que una renovación se sume desde ahí.
 define('TIENDA_COMUN_OK', true);
@@ -12,6 +12,8 @@ if (!dash_equipo_valido($hw)) dash_responder(400, ['status' => 'error', 'message
 try {
     list($conn, $cfg) = dash_conectar();
     tienda_registrar_reportadas($conn, $cfg, $hw, isset($_POST['claves']) ? substr((string) $_POST['claves'], 0, 4000) : '');
+    // Si quien pregunta es el celular que incluye un Premium de PC, su clave al día (dura poco y se renueva aquí)
+    tienda_celular_refrescar($conn, $cfg, $hw);
     $st = $conn->prepare('SELECT plan FROM tienda_compras
                            WHERE hardware_id = :hw AND estado = \'pendiente\' AND creada > NOW() - INTERVAL 4 DAY');
     $st->execute([':hw' => $hw]);

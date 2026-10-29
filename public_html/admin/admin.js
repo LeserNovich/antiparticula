@@ -13,7 +13,7 @@
 (function () {
     'use strict';
 
-    var SECCIONES = ['resumen', 'descargas', 'computadoras', 'tiendas', 'premium', 'comentarios'];
+    var SECCIONES = ['resumen', 'descargas', 'registros', 'computadoras', 'tiendas', 'premium', 'comentarios'];
     var vista = document.getElementById('vista');
     var tip = document.getElementById('tooltip');
     var cache = {};
@@ -735,6 +735,7 @@
     function pendientes(p, d) {
         var items = [];
         var item = function (txt, href) { items.push(h('li', null, href ? enlace(txt, href) : txt)); };
+        if (p.registros > 0) item(num(p.registros) + (p.registros === 1 ? ' persona pidió' : ' personas pidieron') + ' el link en /gratis y no les has escrito', '#registros');
         if (p.comentarios > 0) item(num(p.comentarios) + (p.comentarios === 1 ? ' mensaje' : ' mensajes') + ' desde el programa esta semana', '#comentarios');
         if (p.oxxo > 0) item(num(p.oxxo) + (p.oxxo === 1 ? ' ficha OXXO sin pagar' : ' fichas OXXO sin pagar'), '#premium');
         if (p.vencen > 0) item(num(p.vencen) + (p.vencen === 1 ? ' Premium vence' : ' Premium vencen') + ' en los próximos 14 días (sin contar mensuales)', '#premium');
@@ -782,6 +783,146 @@
             { clave: 'ciudad', titulo: 'Ciudad' },
             { clave: 'pais', titulo: 'País' }
         ], x.ultimas, { orden: { clave: 'fecha', desc: true }, porPagina: 15 }), { ancha: true }));
+        return out;
+    }
+
+    // ── Registros de /gratis (los anuncios de TikTok) ───────────────────
+    // Quien dejó su WhatsApp en antiparticula.com/gratis. El link de descarga no sale de tu número: la página se lo da
+    // y la persona se lo manda a sí misma. Aquí va el seguimiento: escribirle con el mensaje ya armado (y anotar que le
+    // escribiste), la BAJA que promete el aviso de privacidad y borrar sus datos si lo pide.
+    var FIRMA = 'Erick';   // quien firma los mensajes de seguimiento
+    var SISTEMAS = { windows: 'Windows', macArm: 'Mac con chip Apple', macIntel: 'Mac con chip Intel' };
+    var TRAMOS = ['En menos de 1 hora', 'De 1 a 24 horas', 'De 1 a 3 días', 'Después de 3 días'];
+
+    function mensajeSeguimiento(r) {
+        var nombre = (r.nombre || '').trim().split(/\s+/)[0];
+        var hola = '¡Hola' + (nombre ? ' ' + nombre : '') + '! Soy ' + FIRMA + ', de Antipartícula. ';
+        if (r.descargo_en) return hola + 'Vi que ya descargaste el punto de venta. ¿Pudiste instalarlo? Si quieres, te ayudo a dar de alta tus productos.';
+        return hola + 'Vi que pediste el punto de venta gratis. Este es tu link para abrirlo en tu computadora: ' + r.link + ' ¿Te ayudo a instalarlo?';
+    }
+    function porEscribirles(lista) { return lista.filter(function (r) { return !r.contactado_en && !r.baja_en; }); }
+    // +525512345678 → 55 1234 5678 (los de otro país, tal cual)
+    function telVisible(t) {
+        var m = /^\+52(\d{2})(\d{4})(\d{4})$/.exec(t || '');
+        return m ? m[1] + ' ' + m[2] + ' ' + m[3] : t;
+    }
+
+    function vistaRegistros(d) {
+        var P = d.periodo, x = d.datos, lista = d.lista, giros = d.giros || {}, out = [];
+        if (!x || !lista) return [vacio('No se pudo leer la tabla de registros de /gratis.')];
+        var tiles = [
+            dato('Registros', num(x.actual), { delta: variacion(x.actual, x.anterior, P), nota: 'dejaron su WhatsApp en /gratis' }),
+            dato('Descargaron', num(x.descargaron), { nota: x.actual ? pct(x.descargaron / x.actual) + ' de los registros del periodo' : 'de los registros del periodo' }),
+            dato('De un anuncio', num(x.de_anuncio), { nota: 'llegaron con el clic de TikTok' })
+        ];
+        var tilePend = d.seguimiento ? dato('Por escribirles', num(porEscribirles(lista).length), { nota: 'de siempre, sin contar BAJA' }) : null;
+        if (tilePend) tiles.splice(2, 0, tilePend);
+        out.push(fila(tiles, 'datos'));
+        var series = [{ nombre: 'Registros', valores: x.serie, color: 's1' }, { nombre: 'De esos, descargaron', valores: x.serie_descargaron, color: 's3' }];
+        out.push(tarjeta('Registros', porGran(P), x.actual ? [leyenda(series), grafLinea({ claves: P.claves, gran: P.gran, entero: true, titulo: 'Registros', series: series })] : vacio('Nadie se registró en este periodo.'),
+                         { ancha: true, tabla: tablaSerie(P, [['Registros', x.serie], ['De esos, descargaron', x.serie_descargaron]]) }));
+        out.push(fila([
+            tarjeta('Por giro', 'Cuántos se registraron y cuántos de ellos descargaron', listaBarras(x.giros.map(function (g) {
+                return { etiqueta: giros[g.giro] || g.giro, valor: n(g.n), nota: num(g.descargaron) + ' descargaron' };
+            }))),
+            tarjeta('Cuánto tardan en descargar', 'Desde que se registran en el celular', x.descargaron
+                ? listaBarras(x.tardanza.map(function (v, i) { return { etiqueta: TRAMOS[i], valor: v }; }))
+                : vacio('Nadie de este periodo ha descargado todavía.'))
+        ]));
+
+        // La lista: de siempre, la más nueva primero
+        var filtros = [
+            ['Por escribirles', function (r) { return !r.contactado_en && !r.baja_en; }],
+            ['Sin descargar', function (r) { return !r.descargo_en && !r.baja_en; }],
+            ['Descargaron', function (r) { return !!r.descargo_en; }],
+            ['Todos', function () { return true; }],
+            ['BAJA', function (r) { return !!r.baja_en; }]
+        ];
+        if (!d.seguimiento) filtros = filtros.slice(1, 4);
+        var filtro = 0, q = '', limite = 40;
+        var cont = h('div', { class: 'mensajes' });
+
+        function boton(texto, fn) {
+            var b = h('button', { type: 'button', class: 'btn-texto chico', text: texto });
+            b.addEventListener('click', function () { fn(b); });
+            return b;
+        }
+        function accion(r, a, b) {
+            if (b) b.disabled = true;
+            enviar({ accion: a, id: r.id }).then(function (res) {
+                if (a === 'escrito') r.contactado_en = res.ahora;
+                else if (a === 'baja') r.baja_en = r.baja_en || res.ahora;
+                else if (a === 'quitar_baja') r.baja_en = null;
+                else if (a === 'borrar_registro') lista.splice(lista.indexOf(r), 1);
+                if (tilePend) tilePend.querySelector('.dato-val').textContent = num(porEscribirles(lista).length);
+                Object.keys(cache).forEach(function (k) { if (k.indexOf('resumen|') === 0) delete cache[k]; });
+                pintarLista();
+            }, function (e) {
+                if (b) b.disabled = false;
+                if (e.message !== 'sin_sesion') window.alert('No se pudo guardar: ' + e.message);
+            });
+        }
+        function tarjetaRegistro(r) {
+            var estado = r.baja_en ? estadoEtq('apagado', 'Pidió BAJA ' + hace(r.baja_en))
+                : r.descargo_en ? estadoEtq('bien', 'Descargó ' + hace(r.descargo_en) + (SISTEMAS[r.sistema] ? ' · ' + SISTEMAS[r.sistema] : ''))
+                : estadoEtq('aviso', 'Todavía no descarga');
+            var datos = [h('span', { class: 'nota', text: 'Se registró ' + hace(r.creado) + ' (' + fechaHora(r.creado) + ') · código ' + r.codigo })];
+            if (r.contactado_en) datos.push(h('span', { class: 'nota', text: 'Le escribiste ' + hace(r.contactado_en) }));
+            var acciones = [];
+            if (!r.baja_en) {
+                var wa = h('a', { href: 'https://wa.me/' + waNumero(r.telefono) + '?text=' + encodeURIComponent(mensajeSeguimiento(r)),
+                                  target: '_blank', rel: 'noopener', text: (r.contactado_en ? 'Volver a escribir' : 'Escribir por WhatsApp') + ' · ' + telVisible(r.telefono) });
+                // WhatsApp se abre en otra pestaña con el mensaje ya escrito; aquí solo se anota que le escribiste
+                if (d.seguimiento) wa.addEventListener('click', function () { accion(r, 'escrito'); });
+                acciones.push(wa);
+            }
+            acciones.push(h('a', { href: 'tel:' + r.telefono, text: 'Llamar' }));
+            if (d.seguimiento) {
+                acciones.push(boton(r.baja_en ? 'Quitar BAJA' : 'Pidió BAJA', function (b) { accion(r, r.baja_en ? 'quitar_baja' : 'baja', b); }));
+                acciones.push(boton('Borrar sus datos', function (b) {
+                    if (window.confirm('¿Borrar para siempre el registro de ' + (r.nombre || telVisible(r.telefono)) + '? Hazlo solo si te pidió que borraras sus datos.')) accion(r, 'borrar_registro', b);
+                }));
+            }
+            return h('article', { class: 'mensaje' + (d.seguimiento && !r.contactado_en && !r.baja_en ? ' nuevo' : '') }, [
+                h('div', { class: 'mensaje-cab' }, [
+                    h('strong', { text: (r.nombre || 'Sin nombre') + ' · ' + (giros[r.giro] || r.giro) }),
+                    r.de_anuncio ? h('span', { class: 'chip', text: 'De un anuncio' }) : null,
+                    estado
+                ]),
+                h('div', { class: 'mensaje-pie' }, datos),
+                h('div', { class: 'mensaje-pie' }, acciones)
+            ]);
+        }
+        function pintarLista() {
+            cont.textContent = '';
+            var vis = lista.filter(filtros[filtro][1]).filter(function (r) {
+                return !q || [r.nombre, r.telefono, telVisible(r.telefono), r.telefono.replace(/^\+52/, ''), r.codigo, giros[r.giro]].some(function (v) { return v && String(v).toLowerCase().indexOf(q) >= 0; });
+            });
+            if (!vis.length) {
+                cont.appendChild(vacio(q ? 'Nada coincide con «' + q + '».' : d.seguimiento && filtro === 0 ? 'Ya les escribiste a todos.' : 'Nadie aquí.'));
+                return;
+            }
+            vis.slice(0, limite).forEach(function (r) { cont.appendChild(tarjetaRegistro(r)); });
+            if (vis.length > limite) {
+                var mas = h('button', { type: 'button', class: 'btn-texto', text: 'Ver más (son ' + num(vis.length) + ')' });
+                mas.addEventListener('click', function () { limite += 60; pintarLista(); });
+                cont.appendChild(mas);
+            }
+        }
+        var seg = h('div', { class: 'segmentado chico', role: 'radiogroup' }, filtros.map(function (f, i) {
+            var b = h('button', { type: 'button', role: 'radio', text: f[0], 'aria-checked': i === 0 ? 'true' : 'false' });
+            b.addEventListener('click', function () {
+                filtro = i; limite = 40;
+                Array.prototype.forEach.call(seg.children, function (y, k) { y.setAttribute('aria-checked', k === i ? 'true' : 'false'); });
+                pintarLista();
+            });
+            return b;
+        }));
+        var inp = h('input', { type: 'search', class: 'buscar', placeholder: 'Buscar nombre o WhatsApp', 'aria-label': 'Buscar por nombre, WhatsApp o código' });
+        inp.addEventListener('input', function () { q = inp.value.trim().toLowerCase(); limite = 40; pintarLista(); });
+        pintarLista();
+        out.push(tarjeta('Para darles seguimiento', 'El link de descarga no sale de tu número: la página se lo da a cada quien. Aquí les escribes tú, con el mensaje ya armado.',
+                         [h('div', { class: 'tabla-barra' }, [inp, seg]), cont], { ancha: true }));
         return out;
     }
 
@@ -1345,7 +1486,7 @@
     }
     function claveDe(r) { return r.s === 'equipo' ? 'equipo|' + (r.id || '') + '|' + (r.lic || '') : r.s + '|' + periodo; }
 
-    var pintores = { resumen: vistaResumen, descargas: vistaDescargas, computadoras: vistaComputadoras, tiendas: vistaTiendas,
+    var pintores = { resumen: vistaResumen, descargas: vistaDescargas, registros: vistaRegistros, computadoras: vistaComputadoras, tiendas: vistaTiendas,
                      premium: vistaPremium, comentarios: vistaComentarios, equipo: vistaEquipo };
     var ultimaRuta = '';
     var navegoDentro = false;   // para que «Volver» regrese a donde estabas (tiendas, premium…) y no siempre a computadoras

@@ -43,6 +43,8 @@ sql < sql/2026-10-26_version_pos.sql >/dev/null || { echo "Falló la migración 
 sql < sql/2026-10-26_version_pos.sql >/dev/null || { echo "La migración de la versión NO es idempotente (2.ª vez)"; exit 2; }
 salida=$(docker exec -i "$DB" $CLI -udash -pdash-prueba information_schema < sql/2026-10-26_version_pos.sql 2>&1)
 echo "$salida" | grep -q "ELIGE TU BASE" && ! echo "$salida" | grep -qi "error" || { echo "La migración de la versión no avisó con information_schema"; exit 2; }
+sql < sql/2026-10-27_registros_gratis.sql >/dev/null || { echo "Falló la migración de /gratis (1.ª vez)"; exit 2; }
+sql < sql/2026-10-27_registros_gratis.sql >/dev/null || { echo "La migración de /gratis NO es idempotente (2.ª vez)"; exit 2; }
 sql < sql/2026-10-21_admin.sql >/dev/null || { echo "Falló la migración de la página (1.ª vez)"; exit 2; }
 sql < sql/2026-10-21_admin.sql >/dev/null || { echo "La migración de la página NO es idempotente (2.ª vez)"; exit 2; }
 echo "Migración de la página aplicada dos veces sin error"

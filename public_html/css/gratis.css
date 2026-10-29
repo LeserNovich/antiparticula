@@ -1,0 +1,380 @@
+/* - - - - - PÁGINA DE LOS ANUNCIOS (gratis.html, /gratis) - - - - - */
+/* Usa el fondo y los tokens de paginas.css y los botones, la ventana, las cifras y las preguntas de
+   puntodeventa.css (body.pg-page.pv-page). Clases propias con prefijo gr-.
+   La tarjeta enseña UNA de tres cosas (gratis.js quita el hidden): el formulario (celular), el link
+   personal ya listo (celular) o la descarga (computadora). */
+
+.gr-page {
+  --gr-verde: #15803d;
+  --gr-verde-hover: #166534;
+  --gr-borde: #d6dbe3;
+  --gr-error: #b91c1c;
+}
+
+/* ----- Portada ----- */
+.gr-hero {
+  padding: calc(var(--site-nav-h) + clamp(28px, 5vw, 64px)) 0 0;
+  color: #ffffff;
+}
+
+/* Computadora: el texto y las cifras a la izquierda, la tarjeta a la derecha. Celular: texto, tarjeta y cifras. */
+.gr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  grid-template-areas:
+    "copia  tarjeta"
+    "cifras tarjeta";
+  column-gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+}
+
+.gr-copy {
+  grid-area: copia;
+  align-self: end;
+}
+
+.gr-card {
+  grid-area: tarjeta;
+}
+
+/* style.css le pone display:block a todo form, que le gana a hidden */
+.gr-card [hidden] {
+  display: none;
+}
+
+.gr-stats {
+  grid-area: cifras;
+  align-self: start;
+}
+
+.gr-hero h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 20px 0 16px;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* ----- Tarjeta blanca ----- */
+.gr-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: clamp(22px, 4vw, 32px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+  color: var(--pg-text);
+}
+
+.gr-card h2 {
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--pg-title);
+  text-align: left;
+  margin: 0 0 10px;
+}
+
+.gr-page .gr-card p {
+  color: var(--pg-text);
+}
+
+.gr-page .gr-intro {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.gr-intro strong,
+.gr-listo strong {
+  color: var(--pg-title);
+}
+
+/* ----- Formulario ----- */
+.gr-campo {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pg-title);
+}
+
+.gr-campo span {
+  font-weight: 400;
+  color: var(--pg-muted);
+}
+
+/* 16px: con menos, el iPhone agranda la página al tocar el campo */
+.gr-input {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--gr-borde);
+  border-radius: 12px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  color: var(--pg-title);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gr-input:focus {
+  outline: none;
+  border-color: var(--pg-steel);
+  box-shadow: 0 0 0 3px rgba(44, 110, 149, 0.18);
+}
+
+.gr-input[aria-invalid="true"] {
+  border-color: var(--gr-error);
+}
+
+select.gr-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237b7992' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+
+/* Fuera de la vista pero no display:none: muchos robots se saltan los campos escondidos así */
+.gr-oculto {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.gr-acepto {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--pg-text);
+  cursor: pointer;
+}
+
+.gr-acepto input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--gr-verde);
+}
+
+.gr-acepto a {
+  color: var(--pg-steel);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.gr-page .gr-error {
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gr-error);
+}
+
+/* ----- Botones de la tarjeta ----- */
+.gr-btn {
+  width: 100%;
+  margin-top: 20px;
+  background: var(--gr-verde);
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.gr-btn:hover {
+  background: var(--gr-verde-hover);
+  box-shadow: 0 12px 30px rgba(21, 128, 61, 0.3);
+}
+
+.gr-btn[disabled] {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+
+.gr-btn i {
+  font-size: 19px;
+}
+
+.gr-btn-descarga {
+  background-image: var(--pg-gradient);
+}
+
+.gr-btn-descarga:hover {
+  background-color: transparent;
+  box-shadow: 0 12px 30px rgba(44, 110, 149, 0.4);
+}
+
+.gr-btn-claro {
+  width: 100%;
+  margin-top: 10px;
+  background: #ffffff;
+  border: 1px solid var(--gr-borde);
+  color: var(--pg-title);
+}
+
+.gr-btn-claro:hover {
+  border-color: var(--pg-steel);
+}
+
+/* ----- Ya registrado: su link personal ----- */
+.gr-listo {
+  text-align: center;
+}
+
+.gr-listo h2 {
+  text-align: center;
+}
+
+.gr-palomita {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: var(--gr-verde);
+  font-size: 22px;
+}
+
+.gr-page .gr-listo > p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.gr-page .gr-link {
+  margin-top: 12px;
+  padding: 14px 10px;
+  border: 1px dashed var(--pg-steel);
+  border-radius: 12px;
+  background: #f1f6fa;
+  font-size: clamp(17px, 4.6vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--pg-title);
+  word-break: break-all;
+  user-select: all;
+}
+
+.gr-page .gr-nota {
+  margin-top: 16px;
+  font-size: 13.5px;
+  color: var(--pg-muted);
+}
+
+/* ----- En la computadora ----- */
+.gr-page .gr-pc p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.gr-card .pv-os-note {
+  color: var(--pg-text);
+}
+
+.gr-card .pv-os-note strong {
+  color: var(--pg-title);
+}
+
+.gr-card .pv-os-note a {
+  color: var(--pg-steel);
+}
+
+.gr-ayuda {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pg-steel);
+}
+
+.gr-ayuda i {
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.gr-ayuda:hover i {
+  transform: translateX(4px);
+}
+
+/* ----- Lo que incluye ----- */
+.gr-puntos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 clamp(28px, 4vw, 40px);
+  padding: 0;
+  list-style: none;
+}
+
+.gr-puntos li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+}
+
+.gr-puntos i {
+  font-size: 22px;
+  color: #9fd3ef;
+  margin-bottom: 6px;
+}
+
+.gr-puntos strong {
+  font-size: 17px;
+}
+
+.gr-puntos span {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.gr-faq .faq-pregunta {
+  font-family: inherit;
+}
+
+/* ----- Celular y tableta ----- */
+@media screen and (max-width: 900px) {
+  .gr-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copia"
+      "tarjeta"
+      "cifras";
+    row-gap: 24px;
+  }
+
+  .gr-card {
+    max-width: 520px;
+  }
+
+  .gr-stats {
+    margin-top: 0;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .gr-hero h1 {
+    margin: 16px 0 12px;
+  }
+
+  .gr-puntos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

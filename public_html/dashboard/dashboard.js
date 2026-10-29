@@ -264,6 +264,7 @@ function derivar(data) {
         top:          datosTop(extra),
         cajeros:      datosCajeros(extra),
         apartados:    datosApartados(extra),
+        clientes:     datosClientes(extra),
         presupuestos: datosPresupuestos(extra),
         gastos,
         meta:         datosMeta(extra, ingresosHoy),
@@ -422,6 +423,16 @@ function datosApartados(extra) {
     if (!a || typeof a !== 'object') return { hay: false };
     const activos = Math.max(0, Number(a.activos) || 0), porCobrar = Math.max(0, Number(a.por_cobrar) || 0);
     return { hay: activos > 0 || porCobrar > 0, activos, porCobrar, vencidos: Math.max(0, Number(a.vencidos) || 0) };
+}
+
+// Clientes con fiado (POS con «Clientes y crédito», 2026-10-28): lo que deben y cuántos. Sin nadie que deba ni abonos de hoy, la tarjeta no aparece.
+function datosClientes(extra) {
+    const c = extra && extra.clientes;
+    if (!c || typeof c !== 'object') return { hay: false };
+    const n = v => Math.max(0, Number(v) || 0);
+    const porCobrar = n(c.por_cobrar), abonadoHoy = n(c.abonado_hoy);
+    return { hay: porCobrar > 0 || abonadoHoy > 0, porCobrar, deben: n(c.deben), atrasado: n(c.atrasado),
+             atrasados: n(c.atrasados), abonadoHoy, abonadoMes: n(c.abonado_mes) };
 }
 
 function datosPresupuestos(extra) {
@@ -1019,6 +1030,16 @@ function pintarPorCobrar(d) {
             + (a.vencidos > 0 ? `<span class="chip is-bad">${a.vencidos} ${plural(a.vencidos, 'vencido', 'vencidos')}</span>` : '') + `</div>
             <div class="kpi-value kpi-sm c-promedio">${escHtml(formatMXN(a.porCobrar))}</div>
             <div class="kpi-sub">${a.activos} ${plural(a.activos, 'apartado sin entregar', 'apartados sin entregar')}</div></div>`);
+    }
+    const c = d.clientes;
+    if (c.hay) {
+        const sub = [`${c.deben} ${plural(c.deben, 'cliente debe', 'clientes deben')}`];
+        if (c.atrasado > 0) sub.push(`${formatMXN(c.atrasado)} con más de 30 días`);
+        if (c.abonadoHoy > 0) sub.push(`hoy abonaron ${formatMXN(c.abonadoHoy)}`);
+        partes.push(`<div class="tile"><div class="tile-head"><div class="tile-label">Te deben (fiado)</div>`
+            + (c.atrasados > 0 ? `<span class="chip is-warn">${c.atrasados} ${plural(c.atrasados, 'atrasado', 'atrasados')}</span>` : '') + `</div>
+            <div class="kpi-value kpi-sm c-promedio">${escHtml(formatMXN(c.porCobrar))}</div>
+            <div class="kpi-sub">${escHtml(sub.join(' · '))}</div></div>`);
     }
     const p = d.presupuestos;
     if (p.hay) {

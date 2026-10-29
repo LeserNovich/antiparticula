@@ -94,6 +94,38 @@ function iniciarDeteccionSistema() {
 }
 document.addEventListener('DOMContentLoaded', iniciarDeteccionSistema);
 
+// ─── Anuncios de TikTok: de qué anuncio y de qué registro viene la descarga ─
+// ap_ttclid: el clic del anuncio (TikTok lo agrega a la URL como ?ttclid=); ap_reg: el código del link personal
+// que se mandó desde /gratis (antiparticula.com/d/CODIGO). Las lee el servidor (registrar_gratis.php,
+// registrar_descarga.php) para unir lo que pasa en la computadora con el anuncio que se vio en el celular.
+function guardarCookie(nombre, valor, dias) {
+    // En antiparticula.com y www.antiparticula.com por igual (el link es sin www; el sitio, con o sin él)
+    var dominio = /(^|\.)antiparticula\.com$/.test(location.hostname) ? '; domain=antiparticula.com' : '';
+    var segura = location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = nombre + '=' + encodeURIComponent(valor) + '; max-age=' + (dias * 86400) + '; path=/' +
+        dominio + '; samesite=lax' + segura;
+}
+
+function leerCookie(nombre) {
+    var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + nombre + '=([^;]*)'));
+    try { return m ? decodeURIComponent(m[1]) : ''; } catch (e) { return ''; }
+}
+
+function codigoRegistro() {
+    var c = leerCookie('ap_reg');
+    return /^[A-Z0-9]{4,8}$/.test(c) ? c : '';
+}
+
+function nuevoEventId() {
+    if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+    return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+}
+
+(function guardarClicDelAnuncio() {
+    var m = location.search.match(/[?&]ttclid=([^&#]+)/);
+    try { if (m) { guardarCookie('ap_ttclid', decodeURIComponent(m[1]), 30); } } catch (e) { /* ttclid mal formado */ }
+})();
+
 // Es lo que llaman los botones "Descargar" de la página.
 function descargarPrueba() {
     var so = (sistemaDetectado || { so: detectarSistemaBasico() }).so;
@@ -114,12 +146,23 @@ function descargarInstalador(clave) {
     var url = '../downloads/' + inst.archivo;
 
     var empezar = function () {
+        // El Pixel y el servidor avisan la misma descarga a TikTok con el mismo event_id: la cuenta una vez
+        var eventId = nuevoEventId();
+        var datos = new URLSearchParams();
+        datos.append('event_id', eventId);
+        datos.append('sistema', clave);
+        datos.append('codigo', codigoRegistro());
+        datos.append('url', location.href);
         // Registrar la descarga en segundo plano (cuenta igual para cualquier sistema)
-        fetch('../registrar_descarga.php', { method: 'POST' })
+        fetch('../registrar_descarga.php', { method: 'POST', body: datos })
             .then(function (response) {
                 if (!response.ok) { console.error('Error al enviar el registro.'); }
             })
             .catch(function (error) { console.error('Error de red al registrar la descarga:', error); });
+        // Avisar al Pixel de TikTok (solo existe en las páginas que lo cargan)
+        if (typeof ttq !== 'undefined') {
+            ttq.track('Download', { content_name: clave }, { event_id: eventId });
+        }
         iniciarArchivo(url, inst.archivo);
         mostrarMensajeDescarga(clave);
     };

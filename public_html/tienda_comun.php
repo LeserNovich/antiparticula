@@ -71,8 +71,10 @@ function tienda_planes() {
 function tienda_beneficios() {
     return [
         'premium' => [
+            'Clientes y crédito: fiado con límite, abonos y cobro por WhatsApp',
             'Exportar e importar productos en Excel, sin límite',
             'Panel móvil: ventas, caja e inventario en el celular',
+            'La app de punto de venta en un celular, incluida',
             'Resumen completo: meses, años y comparaciones',
             'Usuarios sin límite (administradores y cajeros)',
             'Encabezado del ticket con todas las líneas que quieras',
@@ -440,6 +442,8 @@ function tienda_aplicar(PDO $conn, array $cfg, array $compra) {
         // Ya es para siempre: un pago más no cambia nada (pagar.php no lo deja comprar)
         $conn->prepare('UPDATE tienda_pagos SET aplicado = 1 WHERE id = :id')->execute([':id' => $pago['id']]);
     }
+    // El celular que incluye la compra se renueva con la PC
+    if ($nuevas) tienda_celular_al_dia($conn, $cfg, $compra);
     return $nuevas;
 }
 
@@ -599,6 +603,125 @@ function tienda_claves_compra(PDO $conn, $compra_id, $hw) {
     $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw ORDER BY id DESC');
     $st->execute([':c' => $compra_id, ':hw' => $hw]);
     return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// ── El celular que incluye el Premium de PC (2026-10-29) ───────────────────
+// Cada compra de Premium (o de varias sucursales) para PC incluye UN celular con la app de Android. El teléfono se
+// vincula con el código de la compra (tienda/celular.php) y recibe su propia clave, atada a su ANDROID_ID, de Premium.
+// Sus claves duran a lo más TIENDA_CELULAR_DIAS y se renuevan solas mientras siga vinculado y la PC tenga su plan
+// (al pagar la PC y cada vez que el teléfono pregunta en claves.php): así, cambiar de celular no deja a los dos con
+// Premium para siempre. Cambiar de celular: uno cada TIENDA_CAMBIO_CELULAR_DIAS. Sin la migración 2026-10-29 nada
+// de esto corre y la tienda sigue igual.
+define('TIENDA_CELULAR_DIAS', 35);
+define('TIENDA_CELULAR_RENOVAR_DIAS', 25);   // se firma otra cuando a la que tiene le quedan menos días que esto
+define('TIENDA_CAMBIO_CELULAR_DIAS', 30);
+
+// El celular vinculado a la compra, o null (también sin la tabla).
+function tienda_celular_de(PDO $conn, $compra_id, $bloquear = false) {
+    try {
+        $st = $conn->prepare('SELECT hardware_id, vinculado FROM tienda_celulares WHERE compra_id = :c' . ($bloquear ? ' FOR UPDATE' : ''));
+        $st->execute([':c' => $compra_id]);
+        $f = $st->fetch(PDO::FETCH_ASSOC);
+        return $f ?: null;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+// Firma una clave nueva para el celular de la compra si la que tiene se acaba pronto y la PC aún tiene plan: hasta lo
+// que tiene la PC, sin pasar de hoy + TIENDA_CELULAR_DIAS. Dentro de la transacción de quien llama. La clave o null.
+function tienda_celular_al_dia(PDO $conn, array $cfg, array $compra) {
+    $cel = tienda_celular_de($conn, $compra['id']);
+    if ($cel === null || !$compra['hardware_id'] || $compra['estado'] !== 'pagada') return null;
+    $st = $conn->prepare('SELECT vence_pagado, vence FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw
+                          ORDER BY vence DESC LIMIT 1');
+    $st->execute([':c' => $compra['id'], ':hw' => $compra['hardware_id']]);
+    $pc = $st->fetch(PDO::FETCH_ASSOC);
+    $hoy = dash_hoy_mx();
+    if (!$pc || strcmp($pc['vence'], $hoy) < 0) return null;
+    $meta = tienda_min_fecha($pc['vence'], tienda_sumar_dias($hoy, TIENDA_CELULAR_DIAS));
+    $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw');
+    $st->execute([':c' => $compra['id'], ':hw' => $cel['hardware_id']]);
+    $tiene = $st->fetchColumn() ?: null;
+    if ($tiene !== null && (strcmp($tiene, $meta) >= 0
+            || strcmp($tiene, tienda_sumar_dias($hoy, TIENDA_CELULAR_RENOVAR_DIAS)) >= 0)) {
+        return null;
+    }
+    $clave = tienda_firmar($cfg, 'premium', $cel['hardware_id'], $meta);
+    $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
+                    VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
+         ->execute([':c' => $compra['id'], ':hw' => $cel['hardware_id'], ':t' => 'premium',
+                    ':p' => tienda_min_fecha($pc['vence_pagado'], $meta), ':v' => $meta, ':k' => $clave]);
+    return $clave;
+}
+
+// claves.php: si quien pregunta es un celular vinculado, su clave al día (de cada compra que lo incluye).
+function tienda_celular_refrescar(PDO $conn, array $cfg, $hw) {
+    try {
+        $st = $conn->prepare('SELECT compra_id FROM tienda_celulares WHERE hardware_id = :hw');
+        $st->execute([':hw' => $hw]);
+        $compras = $st->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        return;
+    }
+    foreach ($compras as $id) {
+        $conn->beginTransaction();
+        try {
+            $compra = tienda_compra_por($conn, 'id', $id, true);
+            if ($compra !== null) tienda_celular_al_dia($conn, $cfg, $compra);
+            $conn->commit();
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) $conn->rollBack();
+            throw $e;
+        }
+    }
+}
+
+// Vincula el celular [hw] a la compra del código. Devuelve lo mismo que tienda_canjear: ['ok', 'motivo'
+// (no_existe|pendiente|no_pagada|sin_pc|vencida|cambio_reciente|ok), 'mensaje', 'claves'].
+function tienda_vincular_celular(PDO $conn, array $cfg, $codigo, $hw) {
+    $conn->beginTransaction();
+    try {
+        $compra = tienda_compra_por($conn, 'codigo', $codigo, true);
+        $no = function ($motivo, $mensaje) use ($conn) {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => $motivo, 'mensaje' => $mensaje, 'claves' => []];
+        };
+        if ($compra === null) return $no('no_existe', 'Ese código no existe. Revisa que esté completo (AP-XXXX-XXXX-XXXX).');
+        if ($compra['estado'] === 'pendiente') return $no('pendiente', 'Ese pago todavía no se confirma. Si pagaste en OXXO, puede tardar unas horas.');
+        if ($compra['estado'] !== 'pagada') return $no('no_pagada', 'Ese pago no se completó (la ficha de OXXO venció).');
+        if (!$compra['hardware_id']) {
+            return $no('sin_pc', 'Primero activa ese Premium en tu computadora (Configuración > Premium) y después vincula el celular.');
+        }
+        $hoy = dash_hoy_mx();
+        $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw');
+        $st->execute([':c' => $compra['id'], ':hw' => $compra['hardware_id']]);
+        $vence = $st->fetchColumn() ?: null;
+        if ($vence === null || strcmp($vence, $hoy) < 0) {
+            return $no('vencida', 'Ese Premium ya venció. Renuévalo en la computadora y vuelve a intentar.');
+        }
+        $cel = tienda_celular_de($conn, $compra['id'], true);
+        if ($cel === null) {
+            $conn->prepare('INSERT INTO tienda_celulares (compra_id, hardware_id, vinculado) VALUES (:c, :hw, NOW())')
+                 ->execute([':c' => $compra['id'], ':hw' => $hw]);
+        } elseif ($cel['hardware_id'] !== $hw) {
+            $siguiente = tienda_sumar_dias(substr($cel['vinculado'], 0, 10), TIENDA_CAMBIO_CELULAR_DIAS);
+            if (strcmp($hoy, $siguiente) < 0) {
+                $f = tienda_fecha($siguiente)->format('d/m/Y');
+                return $no('cambio_reciente', "Ese Premium ya incluye otro celular. Puedes pasarlo a este a partir del $f; "
+                    . 'si lo necesitas antes, escríbenos por WhatsApp al 55 8432 3945.');
+            }
+            $conn->prepare('UPDATE tienda_celulares SET hardware_id = :hw, vinculado = NOW() WHERE compra_id = :c')
+                 ->execute([':c' => $compra['id'], ':hw' => $hw]);
+        }
+        tienda_celular_al_dia($conn, $cfg, $compra);
+        $conn->commit();
+        return ['ok' => true, 'motivo' => 'ok', 'mensaje' => 'Listo: el Premium de tu computadora ya incluye este celular.',
+                'claves' => tienda_claves_compra($conn, $compra['id'], $hw)];
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
 }
 
 // Canjes fallidos por IP: el código tiene 25^12 combinaciones, pero no se deja probar sin freno.

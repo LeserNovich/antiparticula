@@ -28,6 +28,12 @@ sql < sql/000_base_dashboard_pos.sql || { echo "Falló la línea base"; exit 2; 
 sql < sql/2026-10-21_tienda.sql >/dev/null || { echo "Falló la migración de la tienda (1.ª vez)"; exit 2; }
 sql < sql/2026-10-21_tienda.sql >/dev/null || { echo "La migración de la tienda NO es idempotente (2.ª vez)"; exit 2; }
 echo "Migración de la tienda aplicada dos veces sin error"
+sql < sql/2026-10-29_celular.sql >/dev/null || { echo "Falló la migración del celular (1.ª vez)"; exit 2; }
+sql < sql/2026-10-29_celular.sql >/dev/null || { echo "La migración del celular NO es idempotente (2.ª vez)"; exit 2; }
+salida=$(docker exec -i "$DB" mariadb -udash -pdash-prueba information_schema < sql/2026-10-29_celular.sql 2>&1)
+echo "$salida" | grep -qi "error" && { echo "La migración del celular FALLA con information_schema:"; echo "$salida" | tail -3; exit 2; }
+echo "$salida" | grep -q "ELIGE TU BASE" || { echo "La migración del celular no avisó que la base activa no es la correcta"; exit 2; }
+echo "Migración del celular: dos veces sin error, y avisa con information_schema"
 salida=$(docker exec -i "$DB" mariadb -udash -pdash-prueba information_schema < sql/2026-10-21_tienda.sql 2>&1)
 if echo "$salida" | grep -qi "error"; then echo "La migración FALLA con information_schema como base activa:"; echo "$salida" | tail -3; exit 2; fi
 echo "$salida" | grep -q "ELIGE TU BASE" || { echo "La migración no avisó que la base activa no es la correcta"; exit 2; }

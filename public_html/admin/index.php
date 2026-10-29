@@ -58,6 +58,7 @@ function v($archivo) {
         <nav class="pestanas" id="pestanas" aria-label="Secciones">
             <a href="#resumen" data-s="resumen">Resumen</a>
             <a href="#descargas" data-s="descargas">Descargas</a>
+            <a href="#registros" data-s="registros">Registros</a>
             <a href="#computadoras" data-s="computadoras">Computadoras</a>
             <a href="#tiendas" data-s="tiendas">Tiendas</a>
             <a href="#premium" data-s="premium">Premium</a>

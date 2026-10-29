@@ -229,6 +229,53 @@ prueba('los del programa no tienen nombre', count(array_filter($d['lista'], func
 prueba('cada mensaje trae su teléfono (o nulo)', count(array_filter($d['lista'], function ($c) { return array_key_exists('telefono', $c); })) === 21);
 prueba('el que dejó teléfono lo trae tal cual', in_array('5512345678', array_column($d['lista'], 'telefono'), true));
 
+seccion('Registros de /gratis');
+$d = api('s=registros&p=30', $COOKIE)['json'];
+$manana = date('Y-m-d', strtotime('+1 day'));
+$W30 = "creado >= '$desde30' AND creado < '$manana'";
+$desde60 = date('Y-m-d', strtotime('-59 days'));
+prueba('nada falta', $d['faltan'] === [], json_encode($d['faltan']));
+prueba('con seguimiento', $d['seguimiento'] === true);
+prueba('registros del periodo', $d['datos']['actual'] === (int) uno("SELECT COUNT(*) FROM registros_gratis WHERE $W30"), json_encode($d['datos']['actual']));
+prueba('los del periodo anterior', $d['datos']['anterior'] === (int) uno('SELECT COUNT(*) FROM registros_gratis WHERE creado >= ? AND creado < ?', [$desde60, $desde30]));
+prueba('cuántos descargaron', $d['datos']['descargaron'] === (int) uno("SELECT COUNT(*) FROM registros_gratis WHERE $W30 AND descargo_en IS NOT NULL"));
+prueba('cuántos llegaron de un anuncio', $d['datos']['de_anuncio'] === (int) uno("SELECT COUNT(*) FROM registros_gratis WHERE $W30 AND ttclid IS NOT NULL"));
+prueba('los de siempre', $d['datos']['total'] === 30);
+prueba('la gráfica suma lo del periodo', count($d['datos']['serie']) === 30 && array_sum($d['datos']['serie']) === $d['datos']['actual']
+       && array_sum($d['datos']['serie_descargaron']) === $d['datos']['descargaron']);
+$giros = array_map(function ($g) { return [$g['giro'], (int) $g['n'], (int) $g['descargaron']]; },
+                   $db->query("SELECT giro, COUNT(*) AS n, COUNT(descargo_en) AS descargaron FROM registros_gratis WHERE $W30 GROUP BY giro ORDER BY n DESC, giro")->fetchAll(PDO::FETCH_ASSOC));
+$girosApi = array_map(function ($g) { return [$g['giro'], (int) $g['n'], (int) $g['descargaron']]; }, $d['datos']['giros']);
+prueba('por giro', $girosApi === $giros, json_encode($girosApi) . ' vs ' . json_encode($giros));
+$tramos = array_map('intval', $db->query("SELECT SUM(m < 60), SUM(m >= 60 AND m < 1440), SUM(m >= 1440 AND m < 4320), SUM(m >= 4320) FROM
+                                          (SELECT TIMESTAMPDIFF(MINUTE, creado, descargo_en) AS m FROM registros_gratis WHERE $W30 AND descargo_en IS NOT NULL) t")->fetch(PDO::FETCH_NUM));
+prueba('cuánto tardan en descargar', $d['datos']['tardanza'] === $tramos, json_encode($d['datos']['tardanza']) . ' vs ' . json_encode($tramos));
+prueba('los nombres de los giros', $d['giros']['ferreteria'] === 'Ferretería o tlapalería');
+prueba('la lista: todos, el más nuevo primero', count($d['lista']) === 30 && $d['lista'][0]['creado'] >= $d['lista'][29]['creado']);
+prueba('cada uno con su link personal', count(array_filter($d['lista'], function ($x) { return $x['link'] === 'https://antiparticula.com/d/' . $x['codigo']; })) === 30);
+prueba('«de un anuncio» es sí o no', count(array_filter($d['lista'], function ($x) { return is_bool($x['de_anuncio']); })) === 30);
+$pend = (int) uno('SELECT COUNT(*) FROM registros_gratis WHERE contactado_en IS NULL AND baja_en IS NULL');
+prueba('el resumen dice a cuántos falta escribirles', api('s=resumen&p=30', $COOKIE)['json']['pendientes']['registros'] === $pend);
+
+$rp = $hechos['registro_pendiente']; $rb = $hechos['registro_baja'];
+$seg = function ($accion, $id) use ($BASE, $COOKIE) { return http('POST', "$BASE/admin/api.php", ['accion' => $accion, 'id' => $id], ['X-Admin: 1'], $COOKIE); };
+$r = http('POST', "$BASE/admin/api.php", ['accion' => 'escrito', 'id' => $rp], [], $COOKIE);
+prueba('seguimiento sin la cabecera X-Admin se rechaza', $r['codigo'] === 403);
+$r = $seg('escrito', $rp);
+prueba('anotar que le escribiste', $r['codigo'] === 200 && uno('SELECT contactado_en FROM registros_gratis WHERE id = ?', [$rp]) !== null, $r['cuerpo']);
+prueba('y ya no cuenta como pendiente', api('s=resumen&p=30', $COOKIE)['json']['pendientes']['registros'] === $pend - 1);
+$r = $seg('escrito', $rb);
+prueba('a quien pidió BAJA no se le anota: 409', $r['codigo'] === 409 && uno('SELECT contactado_en FROM registros_gratis WHERE id = ?', [$rb]) === null, $r['cuerpo']);
+$r = $seg('baja', $rp);
+prueba('marcar BAJA', $r['codigo'] === 200 && uno('SELECT baja_en FROM registros_gratis WHERE id = ?', [$rp]) !== null);
+$r = $seg('quitar_baja', $rp);
+prueba('quitar la BAJA', $r['codigo'] === 200 && uno('SELECT baja_en FROM registros_gratis WHERE id = ?', [$rp]) === null);
+$r = $seg('borrar_registro', $rp);
+prueba('borrar sus datos', $r['codigo'] === 200 && (int) uno('SELECT COUNT(*) FROM registros_gratis WHERE id = ?', [$rp]) === 0
+       && (int) uno('SELECT COUNT(*) FROM registros_gratis') === 29);
+prueba('borrarlo otra vez: 404', $seg('borrar_registro', $rp)['codigo'] === 404);
+prueba('un ID que no es número: 400', $seg('escrito', 'abc')['codigo'] === 400 && $seg('baja', '1 OR 1=1')['codigo'] === 400);
+
 seccion('Una computadora');
 $id = $hechos['tiendas'][0];
 $lic = $hechos['licencias'][$id];
@@ -302,6 +349,18 @@ prueba('sin la columna: computadoras dice qué faltó y no inventa versiones',
        in_array('uso_punto_venta.version_pos', $d['faltan'], true) && $d['versiones'] === null && $d['lista'] && $d['lista'][0]['version'] === null,
        json_encode($d['faltan']));
 prueba('sin la columna: la ficha sigue', api('s=equipo&id=' . $hechos['tiendas'][0], $COOKIE)['json']['versiones'] === null);
+// La tabla de /gratis creada con la primera versión de su migración (sin el seguimiento), y luego sin la tabla
+$db->exec('ALTER TABLE registros_gratis DROP COLUMN baja_en');
+$d = api('s=registros&p=30', $COOKIE)['json'];
+prueba('sin las columnas del seguimiento: la lista sale, sin botones', $d['seguimiento'] === false && count($d['lista']) === 29 && $d['datos'] !== null
+       && in_array('registros_gratis.seguimiento', $d['faltan'], true), json_encode($d['faltan']));
+prueba('y el resumen no inventa pendientes', api('s=resumen&p=30', $COOKIE)['json']['pendientes']['registros'] === null);
+$r = http('POST', "$BASE/admin/api.php", ['accion' => 'escrito', 'id' => $hechos['registro_baja']], ['X-Admin: 1'], $COOKIE);
+prueba('anotar sin las columnas dice qué migración falta', $r['codigo'] === 500 && strpos($r['json']['message'], 'sql/2026-10-27_registros_gratis.sql') !== false, $r['cuerpo']);
+$db->exec('DROP TABLE registros_gratis');
+$r = api('s=registros&p=30', $COOKIE);
+prueba('sin la tabla: responde, sin datos y diciendo qué falta', $r['codigo'] === 200 && $r['json']['datos'] === null && $r['json']['lista'] === null
+       && $r['json']['seguimiento'] === false && in_array('registros_gratis', $r['json']['faltan'], true), substr($r['cuerpo'], 0, 300));
 $db->exec('DROP TABLE tienda_pagos');
 $db->exec('DROP TABLE pruebas_equipo');
 $db->exec('DROP TABLE dashboard_pos_ventas');

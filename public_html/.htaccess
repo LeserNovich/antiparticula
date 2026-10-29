@@ -17,6 +17,12 @@ RewriteRule ^versiones/?$ /paginas/versiones.html [L,NC]
 # A donde regresa Stripe después de pagar (tienda/pagar.php)
 RewriteRule ^compra/?$ /paginas/compra.html [QSA,L,NC]
 
+# La página de los anuncios de TikTok, y el link personal que se manda desde ahí por WhatsApp para abrirlo en
+# la computadora: /d/CODIGO → /gratis?c=CODIGO (gratis_comun.php). Antes de la regla genérica de productos.
+RewriteRule ^gratis/?$ /paginas/gratis.html [QSA,L,NC]
+RewriteRule ^d/([A-Za-z0-9]{4,8})/?$ /gratis?c=$1 [R=302,L]
+RewriteRule ^privacidad/?$ /paginas/privacidad.html [L,NC]
+
 # Regla genérica para todos los productos
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

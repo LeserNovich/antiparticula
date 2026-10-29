@@ -1,1 +1,4 @@
 config_db.php
+# Instaladores del POS: se suben a mano al servidor con cada versión y pesan cientos de MB (GitHub rechaza > 100 MB)
+public_html/downloads/*.exe
+public_html/downloads/*.dmg
