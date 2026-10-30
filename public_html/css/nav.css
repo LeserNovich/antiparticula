@@ -77,8 +77,9 @@
 }
 
 .site-nav__brand img {
-  width: 34px;
-  height: auto;
+  display: block;
+  height: 28px;
+  width: auto;
 }
 
 .site-nav__menu {

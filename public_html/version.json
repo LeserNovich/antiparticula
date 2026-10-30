@@ -1,10 +1,22 @@
 {
-"version": "3.8.0",
+"version": "3.9.0",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "Nuevo en Premium: lleva el fiado de tus clientes en el programa",
+"changelog": "Nueva imagen y devoluciones más completas",
 "mandatory": false,
 
   "historial": [
+  {
+  "version": "3.9.0",
+  "fecha": "2026-10-30",
+  "titulo": "Nueva imagen y devoluciones más completas",
+  "cambios": [
+    "Estrenamos logo: lo verás en la ventana del programa, en el menú, en el ícono y en el pie de tus tickets.",
+    "El pie del ticket se imprime más nítido: «Punto de venta · antiparticula.com» ahora va en letra negra y más grande, y ya no sale borroso en impresoras térmicas.",
+    "Devuelve solo una parte de lo que te compraron: si se llevaron 3 piezas y regresan 1, en Historial de ventas elige el artículo, escribe cuántas devuelve y el programa te dice cuánto regresarle. También funciona con lo que vendes por kilo o por litro.",
+    "Si la venta tuvo descuento, al devolver un artículo se regresa lo que el cliente pagó por él, con su parte del descuento, y no el precio completo. El ticket ya no puede quedar en negativo.",
+    "El botón «Devolver artículo» aparece al elegir el artículo en el detalle del ticket, y la ventana te avisa si lo que quieres devolver es todo lo que queda (en ese caso, cancela la venta)."
+  ]
+},
     {
  "version": "3.8.0",
  "fecha": "2026-10-28",

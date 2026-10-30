@@ -31,13 +31,14 @@ function v($archivo) {
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
 <title>Tus datos · Antipartícula</title>
-<link rel="icon" href="../img/A.png">
+<link rel="icon" href="../img/marca/favicon.ico" sizes="32x32">
+<link rel="icon" href="../img/marca/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="<?= v('admin.css') ?>">
 </head>
 <?php if (!$con_sesion): ?>
 <body class="entrada">
 <main class="entrada-caja">
-    <img class="entrada-logo" src="../img/A.png" alt="" width="44" height="44">
+    <img class="entrada-logo" src="../img/marca/icono-192.png" alt="" width="44" height="44">
     <h1>Tus datos</h1>
     <p class="entrada-sub">Antipartícula · solo para ti</p>
     <form method="post" autocomplete="on">
@@ -54,7 +55,7 @@ function v($archivo) {
 <body>
 <header class="cabecera">
     <div class="cabecera-in">
-        <a class="marca" href="#resumen"><img src="../img/A.png" alt="" width="26" height="26"><span>Tus datos</span></a>
+        <a class="marca" href="#resumen"><img src="../img/marca/icono-192.png" alt="" width="26" height="26"><span>Tus datos</span></a>
         <nav class="pestanas" id="pestanas" aria-label="Secciones">
             <a href="#resumen" data-s="resumen">Resumen</a>
             <a href="#descargas" data-s="descargas">Descargas</a>

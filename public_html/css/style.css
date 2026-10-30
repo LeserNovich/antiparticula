@@ -365,10 +365,9 @@ footer {
 }
 
 .logoFooter{
-  width: 70px;
-  height: 70px;
+  width: 150px;
+  height: auto;
   margin-bottom: 24px;
-  border-radius: 12px;
 }
 
 .colFooter h3{

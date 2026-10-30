@@ -14,7 +14,7 @@ try {
     $plan = tienda_plan($c['plan']);
     dash_responder(200, [
         'status'       => 'ok',
-        'estado'       => $c['estado'],                    // pendiente (OXXO) | pagada | vencida
+        'estado'       => $c['estado'],                    // pendiente (OXXO) | pagada | vencida | reembolsada | disputada
         'nombre'       => $plan ? $plan['nombre'] : 'Premium',
         'tipo'         => $c['tipo'],
         'codigo'       => tienda_codigo_mostrar($c['codigo']),

@@ -1,6 +1,7 @@
 <?php
 // El programa (o la app del celular) pregunta por sus claves (POST hw, claves). Responde las que la tienda le entregó a esa PC (el
-// programa activa las que no tenga) y las compras de OXXO que esperan pago. De paso anota lo que la PC ya tenía
+// programa activa las que no tenga), las que se le retiraron por un reembolso o un contracargo (desde el 2026-10-30: el
+// programa posterior a la 3.8.0 y la app posterior a la 0.1.6 las borran) y las compras de OXXO que esperan pago. De paso anota lo que la PC ya tenía
 // (claves verificadas), para que una renovación se sume desde ahí.
 define('TIENDA_COMUN_OK', true);
 require __DIR__ . '/../tienda_comun.php';
@@ -22,8 +23,8 @@ try {
     $st = $conn->prepare('SELECT COUNT(*) FROM tienda_compras c JOIN tienda_pagos p ON p.compra_id = c.id
                            WHERE c.hardware_id = :hw AND c.stripe_suscripcion IS NOT NULL AND p.creado > NOW() - INTERVAL 40 DAY');
     $st->execute([':hw' => $hw]);
-    dash_responder(200, ['status' => 'ok', 'claves' => tienda_claves_de($conn, $hw), 'pendientes' => $pendientes,
-                         'renovable' => (int) $st->fetchColumn() > 0]);
+    dash_responder(200, ['status' => 'ok', 'claves' => tienda_claves_de($conn, $hw), 'retiradas' => tienda_claves_retiradas($conn, $hw),
+                         'pendientes' => $pendientes, 'renovable' => (int) $st->fetchColumn() > 0]);
 } catch (Exception $e) {
     error_log('tienda/claves.php: ' . $e->getMessage());
     dash_responder(500, ['status' => 'error', 'message' => 'interno']);

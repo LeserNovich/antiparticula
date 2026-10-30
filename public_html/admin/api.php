@@ -217,9 +217,10 @@ function adm_licencias(PDO $c, $paneles) {
     };
     $equipo_de = adm_equipo_de_licencia($paneles);
     adm_bloque('tienda_claves', function () use ($c, $poner, $equipo_de) {
+        // Sin las retiradas por un reembolso o un contracargo
         $filas = adm_todos($c, "SELECT k.hardware_id, k.tipo, k.vence_pagado, c.stripe_suscripcion, c.email
                                 FROM tienda_claves k JOIN tienda_compras c ON c.id = k.compra_id
-                                WHERE c.stripe_sesion NOT LIKE 'cs\\_test\\_%'");
+                                WHERE c.stripe_sesion NOT LIKE 'cs\\_test\\_%'" . tienda_vigentes($c, 'k.'));
         foreach ($filas as $f) {
             $poner($f['hardware_id'] . '|' . $f['tipo'], [
                 'lic' => $f['hardware_id'], 'equipo' => isset($equipo_de[$f['hardware_id']]) ? $equipo_de[$f['hardware_id']] : null,
@@ -253,13 +254,14 @@ function adm_licencias(PDO $c, $paneles) {
     return array_values($m);
 }
 
-// Cada pago real (sin el modo de prueba de Stripe) con su importe: el primero es lo que cobró Stripe en la sesión;
-// una renovación no guarda importe y vale el precio de su plan.
+// Cada pago real (sin el modo de prueba de Stripe, ni los reembolsados o en contracargo) con su importe: el primero es
+// lo que cobró Stripe en la sesión; una renovación no guarda importe y vale el precio de su plan.
 function adm_pagos(PDO $c) {
     $planes = tienda_planes();
+    $buenos = tienda_con_retiros($c) ? ' AND p.reembolsado IS NULL AND p.disputado IS NULL' : '';
     $filas = adm_todos($c, "SELECT p.creado, p.stripe_ref, p.meses, c.id AS compra, c.stripe_sesion, c.monto, c.plan, c.tipo, c.origen
                             FROM tienda_pagos p JOIN tienda_compras c ON c.id = p.compra_id
-                            WHERE c.stripe_sesion NOT LIKE 'cs\\_test\\_%' ORDER BY p.creado");
+                            WHERE c.stripe_sesion NOT LIKE 'cs\\_test\\_%'$buenos ORDER BY p.creado");
     $out = [];
     foreach ($filas as $f) {
         $renovacion = $f['stripe_ref'] !== $f['stripe_sesion'];
@@ -1047,7 +1049,8 @@ function sec_equipo(PDO $c, $id, $lic) {
             return $out;
         });
         $r['claves'] = adm_bloque('tienda_claves', function () use ($c, $pl) {
-            return adm_todos($c, 'SELECT tipo, vence_pagado, vence, creada, clave FROM tienda_claves WHERE hardware_id = :lic ORDER BY id DESC LIMIT 50', $pl);
+            return adm_todos($c, 'SELECT tipo, vence_pagado, vence, creada, clave FROM tienda_claves WHERE hardware_id = :lic'
+                                 . tienda_vigentes($c) . ' ORDER BY id DESC LIMIT 50', $pl);
         });
         $r['reportadas'] = adm_bloque('tienda_reportados', function () use ($c, $pl) {
             return adm_todos($c, 'SELECT tipo, vence, visto FROM tienda_reportados WHERE hardware_id = :lic', $pl);

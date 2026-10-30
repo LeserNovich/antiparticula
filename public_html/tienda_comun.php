@@ -8,7 +8,8 @@
 // Cómo funciona:
 //   tienda/pagar.php    crea la sesión de cobro de Stripe (Checkout) y manda ahí al cliente
 //   tienda/webhook.php  Stripe avisa que se pagó → se anota la compra y, si se sabe la PC,
-//                       se firma su clave con la llave de ventas (número 2)
+//                       se firma su clave con la llave de ventas (número 2). Un reembolso completo o un
+//                       contracargo retira lo que dio ese pago (claves.php le dice al programa qué borrar)
 //   tienda/claves.php   el programa pregunta por sus claves nuevas y las activa solo
 //   tienda/canjear.php  el código de la compra: para quien pagó en la página (no se sabe su PC)
 //                       y para cambiar de PC (uno automático cada 12 meses)
@@ -78,6 +79,7 @@ function tienda_beneficios() {
             'Resumen completo: meses, años y comparaciones',
             'Usuarios sin límite (administradores y cajeros)',
             'Encabezado del ticket con todas las líneas que quieras',
+            'Etiquetas con código de barras de tus productos, sin límite',
             'Opción de quitar la marca Antiparticula del ticket',
             'Soporte y actualizaciones',
         ],
@@ -367,11 +369,36 @@ function tienda_firmar(array $cfg, $tipo, $hw, $vence) {
     return $clave;
 }
 
+// ── Claves retiradas (reembolsos y contracargos, 2026-10-30) ───────────────
+// ¿Ya corrió sql/2026-10-30_reembolsos.sql? Sin ella todo sigue como antes: no se retira nada.
+function tienda_con_retiros(PDO $conn) {
+    static $hay = null;
+    if ($hay === null) {
+        $hay = (int) $conn->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
+                                   AND TABLE_NAME = 'tienda_claves' AND COLUMN_NAME = 'retirada'")->fetchColumn() > 0;
+    }
+    return $hay;
+}
+
+// Para sumar al WHERE de una consulta sobre tienda_claves: solo las que siguen valiendo ($alias: «k.»).
+function tienda_vigentes(PDO $conn, $alias = '') {
+    return tienda_con_retiros($conn) ? " AND {$alias}retirada IS NULL" : '';
+}
+
+// Guarda una clave emitida. $pago_id: el pago que la generó (null si es un cambio de PC o el celular).
+function tienda_guardar_clave(PDO $conn, $compra_id, $hw, $tipo, $pagado, $vence, $clave, $pago_id = null) {
+    $con_pago = $pago_id !== null && tienda_con_retiros($conn);
+    $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada'
+                   . ($con_pago ? ', pago_id' : '') . ') VALUES (:c, :hw, :t, :p, :v, :k, NOW()' . ($con_pago ? ', :pago' : '') . ')')
+         ->execute([':c' => $compra_id, ':hw' => $hw, ':t' => $tipo, ':p' => $pagado, ':v' => $vence, ':k' => $clave]
+                   + ($con_pago ? [':pago' => $pago_id] : []));
+}
+
 // ── Lo que cada PC ya tiene ─────────────────────────────────────────────────
-// Hasta dónde llega lo pagado de ese plan en esa PC: lo que entregó la tienda (sin la gracia) o lo que ya tenía
-// (claves de la consola que el programa reportó). null si nada.
+// Hasta dónde llega lo pagado de ese plan en esa PC: lo que entregó la tienda (sin la gracia y sin lo reembolsado) o lo
+// que ya tenía (claves de la consola que el programa reportó). null si nada.
 function tienda_vence_actual(PDO $conn, $hw, $tipo) {
-    $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE hardware_id = :hw AND tipo = :t');
+    $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE hardware_id = :hw AND tipo = :t' . tienda_vigentes($conn));
     $st->execute([':hw' => $hw, ':t' => $tipo]);
     $tienda = $st->fetchColumn() ?: null;
     $st = $conn->prepare('SELECT vence FROM tienda_reportados WHERE hardware_id = :hw AND tipo = :t');
@@ -420,9 +447,7 @@ function tienda_aplicar(PDO $conn, array $cfg, array $compra) {
             // Modo de prueba: siempre 2 días desde hoy, sin sumarse a nada (y sin contar para lo que la PC ya tiene)
             $pagado = tienda_sumar_dias(dash_hoy_mx(), TIENDA_DIAS_PRUEBA);
             $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $pagado);
-            $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
-                            VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
-                 ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => dash_hoy_mx(), ':v' => $pagado, ':k' => $clave]);
+            tienda_guardar_clave($conn, $compra['id'], $hw, $compra['tipo'], dash_hoy_mx(), $pagado, $clave, $pago['id']);
             $nuevas[] = $clave;
         } elseif ($actual !== TIENDA_PARA_SIEMPRE) {
             if ((int) $pago['meses'] === 0) {
@@ -434,9 +459,7 @@ function tienda_aplicar(PDO $conn, array $cfg, array $compra) {
                 $vence = tienda_min_fecha(tienda_sumar_dias($pagado, TIENDA_GRACIA_DIAS), TIENDA_PARA_SIEMPRE);
             }
             $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $vence);
-            $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
-                            VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
-                 ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => $pagado, ':v' => $vence, ':k' => $clave]);
+            tienda_guardar_clave($conn, $compra['id'], $hw, $compra['tipo'], $pagado, $vence, $clave, $pago['id']);
             $nuevas[] = $clave;
         }
         // Ya es para siempre: un pago más no cambia nada (pagar.php no lo deja comprar)
@@ -449,7 +472,7 @@ function tienda_aplicar(PDO $conn, array $cfg, array $compra) {
 
 // Lo que Stripe confirmó de una sesión de cobro (webhook): crea o actualiza la compra y, si quedó pagada, anota el
 // pago y entrega la clave si se sabe la PC. Repetido (Stripe reintenta) no duplica nada.
-// $s: sesion, plan, hw, origen, email, monto, suscripcion, pagada (bool).
+// $s: sesion, plan, hw, origen, email, monto, suscripcion, pagada (bool) y, opcionales, intento (pi_…) y cliente (cus_…).
 // Devuelve ['compra' => fila, 'nuevas' => claves, 'recien_pagada' => bool].
 function tienda_registrar_sesion(PDO $conn, array $cfg, array $s) {
     $plan = tienda_plan($s['plan']);
@@ -477,10 +500,15 @@ function tienda_registrar_sesion(PDO $conn, array $cfg, array $s) {
             $compra = tienda_compra_por($conn, 'id', $compra['id'], true);
             $recien = true;
         }
+        if (!empty($s['cliente']) && tienda_con_retiros($conn)) {
+            $conn->prepare('UPDATE tienda_compras SET stripe_cliente = COALESCE(stripe_cliente, :cl) WHERE id = :id')
+                 ->execute([':cl' => $s['cliente'], ':id' => $compra['id']]);
+        }
         $nuevas = [];
         if ($compra['estado'] === 'pagada') {
             $conn->prepare('INSERT IGNORE INTO tienda_pagos (compra_id, stripe_ref, meses, creado) VALUES (:c, :r, :m, NOW())')
                  ->execute([':c' => $compra['id'], ':r' => $s['sesion'], ':m' => $plan['meses']]);
+            tienda_anotar_cobro($conn, $s['sesion'], isset($s['intento']) ? $s['intento'] : null);
             $nuevas = tienda_aplicar($conn, $cfg, $compra);
         }
         $conn->commit();
@@ -499,7 +527,7 @@ function tienda_marcar_vencida(PDO $conn, $sesion) {
 
 // La renovación de una suscripción (cada mes): un mes más para la PC de esa compra. null si la suscripción no es
 // de una compra conocida.
-function tienda_renovar(PDO $conn, array $cfg, $suscripcion, $factura) {
+function tienda_renovar(PDO $conn, array $cfg, $suscripcion, $factura, $intento = null) {
     $conn->beginTransaction();
     try {
         $compra = tienda_compra_por($conn, 'suscripcion', $suscripcion, true);
@@ -510,6 +538,7 @@ function tienda_renovar(PDO $conn, array $cfg, $suscripcion, $factura) {
         $plan = tienda_plan($compra['plan']);
         $conn->prepare('INSERT IGNORE INTO tienda_pagos (compra_id, stripe_ref, meses, creado) VALUES (:c, :r, :m, NOW())')
              ->execute([':c' => $compra['id'], ':r' => $factura, ':m' => $plan ? $plan['meses'] : 1]);
+        tienda_anotar_cobro($conn, $factura, $intento);
         $nuevas = tienda_aplicar($conn, $cfg, $compra);
         $conn->commit();
         return ['compra' => $compra, 'nuevas' => $nuevas];
@@ -519,9 +548,17 @@ function tienda_renovar(PDO $conn, array $cfg, $suscripcion, $factura) {
     }
 }
 
-// Las claves que la tienda entregó a esa PC (las más nuevas primero).
+// Las claves que la tienda entregó a esa PC y siguen valiendo (las más nuevas primero).
 function tienda_claves_de(PDO $conn, $hw) {
-    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE hardware_id = :hw ORDER BY id DESC LIMIT 50');
+    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE hardware_id = :hw' . tienda_vigentes($conn) . ' ORDER BY id DESC LIMIT 50');
+    $st->execute([':hw' => $hw]);
+    return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// Las que se le retiraron por un reembolso o un contracargo: el programa y la app las borran al preguntar.
+function tienda_claves_retiradas(PDO $conn, $hw) {
+    if (!tienda_con_retiros($conn)) return [];
+    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE hardware_id = :hw AND retirada IS NOT NULL ORDER BY id DESC LIMIT 50');
     $st->execute([':hw' => $hw]);
     return $st->fetchAll(PDO::FETCH_COLUMN);
 }
@@ -540,6 +577,10 @@ function tienda_canjear(PDO $conn, array $cfg, $codigo, $hw) {
         if ($compra['estado'] === 'pendiente') {
             $conn->rollBack();
             return ['ok' => false, 'motivo' => 'pendiente', 'mensaje' => 'Ese pago todavía no se confirma. Si pagaste en OXXO, puede tardar unas horas.', 'claves' => []];
+        }
+        if ($anulada = tienda_compra_anulada($conn, $compra)) {
+            $conn->rollBack();
+            return ['ok' => false, 'motivo' => $anulada[0], 'mensaje' => $anulada[1], 'claves' => []];
         }
         if ($compra['estado'] !== 'pagada') {
             $conn->rollBack();
@@ -573,7 +614,7 @@ function tienda_canjear(PDO $conn, array $cfg, $codigo, $hw) {
                         . "es a partir del $f; si lo necesitas antes, escríbenos por WhatsApp al 55 8432 3945.", 'claves' => []];
             }
         }
-        $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE compra_id = :c');
+        $st = $conn->prepare('SELECT MAX(vence_pagado) FROM tienda_claves WHERE compra_id = :c' . tienda_vigentes($conn));
         $st->execute([':c' => $compra['id']]);
         $pagado = $st->fetchColumn() ?: null;
         if ($pagado === null || strcmp($pagado, $hoy) < 0) {
@@ -584,9 +625,7 @@ function tienda_canjear(PDO $conn, array $cfg, $codigo, $hw) {
                : ($pagado === TIENDA_PARA_SIEMPRE ? $pagado
                : tienda_min_fecha(tienda_sumar_dias($pagado, TIENDA_GRACIA_DIAS), TIENDA_PARA_SIEMPRE));
         $clave = tienda_firmar($cfg, $compra['tipo'], $hw, $vence);
-        $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
-                        VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
-             ->execute([':c' => $compra['id'], ':hw' => $hw, ':t' => $compra['tipo'], ':p' => $pagado, ':v' => $vence, ':k' => $clave]);
+        tienda_guardar_clave($conn, $compra['id'], $hw, $compra['tipo'], $pagado, $vence, $clave);
         // Las renovaciones de una suscripción ya van a la PC nueva
         $conn->prepare('UPDATE tienda_compras SET hardware_id = :hw, ultimo_cambio_pc = NOW() WHERE id = :id')
              ->execute([':hw' => $hw, ':id' => $compra['id']]);
@@ -600,9 +639,142 @@ function tienda_canjear(PDO $conn, array $cfg, $codigo, $hw) {
 }
 
 function tienda_claves_compra(PDO $conn, $compra_id, $hw) {
-    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw ORDER BY id DESC');
+    $st = $conn->prepare('SELECT clave FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw' . tienda_vigentes($conn) . ' ORDER BY id DESC');
     $st->execute([':c' => $compra_id, ':hw' => $hw]);
     return $st->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// ── Reembolsos y contracargos (2026-10-30) ──────────────────────────────────
+// Un reembolso COMPLETO o un contracargo retira lo que dio ese pago: sus claves ya no se entregan (claves.php le dice
+// al programa y a la app cuáles borrar), el código ya no se canjea, el celular no se renueva y no se suma a la siguiente
+// compra. En un pago único (anual, para siempre) es toda la compra; en una mensualidad, ese mes. Un contracargo ganado
+// lo devuelve. Un reembolso parcial no cambia nada. Lo decidió el dueño el 2026-10-30. Una PC sin internet conserva su
+// clave hasta que pregunte (la firma se verifica sin conexión): eso no tiene arreglo del lado de la tienda.
+
+// Anota con qué cobro de Stripe (pi_…) se hizo el pago $ref (la sesión o la factura): así se reconoce su reembolso.
+function tienda_anotar_cobro(PDO $conn, $ref, $intento) {
+    if (!is_string($intento) || $intento === '' || !tienda_con_retiros($conn)) return;
+    $conn->prepare('UPDATE tienda_pagos SET payment_intent = :pi WHERE stripe_ref = :r AND payment_intent IS NULL')
+         ->execute([':pi' => $intento, ':r' => $ref]);
+}
+
+// La primera factura de una mensualidad: su mes ya lo dio la sesión; solo se anota su cobro en el pago de la sesión.
+// Si llega antes que la sesión no hay compra todavía: su reembolso se reconoce por el cliente (tienda_pago_de_cobro).
+function tienda_anotar_cobro_inicial(PDO $conn, $suscripcion, $intento) {
+    $compra = tienda_compra_por($conn, 'suscripcion', $suscripcion);
+    if ($compra !== null) tienda_anotar_cobro($conn, $compra['stripe_sesion'], $intento);
+}
+
+// ¿La compra ya no vale? ['reembolsada' | 'disputada', mensaje para el cliente], o null. Una mensualidad sigue
+// «pagada» aunque se reembolse un mes: no vale si ya no le queda ningún pago bueno.
+function tienda_compra_anulada(PDO $conn, array $compra) {
+    $estado = $compra['estado'];
+    if ($estado === 'pagada' && tienda_con_retiros($conn)) {
+        $st = $conn->prepare('SELECT COUNT(*) AS total, SUM(reembolsado IS NULL AND disputado IS NULL) AS buenos,
+                                     SUM(disputado IS NOT NULL) AS disputados FROM tienda_pagos WHERE compra_id = :c');
+        $st->execute([':c' => $compra['id']]);
+        $f = $st->fetch(PDO::FETCH_ASSOC);
+        if ((int) $f['total'] > 0 && (int) $f['buenos'] === 0) $estado = (int) $f['disputados'] > 0 ? 'disputada' : 'reembolsada';
+    }
+    if ($estado === 'reembolsada') return ['reembolsada', 'Esa compra se reembolsó: ya no activa Premium.'];
+    if ($estado === 'disputada') {
+        return ['disputada', 'Ese pago está en aclaración con el banco: mientras se resuelve, no activa Premium. '
+                . 'Si tienes dudas, escríbenos por WhatsApp al 55 8432 3945.'];
+    }
+    return null;
+}
+
+// El pago de la tienda que corresponde a un cobro de Stripe: por su pi_… o, si no se conoce (la primera mensualidad
+// pudo llegar antes que su sesión), el último pago bueno de la mensualidad de ese cliente. null si no es de la tienda.
+function tienda_pago_de_cobro(PDO $conn, $intento, $cliente) {
+    if (is_string($intento) && $intento !== '') {
+        $st = $conn->prepare('SELECT * FROM tienda_pagos WHERE payment_intent = :pi ORDER BY id LIMIT 1 FOR UPDATE');
+        $st->execute([':pi' => $intento]);
+        $f = $st->fetch(PDO::FETCH_ASSOC);
+        if ($f) return $f;
+    }
+    if (is_string($cliente) && $cliente !== '') {
+        $st = $conn->prepare('SELECT p.* FROM tienda_pagos p JOIN tienda_compras c ON c.id = p.compra_id
+                               WHERE c.stripe_cliente = :cl AND c.stripe_suscripcion IS NOT NULL
+                                 AND p.reembolsado IS NULL AND p.disputado IS NULL
+                               ORDER BY p.id DESC LIMIT 1 FOR UPDATE');
+        $st->execute([':cl' => $cliente]);
+        $f = $st->fetch(PDO::FETCH_ASSOC);
+        if ($f) return $f;
+    }
+    return null;
+}
+
+// Retira lo que dio el pago de ese cobro. $motivo: 'reembolso' | 'disputa'. Devuelve ['compra' => fila,
+// 'retiradas' => cuántas claves], o null si el cobro no es de la tienda (o falta la migración).
+function tienda_retirar_pago(PDO $conn, $intento, $cliente, $motivo) {
+    if (!tienda_con_retiros($conn)) return null;
+    $conn->beginTransaction();
+    try {
+        $pago = tienda_pago_de_cobro($conn, $intento, $cliente);
+        if ($pago === null) {
+            $conn->rollBack();
+            return null;
+        }
+        $compra = tienda_compra_por($conn, 'id', $pago['compra_id'], true);
+        $columna = $motivo === 'reembolso' ? 'reembolsado' : 'disputado';
+        $conn->prepare("UPDATE tienda_pagos SET $columna = COALESCE($columna, NOW()) WHERE id = :id")->execute([':id' => $pago['id']]);
+        $etiqueta = $motivo . ':' . $pago['id'];   // al ganar el contracargo se devuelven justo estas
+        $retiradas = 0;
+        $retirar = function ($donde, array $valores) use ($conn, $etiqueta, &$retiradas) {
+            $st = $conn->prepare("UPDATE tienda_claves SET retirada = NOW(), retiro = :etq WHERE retirada IS NULL AND $donde");
+            $st->execute([':etq' => $etiqueta] + $valores);
+            $retiradas += $st->rowCount();
+        };
+        $plan = tienda_plan($compra['plan']);
+        if ($plan === null || $plan['modo'] !== 'suscripcion') {
+            // Pago único: toda la compra (su PC, la PC a la que se cambió y el celular que incluye)
+            $retirar('compra_id = :c', [':c' => $compra['id']]);
+            $conn->prepare('UPDATE tienda_compras SET estado = :e WHERE id = :id')
+                 ->execute([':e' => $motivo === 'reembolso' ? 'reembolsada' : 'disputada', ':id' => $compra['id']]);
+        } else {
+            // Mensualidad: la clave de ese mes y todo lo firmado más allá de lo que cubren los meses que quedan
+            $retirar('pago_id = :p', [':p' => $pago['id']]);
+            $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND pago_id IS NOT NULL AND retirada IS NULL');
+            $st->execute([':c' => $compra['id']]);
+            $retirar('compra_id = :c AND vence > :v', [':c' => $compra['id'], ':v' => $st->fetchColumn() ?: '2000-01-01']);
+        }
+        $conn->commit();
+        return ['compra' => tienda_compra_por($conn, 'id', $compra['id']), 'retiradas' => $retiradas];
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
+}
+
+// Un contracargo cerrado. Ganado (won) o una consulta cerrada sin cargo (warning_closed): se devuelve lo que se retiró
+// por él. Perdido (lost): queda retirado. Devuelve la compra si se devolvió algo, o null.
+function tienda_cerrar_disputa(PDO $conn, $intento, $estatus) {
+    if (!tienda_con_retiros($conn) || !in_array($estatus, ['won', 'warning_closed'], true)
+            || !is_string($intento) || $intento === '') {
+        return null;
+    }
+    $conn->beginTransaction();
+    try {
+        $st = $conn->prepare('SELECT * FROM tienda_pagos WHERE payment_intent = :pi AND disputado IS NOT NULL ORDER BY id LIMIT 1 FOR UPDATE');
+        $st->execute([':pi' => $intento]);
+        $pago = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$pago || $pago['reembolsado']) {   // se reembolsó mientras tanto: sigue retirado
+            $conn->rollBack();
+            return null;
+        }
+        $conn->prepare('UPDATE tienda_pagos SET disputado = NULL WHERE id = :id')->execute([':id' => $pago['id']]);
+        $conn->prepare('UPDATE tienda_claves SET retirada = NULL, retiro = NULL WHERE retiro = :etq')
+             ->execute([':etq' => 'disputa:' . $pago['id']]);
+        $conn->prepare('UPDATE tienda_compras SET estado = \'pagada\' WHERE id = :id AND estado = \'disputada\'')
+             ->execute([':id' => $pago['compra_id']]);
+        $compra = tienda_compra_por($conn, 'id', $pago['compra_id']);
+        $conn->commit();
+        return $compra;
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        throw $e;
+    }
 }
 
 // ── El celular que incluye el Premium de PC (2026-10-29) ───────────────────
@@ -633,14 +805,14 @@ function tienda_celular_de(PDO $conn, $compra_id, $bloquear = false) {
 function tienda_celular_al_dia(PDO $conn, array $cfg, array $compra) {
     $cel = tienda_celular_de($conn, $compra['id']);
     if ($cel === null || !$compra['hardware_id'] || $compra['estado'] !== 'pagada') return null;
-    $st = $conn->prepare('SELECT vence_pagado, vence FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw
-                          ORDER BY vence DESC LIMIT 1');
+    $st = $conn->prepare('SELECT vence_pagado, vence FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw'
+                         . tienda_vigentes($conn) . ' ORDER BY vence DESC LIMIT 1');
     $st->execute([':c' => $compra['id'], ':hw' => $compra['hardware_id']]);
     $pc = $st->fetch(PDO::FETCH_ASSOC);
     $hoy = dash_hoy_mx();
     if (!$pc || strcmp($pc['vence'], $hoy) < 0) return null;
     $meta = tienda_min_fecha($pc['vence'], tienda_sumar_dias($hoy, TIENDA_CELULAR_DIAS));
-    $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw');
+    $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw' . tienda_vigentes($conn));
     $st->execute([':c' => $compra['id'], ':hw' => $cel['hardware_id']]);
     $tiene = $st->fetchColumn() ?: null;
     if ($tiene !== null && (strcmp($tiene, $meta) >= 0
@@ -648,10 +820,7 @@ function tienda_celular_al_dia(PDO $conn, array $cfg, array $compra) {
         return null;
     }
     $clave = tienda_firmar($cfg, 'premium', $cel['hardware_id'], $meta);
-    $conn->prepare('INSERT INTO tienda_claves (compra_id, hardware_id, tipo, vence_pagado, vence, clave, creada)
-                    VALUES (:c, :hw, :t, :p, :v, :k, NOW())')
-         ->execute([':c' => $compra['id'], ':hw' => $cel['hardware_id'], ':t' => 'premium',
-                    ':p' => tienda_min_fecha($pc['vence_pagado'], $meta), ':v' => $meta, ':k' => $clave]);
+    tienda_guardar_clave($conn, $compra['id'], $cel['hardware_id'], 'premium', tienda_min_fecha($pc['vence_pagado'], $meta), $meta, $clave);
     return $clave;
 }
 
@@ -689,12 +858,13 @@ function tienda_vincular_celular(PDO $conn, array $cfg, $codigo, $hw) {
         };
         if ($compra === null) return $no('no_existe', 'Ese código no existe. Revisa que esté completo (AP-XXXX-XXXX-XXXX).');
         if ($compra['estado'] === 'pendiente') return $no('pendiente', 'Ese pago todavía no se confirma. Si pagaste en OXXO, puede tardar unas horas.');
+        if ($anulada = tienda_compra_anulada($conn, $compra)) return $no($anulada[0], $anulada[1]);
         if ($compra['estado'] !== 'pagada') return $no('no_pagada', 'Ese pago no se completó (la ficha de OXXO venció).');
         if (!$compra['hardware_id']) {
             return $no('sin_pc', 'Primero activa ese Premium en tu computadora (Configuración > Premium) y después vincula el celular.');
         }
         $hoy = dash_hoy_mx();
-        $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw');
+        $st = $conn->prepare('SELECT MAX(vence) FROM tienda_claves WHERE compra_id = :c AND hardware_id = :hw' . tienda_vigentes($conn));
         $st->execute([':c' => $compra['id'], ':hw' => $compra['hardware_id']]);
         $vence = $st->fetchColumn() ?: null;
         if ($vence === null || strcmp($vence, $hoy) < 0) {
