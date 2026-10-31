@@ -1,10 +1,28 @@
 {
-"version": "3.9.0",
+"version": "3.10.0",
 "downloadUrl": "https://www.antiparticula.com/downloads/Instalador_Antiparticula_Punto_Venta.exe",
-"changelog": "Nueva imagen y devoluciones más completas",
+"changelog": "Cobro más rápido y un programa más simple",
 "mandatory": false,
 
   "historial": [
+  {
+  "version": "3.10.0",
+  "fecha": "2026-10-31",
+  "titulo": "Cobro más rápido y un programa más simple",
+  "cambios": [
+    "Cobrar es más rápido: escribe lo que te dio el cliente y pulsa Enter. Si pagó justo, deja el campo vacío y pulsa Enter. También hay botones con los billetes más comunes ($100, $200, $500…) para no teclear.",
+    "En Configuración › Cobro eliges si «Cobrar» imprime el ticket. Si no tienes impresora, desmarca la casilla y cobra con un solo clic; mandar el ticket por WhatsApp sigue a un clic.",
+    "Efectivo, tarjeta y transferencia están siempre a la vista; el pago mixto y «A cuenta de un cliente» están en «Otras…». La ventana de cobro ahora crece y se encoge sola, sin cortarse.",
+    "En la pantalla de ventas el descuento aparece cuando lo necesitas («Aplicar descuento»), y las pestañas de tickets solo se ven cuando tienes más de uno abierto.",
+    "Menú más ordenado: Nueva venta, Historial de ventas e Inventario en Caja; Clientes y crédito, Apartados y Presupuestos en su propia sección, cada uno con su ícono. «Cortes de caja» ahora está dentro de Control de dinero.",
+    "Los productos con stock bajo ya no salen en un letrero cada vez que entras: verás un número junto a Inventario en el menú. «Clientes y crédito» muestra una etiqueta «Premium» si tu plan no lo incluye.",
+    "En Apartados, las tarjetas de arriba son el filtro: haz clic en Pendientes, Liquidados, Entregados o Cancelados para ver solo esos.",
+    "Historial de ventas muestra lo importante (tickets y vendido); «Devuelto» aparece solo si hubo devoluciones. Sin Premium, el Resumen del negocio ya no ocupa media pantalla con avisos.",
+    "En Inventario, el botón «Etiquetas» (para imprimir códigos de barras) siempre está a la vista.",
+    "Si tu negocio todavía se llama «TIENDA», al entrar el programa te pregunta cómo se llama, qué ancho de papel usas y cuál es tu impresora, para que tus tickets salgan bien desde el principio.",
+    "La pantalla de inicio de sesión estrena el logo de Antipartícula."
+  ]
+  },
   {
   "version": "3.9.0",
   "fecha": "2026-10-30",
